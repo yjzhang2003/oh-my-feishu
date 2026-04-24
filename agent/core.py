@@ -115,12 +115,22 @@ class AgentCore:
     def __init__(
         self,
         api_key: Optional[str] = None,
-        model: str = "claude-sonnet-4-6",
+        base_url: Optional[str] = None,
+        model: Optional[str] = None,
         skill_registry: Optional[SkillRegistry] = None,
         hook_manager: Optional[HookManager] = None,
     ) -> None:
-        self.client = Anthropic(api_key=api_key or os.environ.get("ANTHROPIC_API_KEY"))
-        self.model = model
+        kwargs = {}
+        _api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
+        if _api_key:
+            kwargs["api_key"] = _api_key
+            
+        _base_url = base_url or os.environ.get("ANTHROPIC_BASE_URL")
+        if _base_url:
+            kwargs["base_url"] = _base_url
+            
+        self.client = Anthropic(**kwargs)
+        self.model = model or os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6")
         self.skill_registry = skill_registry or SkillRegistry()
         self.hook_manager = hook_manager or HookManager()
         self._tools: List[Dict[str, Any]] = []

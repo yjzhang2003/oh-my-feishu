@@ -64,6 +64,8 @@ pip install -e ".[dev]"
 ```bash
 # Anthropic
 ANTHROPIC_API_KEY=your_key
+ANTHROPIC_BASE_URL=https://api.anthropic.com  # 可选，中转代理地址
+ANTHROPIC_MODEL=claude-3-5-sonnet-20241022    # 可选，模型名称
 
 # 飞书
 FEISHU_APP_ID=your_app_id
