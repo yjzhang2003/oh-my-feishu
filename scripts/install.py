@@ -284,7 +284,112 @@ def qr_register_feishu(*, domain: str = "feishu", timeout_seconds: int = 300) ->
         return None
 
 
-def generate_env(target: Path, feishu_creds: dict | None = None) -> None:
+# ---------------------------------------------------------------------------
+# GitHub Authentication (via gh CLI)
+# ---------------------------------------------------------------------------
+
+
+def check_gh_cli() -> bool:
+    """Check if GitHub CLI is installed."""
+    result = run(["gh", "--version"])
+    if result.returncode == 0:
+        version = result.stdout.strip().split("\n")[0]
+        print(f"✅ GitHub CLI found: {version}")
+        return True
+    print("❌ GitHub CLI not found.")
+    print("   Install: https://cli.github.com/")
+    print("   Or run:  brew install gh")
+    return False
+
+
+def check_gh_auth() -> bool:
+    """Check if GitHub CLI is authenticated."""
+    result = run(["gh", "auth", "status"])
+    if result.returncode == 0:
+        # Extract username from status output
+        for line in result.stdout.split("\n"):
+            if "Logged in to github.com as" in line:
+                username = line.split(" as ")[1].split(" ")[0]
+                print(f"✅ GitHub authenticated as: {username}")
+                return True
+    return False
+
+
+def get_gh_token() -> str | None:
+    """Get GitHub token from gh CLI."""
+    result = run(["gh", "auth", "token"])
+    if result.returncode == 0:
+        return result.stdout.strip()
+    return None
+
+
+def get_git_remote_info(target: Path) -> dict | None:
+    """Get owner/repo from git remote origin URL."""
+    result = run(["git", "remote", "get-url", "origin"], cwd=str(target))
+    if result.returncode != 0:
+        return None
+
+    url = result.stdout.strip()
+    # Parse GitHub URL: https://github.com/owner/repo.git or git@github.com:owner/repo.git
+    if "github.com" in url:
+        parts = url.replace(".git", "").replace(":", "/").split("/")
+        if len(parts) >= 2:
+            return {
+                "owner": parts[-2],
+                "repo": parts[-1],
+            }
+    return None
+
+
+def setup_github_auth(target: Path) -> dict | None:
+    """Setup GitHub authentication and return credentials."""
+    print("\n🔐 GitHub Authentication")
+    print("-" * 40)
+
+    # Check gh CLI
+    if not check_gh_cli():
+        if not prompt_bool("Continue without GitHub CLI?", default=False):
+            return None
+        return {"token": "", "owner": "", "repo": ""}
+
+    # Check if already authenticated
+    if check_gh_auth():
+        token = get_gh_token()
+        remote_info = get_git_remote_info(target)
+
+        if token and remote_info:
+            print(f"   Using repo: {remote_info['owner']}/{remote_info['repo']}")
+            return {
+                "token": token,
+                "owner": remote_info["owner"],
+                "repo": remote_info["repo"],
+            }
+        elif token:
+            return {"token": token, "owner": "", "repo": ""}
+    else:
+        print("   GitHub CLI is not authenticated.")
+        if prompt_bool("Run 'gh auth login' now? (Recommended)", default=True):
+            print("\n   Starting GitHub OAuth flow...")
+            print("   Follow the prompts in your browser.\n")
+            result = run(["gh", "auth", "login", "--git-protocol", "https", "--web"])
+            if result.returncode == 0:
+                print("\n✅ GitHub authentication successful!")
+                token = get_gh_token()
+                remote_info = get_git_remote_info(target)
+                return {
+                    "token": token or "",
+                    "owner": remote_info.get("owner", "") if remote_info else "",
+                    "repo": remote_info.get("repo", "") if remote_info else "",
+                }
+            else:
+                print("❌ GitHub authentication failed.")
+                if result.stderr:
+                    print(f"   Error: {result.stderr.strip()}")
+
+    return {"token": "", "owner": "", "repo": ""}
+
+
+def generate_env(target: Path, feishu_creds: dict | None = None, github_creds: dict | None = None) -> None:
     env_path = target / ".env"
     if env_path.exists() and not prompt_bool(f".env already exists at {env_path}. Regenerate?", default=False):
         print("   Skipping .env generation.")
@@ -304,9 +409,22 @@ def generate_env(target: Path, feishu_creds: dict | None = None) -> None:
     feishu_encrypt_key = prompt("Feishu Encrypt Key (optional)")
     feishu_verification_token = prompt("Feishu Verification Token (optional)")
     monitor_api_key = prompt("Monitor API Key (optional but recommended)")
-    github_token = prompt("GitHub Token")
-    github_owner = prompt("GitHub Repo Owner")
-    github_repo = prompt("GitHub Repo Name")
+
+    # GitHub credentials
+    if github_creds and github_creds.get("token"):
+        github_token = github_creds["token"]
+        github_owner = github_creds.get("owner", "")
+        github_repo = github_creds.get("repo", "")
+        if github_owner and github_repo:
+            print(f"   Using GitHub repo: {github_owner}/{github_repo}")
+        else:
+            github_owner = prompt("GitHub Repo Owner", github_owner)
+            github_repo = prompt("GitHub Repo Name", github_repo)
+    else:
+        github_token = prompt("GitHub Token (optional if using gh CLI)")
+        github_owner = prompt("GitHub Repo Owner")
+        github_repo = prompt("GitHub Repo Name")
+
     repo_root = prompt("REPO_ROOT (absolute path to target repo)", default=str(target.resolve()))
 
     lines = [
@@ -430,14 +548,20 @@ def run_setup(target: Path | None = None) -> int:
         else:
             print("\n📝 Enter your existing Feishu bot credentials manually.")
 
-    # 5. Generate .env
-    generate_env(target, feishu_creds=feishu_creds)
+    # 5. GitHub authentication
+    print("")
+    github_creds = None
+    if prompt_bool("\n🔐 Set up GitHub authentication now? (Recommended)", default=True):
+        github_creds = setup_github_auth(target)
 
-    # 6. Install plugins (ECC)
+    # 6. Generate .env
+    generate_env(target, feishu_creds=feishu_creds, github_creds=github_creds)
+
+    # 7. Install plugins (ECC)
     print("")
     check_and_install_plugins()
 
-    # 7. Verify
+    # 8. Verify
     print("")
     if (target / "tests").exists():
         run_tests(target)
