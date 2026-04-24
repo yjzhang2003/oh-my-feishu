@@ -19,6 +19,9 @@ dependencies = [
     "flask>=3.0.0",
 ]
 
+[project.scripts]
+feishu-agent = "scripts.install:main"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8.3.0",

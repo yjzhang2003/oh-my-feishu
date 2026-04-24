@@ -108,9 +108,32 @@ feishu-agent/
 pip install -e ".[dev]"
 ```
 
-### 2. 配置环境
+### 2. 一键配置（推荐）
 
-#### Claude Code 配置（必需）
+运行交互式安装脚本，自动检查 Claude CLI、部署 Skills、生成 `.env`：
+
+```bash
+python scripts/install.py
+```
+
+或从 npm 入口调用：
+
+```bash
+npm run setup
+```
+
+脚本会引导你完成：
+1. 检查 Claude Code CLI 是否已安装
+2. 部署 `.claude/skills/` 和 `.claude/settings.json`
+3. 交互式填写飞书 / GitHub / Agent 环境变量，生成 `.env`
+4. 检查 ECC (oh-my-claudecode) 插件
+5. 运行单元测试验证
+
+### 3. 手动配置（备选）
+
+如果你不想用安装脚本，可以手动配置：
+
+#### Claude Code 配置
 
 Claude Code CLI 优先读取项目级 `.claude/settings.json`：
 
@@ -146,15 +169,15 @@ GITHUB_REPO_NAME=your_repo
 REPO_ROOT=/absolute/path/to/repo
 ```
 
-### 3. 运行测试
+### 4. 运行测试
 
 ```bash
 pytest tests/ -v --cov=agent --cov=gateway --cov=repair --cov=skills --cov=hooks --cov=monitor
 ```
 
-当前覆盖率：**86%**（68 个测试）
+当前覆盖率：**86%**（87 个测试）
 
-### 4. 启动 Gateway
+### 5. 启动 Gateway
 
 ```bash
 # 开发模式
@@ -164,7 +187,7 @@ fastapi dev gateway/webhook_server.py
 uvicorn gateway.webhook_server:app --host 0.0.0.0 --port 8000
 ```
 
-### 5. 触发自动修复
+### 6. 触发自动修复
 
 **方式一：飞书命令**
 
@@ -191,7 +214,7 @@ echo '{"context":"fix bug","error_log":"","source":"manual"}' > .claude/triggers
 claude --skill auto-repair
 ```
 
-### 6. 启动演示服务（可选）
+### 7. 启动演示服务（可选）
 
 ```bash
 python demo/web_service/app.py

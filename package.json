@@ -1,0 +1,26 @@
+{
+  "name": "feishu-agent-cli",
+  "version": "0.1.0",
+  "description": "Setup CLI for Feishu Agent — autonomous repair bot with Claude Code Skills",
+  "scripts": {
+    "setup": "python3 scripts/install.py",
+    "test": "python3 -m pytest tests/ -q",
+    "lint": "python3 -m ruff check .",
+    "format": "python3 -m ruff format ."
+  },
+  "bin": {
+    "feishu-agent-setup": "scripts/install.py"
+  },
+  "keywords": [
+    "feishu",
+    "lark",
+    "claude-code",
+    "agent",
+    "auto-repair",
+    "sre"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
