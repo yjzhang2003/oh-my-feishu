@@ -108,17 +108,34 @@ feishu-agent/
 pip install -e ".[dev]"
 ```
 
-### 2. 配置环境变量
+### 2. 配置环境
+
+#### Claude Code 配置（必需）
+
+Claude Code CLI 优先读取项目级 `.claude/settings.json`：
+
+```json
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://api.anthropic.com",
+    "ANTHROPIC_MODEL": "claude-sonnet-4-6"
+  }
+}
+```
+
+敏感的 API Key（`ANTHROPIC_API_KEY` 或 `ANTHROPIC_AUTH_TOKEN`）建议放在全局配置 `~/.claude/settings.json` 中，避免泄露。
+
+#### 项目环境变量
 
 复制 `.env.example` 为 `.env` 并填写：
 
 ```bash
-# Claude Code（Skill 执行时需要）
-ANTHROPIC_API_KEY=your_key
-
 # 飞书
 FEISHU_APP_ID=your_app_id
 FEISHU_APP_SECRET=your_app_secret
+
+# Monitor webhook 保护（生产环境建议启用）
+MONITOR_API_KEY=your_random_api_key
 
 # GitHub
 GITHUB_TOKEN=ghp_your_token
