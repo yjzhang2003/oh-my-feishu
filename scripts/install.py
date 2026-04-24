@@ -370,8 +370,11 @@ def setup_github_auth(target: Path) -> dict | None:
         print("   GitHub CLI is not authenticated.")
         if prompt_bool("Run 'gh auth login' now? (Recommended)", default=True):
             print("\n   Starting GitHub OAuth flow...")
-            print("   Follow the prompts in your browser.\n")
-            result = run(["gh", "auth", "login", "--git-protocol", "https", "--web"])
+            print("   A browser window will open, or copy the URL from below.\n")
+            # Run interactively - don't capture output so user sees the URL
+            result = subprocess.run(
+                ["gh", "auth", "login", "--git-protocol", "https", "--web"],
+            )
             if result.returncode == 0:
                 print("\n✅ GitHub authentication successful!")
                 token = get_gh_token()
