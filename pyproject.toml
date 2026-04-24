@@ -18,7 +18,8 @@ dependencies = [
     "uvicorn>=0.32.0",
     "flask>=3.0.0",
     "qrcode>=7.4.0",
-    "textual>=0.47.0",
+    "prompt_toolkit>=3.0.0",
+    "rich>=13.0.0",
 ]
 
 [project.scripts]
