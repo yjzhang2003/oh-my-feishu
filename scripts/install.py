@@ -579,23 +579,12 @@ def run_setup(target: Path | None = None) -> int:
     return 0
 
 
-def is_setup_complete(target: Path) -> bool:
-    """Check if setup has been completed (env file exists)."""
-    return (target / ".env").exists()
-
-
 def main() -> int:
     import argparse
 
     parser = argparse.ArgumentParser(
         prog="feishu-agent",
         description="Feishu Agent - Autonomous service repair with Claude Code",
-    )
-    parser.add_argument(
-        "command",
-        nargs="?",
-        choices=["setup", "help"],
-        help="Command to run: 'setup' to reconfigure, 'help' for usage",
     )
     parser.add_argument(
         "--target",
@@ -605,21 +594,8 @@ def main() -> int:
 
     args = parser.parse_args()
 
-    # Handle explicit commands
-    if args.command == "help":
-        parser.print_help()
-        return 0
-
-    if args.command == "setup":
-        return run_setup(target=args.target)
-
-    # No command specified - check if setup needed
+    # Always enter interactive CLI
     target = args.target or Path.cwd()
-    if not is_setup_complete(target):
-        print("⚠️  Feishu Agent not configured. Starting setup...\n")
-        return run_setup(target=target)
-
-    # Already set up - enter interactive CLI
     try:
         from cli.app import run_cli as _run_cli
         _run_cli(target)
