@@ -50,3 +50,7 @@ htmlcov/
 # OS
 .DS_Store
 Thumbs.db
+
+# Claude / OMC internals
+.claude/
+.omc/

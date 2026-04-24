@@ -1,7 +1,0 @@
-{
-  "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"pytest tests/ -v --cov=agent --cov=gateway --cov=repair --cov=skills --cov=hooks --cov=monitor --cov-report=term-missing\",\"description\":\"Re-run all tests with coverage\"}",
-  "error": "Exit code 1\n============================= test session starts ==============================\nplatform darwin -- Python 3.13.5, pytest-8.0.2, pluggy-1.5.0 -- /opt/anaconda3/bin/python3.13\ncachedir: .pytest_cache\nrootdir: /Users/chihayaanon/IdeaProjects/feishu-agent\nconfigfile: pyproject.toml\nplugins: langsmith-0.6.4, cov-7.1.0, anyio-4.13.0\ncollecting ... collected 62 items\n\ntests/integration/test_end_to_end.py::test_pipeline_instantiation PASSED [  1%]\ntests/integration/test_end_to_end.py::test_...",
-  "timestamp": "2026-04-24T10:15:17.346Z",
-  "retry_count": 2
-}
