@@ -42,9 +42,12 @@ class TestFeishuBot:
         reply = bot.dispatch("command", "u1", "/foobar")
         assert "Unknown" in reply
 
-    def test_dispatch_message_to_agent(self):
-        mock_agent = MagicMock()
-        mock_agent.run_task.return_value = "Agent says hi"
-        bot = FeishuBot(agent=mock_agent)
+    def test_dispatch_non_command_echo(self):
+        bot = FeishuBot()
         reply = bot.dispatch("message", "u1", "hello")
-        assert reply == "Agent says hi"
+        assert "Echo:" in reply
+
+    def test_dispatch_repair_command(self):
+        bot = FeishuBot()
+        reply = bot.dispatch("command", "u1", "/repair")
+        assert "Repair triggered" in reply
