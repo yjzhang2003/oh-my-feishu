@@ -77,20 +77,33 @@ class TestGenerateEnv:
         assert "REPO_ROOT=" in env
 
 
-class TestCheckEccPlugin:
+class TestCheckAndInstallPlugins:
     @patch("install.CLAUdecode_PLUGINS_JSON")
-    def test_plugin_found(self, mock_path):
+    @patch("install.prompt_bool", return_value=False)
+    def test_plugin_found(self, mock_prompt, mock_path):
         mock_path.exists.return_value = True
-        mock_path.read_text.return_value = '{"plugins": {"oh-my-claudecode@omc": []}}'
-        assert install.check_ecc_plugin() is True
+        mock_path.read_text.return_value = '{"plugins": {"everything-claude-code@everything-claude-code": []}}'
+        assert install.check_and_install_plugins() is True
 
     @patch("install.CLAUdecode_PLUGINS_JSON")
-    def test_plugin_missing(self, mock_path):
+    @patch("install.prompt_bool", return_value=False)
+    def test_plugin_missing_skip(self, mock_prompt, mock_path):
         mock_path.exists.return_value = True
         mock_path.read_text.return_value = '{"plugins": {}}'
-        assert install.check_ecc_plugin() is False
+        assert install.check_and_install_plugins() is False
+
+    @patch("install.CLAUdecode_PLUGINS_JSON")
+    @patch("install.prompt_bool", return_value=True)
+    @patch("install.run")
+    def test_plugin_install_success(self, mock_run, mock_prompt, mock_path):
+        mock_path.exists.return_value = True
+        mock_path.read_text.return_value = '{"plugins": {}}'
+        mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+        assert install.check_and_install_plugins() is True
 
     @patch("install.CLAUdecode_PLUGINS_JSON")
     def test_registry_missing(self, mock_path):
         mock_path.exists.return_value = False
-        assert install.check_ecc_plugin() is False
+        # Should still try to install
+        with patch("install.prompt_bool", return_value=False):
+            assert install.check_and_install_plugins() is False

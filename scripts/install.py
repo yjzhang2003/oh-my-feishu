@@ -138,26 +138,46 @@ def generate_env(target: Path) -> None:
     print(f"✅ .env generated at {env_path}")
 
 
-def check_ecc_plugin() -> bool:
-    if not CLAUdecode_PLUGINS_JSON.exists():
-        print("⚠️  Claude plugins registry not found. Skipping ECC check.")
-        return False
+def check_and_install_plugins() -> bool:
+    """Check and install required Claude Code plugins."""
+    plugins_to_install = [
+        ("everything-claude-code@everything-claude-code", "ECC (Everything Claude Code)"),
+    ]
 
-    try:
-        data = json.loads(CLAUdecode_PLUGINS_JSON.read_text(encoding="utf-8"))
-        plugins = data.get("plugins", {})
-        if "oh-my-claudecode@omc" in plugins:
-            print("✅ ECC plugin (oh-my-claudecode) already installed.")
-            return True
-    except (json.JSONDecodeError, KeyError):
-        pass
+    installed = []
 
-    print("⚠️  ECC plugin (oh-my-claudecode) not detected.")
-    print("   Install it with:")
-    print("       claude plugins add oh-my-claudecode@omc")
-    print("   Or:")
-    print("       npm install -g omc")
-    return False
+    for plugin_id, plugin_name in plugins_to_install:
+        print(f"\n📦 Checking {plugin_name}...")
+
+        # Check if already installed
+        if CLAUdecode_PLUGINS_JSON.exists():
+            try:
+                data = json.loads(CLAUdecode_PLUGINS_JSON.read_text(encoding="utf-8"))
+                plugins = data.get("plugins", {})
+                if plugin_id in plugins:
+                    print(f"✅ {plugin_name} already installed.")
+                    installed.append(plugin_id)
+                    continue
+            except (json.JSONDecodeError, KeyError):
+                pass
+
+        # Try to install
+        if prompt_bool(f"Install {plugin_name} ({plugin_id})?", default=True):
+            print(f"   Installing {plugin_id}...")
+            result = run(["claude", "plugins", "install", plugin_id])
+            if result.returncode == 0:
+                print(f"✅ {plugin_name} installed successfully.")
+                installed.append(plugin_id)
+            else:
+                print(f"❌ Failed to install {plugin_name}.")
+                if result.stderr:
+                    print(f"   Error: {result.stderr.strip()}")
+                print(f"   You can install manually with: claude plugins install {plugin_id}")
+        else:
+            print(f"   Skipping {plugin_name}. Install manually with:")
+            print(f"       claude plugins install {plugin_id}")
+
+    return len(installed) == len(plugins_to_install)
 
 
 def run_tests(target: Path) -> bool:
@@ -199,9 +219,9 @@ def main() -> int:
     # 4. Generate .env
     generate_env(target)
 
-    # 5. Check ECC
+    # 5. Install plugins (ECC)
     print("")
-    check_ecc_plugin()
+    check_and_install_plugins()
 
     # 6. Verify
     print("")
