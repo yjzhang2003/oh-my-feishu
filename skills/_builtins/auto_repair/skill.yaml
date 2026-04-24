@@ -1,6 +1,0 @@
-name: auto_repair
-description: Automatically repair code bugs detected in monitoring.
-entrypoint: repair.py
-config:
-  max_diff_files: 10
-  max_diff_lines: 500

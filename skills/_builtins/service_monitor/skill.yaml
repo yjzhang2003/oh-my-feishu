@@ -1,6 +1,0 @@
-name: service_monitor
-description: Monitor web service health, logs, and GitHub issues.
-entrypoint: monitor.py
-config:
-  health_check_interval: 60
-  log_tail_lines: 100

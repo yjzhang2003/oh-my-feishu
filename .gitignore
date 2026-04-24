@@ -1,56 +1,36 @@
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
+# Dependencies
+node_modules/
+
+# Build output
 dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
 
-# Virtual environments
-venv/
-ENV/
-env/
-.venv
+# Environment files
+.env
+.env.local
+.env.*.local
 
-# IDEs
+# IDE
 .idea/
 .vscode/
 *.swp
 *.swo
 *~
 
-# Testing
-.coverage
-htmlcov/
-.tox/
-.nox/
-
-# Environment
-.env
-.env.local
-
-# Logs
-*.log
-
 # OS
 .DS_Store
 Thumbs.db
 
-# Claude / OMC internals
-.claude/
-.omc/
+# Logs
+*.log
+npm-debug.log*
+
+# Test coverage
+coverage/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Claude / OMC internals (keep skills)
+.claude/triggers/
+.claude/settings.json
+.omc/state/

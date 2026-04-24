@@ -1,0 +1,452 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1777030806737,
+  "projectRoot": "/Users/chihayaanon/IdeaProjects/feishu-agent",
+  "techStack": {
+    "languages": [
+      {
+        "name": "Python",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "pyproject.toml"
+        ]
+      }
+    ],
+    "frameworks": [
+      {
+        "name": "fastapi",
+        "version": null,
+        "category": "backend"
+      },
+      {
+        "name": "flask",
+        "version": null,
+        "category": "backend"
+      },
+      {
+        "name": "pytest",
+        "version": null,
+        "category": "testing"
+      }
+    ],
+    "packageManager": null,
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": "pytest",
+    "lintCommand": "ruff check",
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "tests"
+    ],
+    "gitBranches": {
+      "defaultBranch": "main",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "agent": {
+      "path": "agent",
+      "purpose": null,
+      "fileCount": 2,
+      "lastAccessed": 1777030806726,
+      "keyFiles": [
+        "__init__.py",
+        "core.py"
+      ]
+    },
+    "demo": {
+      "path": "demo",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1777030806727,
+      "keyFiles": [
+        "__init__.py"
+      ]
+    },
+    "gateway": {
+      "path": "gateway",
+      "purpose": null,
+      "fileCount": 5,
+      "lastAccessed": 1777030806727,
+      "keyFiles": [
+        "__init__.py",
+        "bot.py",
+        "card_builder.py",
+        "trigger.py",
+        "webhook_server.py"
+      ]
+    },
+    "hooks": {
+      "path": "hooks",
+      "purpose": null,
+      "fileCount": 3,
+      "lastAccessed": 1777030806727,
+      "keyFiles": [
+        "__init__.py",
+        "built_in.py",
+        "manager.py"
+      ]
+    },
+    "monitor": {
+      "path": "monitor",
+      "purpose": null,
+      "fileCount": 4,
+      "lastAccessed": 1777030806727,
+      "keyFiles": [
+        "__init__.py",
+        "health_checker.py",
+        "issue_poller.py",
+        "log_watcher.py"
+      ]
+    },
+    "repair": {
+      "path": "repair",
+      "purpose": null,
+      "fileCount": 4,
+      "lastAccessed": 1777030806727,
+      "keyFiles": [
+        "__init__.py",
+        "flow.py",
+        "github_client.py",
+        "safety.py"
+      ]
+    },
+    "skills": {
+      "path": "skills",
+      "purpose": null,
+      "fileCount": 2,
+      "lastAccessed": 1777030806728,
+      "keyFiles": [
+        "__init__.py",
+        "registry.py"
+      ]
+    },
+    "tests": {
+      "path": "tests",
+      "purpose": "Test files",
+      "fileCount": 1,
+      "lastAccessed": 1777030806728,
+      "keyFiles": [
+        "__init__.py"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "scripts/install.py",
+      "accessCount": 34,
+      "lastAccessed": 1777047746972,
+      "type": "file"
+    },
+    {
+      "path": "README.md",
+      "accessCount": 14,
+      "lastAccessed": 1777047711601,
+      "type": "file"
+    },
+    {
+      "path": "cli/app.py",
+      "accessCount": 13,
+      "lastAccessed": 1777047711695,
+      "type": "file"
+    },
+    {
+      "path": "pyproject.toml",
+      "accessCount": 12,
+      "lastAccessed": 1777047711676,
+      "type": "file"
+    },
+    {
+      "path": "gateway/trigger.py",
+      "accessCount": 8,
+      "lastAccessed": 1777047717736,
+      "type": "file"
+    },
+    {
+      "path": "gateway/webhook_server.py",
+      "accessCount": 6,
+      "lastAccessed": 1777047717807,
+      "type": "file"
+    },
+    {
+      "path": "tests/unit/test_webhook_server.py",
+      "accessCount": 5,
+      "lastAccessed": 1777047768250,
+      "type": "file"
+    },
+    {
+      "path": ".claude/settings.json",
+      "accessCount": 4,
+      "lastAccessed": 1777047746999,
+      "type": "file"
+    },
+    {
+      "path": "tests/unit/test_gateway.py",
+      "accessCount": 4,
+      "lastAccessed": 1777047768161,
+      "type": "file"
+    },
+    {
+      "path": "tests/unit/test_trigger.py",
+      "accessCount": 4,
+      "lastAccessed": 1777047768220,
+      "type": "file"
+    },
+    {
+      "path": "tests/unit/test_install.py",
+      "accessCount": 3,
+      "lastAccessed": 1777036300580,
+      "type": "file"
+    },
+    {
+      "path": "cli/screens/dashboard.py",
+      "accessCount": 3,
+      "lastAccessed": 1777044450967,
+      "type": "file"
+    },
+    {
+      "path": ".env.example",
+      "accessCount": 3,
+      "lastAccessed": 1777047711509,
+      "type": "file"
+    },
+    {
+      "path": "gateway/bot.py",
+      "accessCount": 3,
+      "lastAccessed": 1777047717709,
+      "type": "file"
+    },
+    {
+      "path": "package.json",
+      "accessCount": 3,
+      "lastAccessed": 1777048120049,
+      "type": "file"
+    },
+    {
+      "path": "cli/actions.py",
+      "accessCount": 2,
+      "lastAccessed": 1777047711748,
+      "type": "file"
+    },
+    {
+      "path": "agent/core.py",
+      "accessCount": 2,
+      "lastAccessed": 1777047717607,
+      "type": "file"
+    },
+    {
+      "path": "cli/status.py",
+      "accessCount": 2,
+      "lastAccessed": 1777047746843,
+      "type": "file"
+    },
+    {
+      "path": ".claude/skills/auto-repair/SKILL.md",
+      "accessCount": 2,
+      "lastAccessed": 1777047762319,
+      "type": "file"
+    },
+    {
+      "path": ".claude/skills/analyze-log/SKILL.md",
+      "accessCount": 2,
+      "lastAccessed": 1777047762442,
+      "type": "file"
+    },
+    {
+      "path": "cli/widgets/status_card.py",
+      "accessCount": 1,
+      "lastAccessed": 1777043386605,
+      "type": "file"
+    },
+    {
+      "path": "cli/screens/claude_setup.py",
+      "accessCount": 1,
+      "lastAccessed": 1777043455245,
+      "type": "file"
+    },
+    {
+      "path": "cli/screens/feishu_setup.py",
+      "accessCount": 1,
+      "lastAccessed": 1777043478042,
+      "type": "file"
+    },
+    {
+      "path": "cli/screens/github_setup.py",
+      "accessCount": 1,
+      "lastAccessed": 1777043499273,
+      "type": "file"
+    },
+    {
+      "path": "cli/screens/ecc_setup.py",
+      "accessCount": 1,
+      "lastAccessed": 1777043521526,
+      "type": "file"
+    },
+    {
+      "path": "monitor/issue_poller.py",
+      "accessCount": 1,
+      "lastAccessed": 1777047725596,
+      "type": "file"
+    },
+    {
+      "path": "repair/safety.py",
+      "accessCount": 1,
+      "lastAccessed": 1777047725758,
+      "type": "file"
+    },
+    {
+      "path": "monitor/health_checker.py",
+      "accessCount": 1,
+      "lastAccessed": 1777047725819,
+      "type": "file"
+    },
+    {
+      "path": "repair/github_client.py",
+      "accessCount": 1,
+      "lastAccessed": 1777047725881,
+      "type": "file"
+    },
+    {
+      "path": "repair/flow.py",
+      "accessCount": 1,
+      "lastAccessed": 1777047725913,
+      "type": "file"
+    },
+    {
+      "path": "monitor/log_watcher.py",
+      "accessCount": 1,
+      "lastAccessed": 1777047725927,
+      "type": "file"
+    },
+    {
+      "path": "agent/tools/__init__.py",
+      "accessCount": 1,
+      "lastAccessed": 1777047732005,
+      "type": "file"
+    },
+    {
+      "path": "hooks/manager.py",
+      "accessCount": 1,
+      "lastAccessed": 1777047732200,
+      "type": "file"
+    },
+    {
+      "path": "hooks/built_in.py",
+      "accessCount": 1,
+      "lastAccessed": 1777047732235,
+      "type": "file"
+    },
+    {
+      "path": "skills/registry.py",
+      "accessCount": 1,
+      "lastAccessed": 1777047732256,
+      "type": "file"
+    },
+    {
+      "path": "agent/tools/git_commit.py",
+      "accessCount": 1,
+      "lastAccessed": 1777047732288,
+      "type": "file"
+    },
+    {
+      "path": "agent/tools/run_test.py",
+      "accessCount": 1,
+      "lastAccessed": 1777047732308,
+      "type": "file"
+    },
+    {
+      "path": "skills/_builtins/auto_repair/skill.yaml",
+      "accessCount": 1,
+      "lastAccessed": 1777047739999,
+      "type": "file"
+    },
+    {
+      "path": "agent/tools/read_log.py",
+      "accessCount": 1,
+      "lastAccessed": 1777047740085,
+      "type": "file"
+    },
+    {
+      "path": "agent/tools/read_code.py",
+      "accessCount": 1,
+      "lastAccessed": 1777047740136,
+      "type": "file"
+    },
+    {
+      "path": "skills/_builtins/auto_repair/repair.py",
+      "accessCount": 1,
+      "lastAccessed": 1777047740187,
+      "type": "file"
+    },
+    {
+      "path": "skills/_builtins/service_monitor/monitor.py",
+      "accessCount": 1,
+      "lastAccessed": 1777047740226,
+      "type": "file"
+    },
+    {
+      "path": "skills/_builtins/service_monitor/skill.yaml",
+      "accessCount": 1,
+      "lastAccessed": 1777047740246,
+      "type": "file"
+    },
+    {
+      "path": "agent/tools/send_feishu_card.py",
+      "accessCount": 1,
+      "lastAccessed": 1777047740298,
+      "type": "file"
+    },
+    {
+      "path": "demo/web_service/app.py",
+      "accessCount": 1,
+      "lastAccessed": 1777047746908,
+      "type": "file"
+    },
+    {
+      "path": ".claude/skills/safety-check/SKILL.md",
+      "accessCount": 1,
+      "lastAccessed": 1777047762376,
+      "type": "file"
+    },
+    {
+      "path": ".claude/skills/notify-feishu/SKILL.md",
+      "accessCount": 1,
+      "lastAccessed": 1777047762400,
+      "type": "file"
+    },
+    {
+      "path": "assets/claude/settings.json.tmpl",
+      "accessCount": 1,
+      "lastAccessed": 1777047762492,
+      "type": "file"
+    },
+    {
+      "path": "tsconfig.json",
+      "accessCount": 1,
+      "lastAccessed": 1777048129364,
+      "type": "file"
+    },
+    {
+      "path": "src/config/env.ts",
+      "accessCount": 1,
+      "lastAccessed": 1777048143393,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}
