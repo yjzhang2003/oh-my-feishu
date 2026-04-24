@@ -1,0 +1,10 @@
+{
+  "active": true,
+  "started_at": "2026-04-24T09:46:59.554Z",
+  "original_prompt": "/autopilot 执行此计划，记得及时commit，不要积压过多代码，commit前记得code review",
+  "session_id": "d08d9e19-b4f7-4258-bbe8-f1332fc85c74",
+  "project_path": "/Users/chihayaanon/IdeaProjects/feishu-agent",
+  "reinforcement_count": 0,
+  "awaiting_confirmation": true,
+  "last_checked_at": "2026-04-24T09:46:59.554Z"
+}

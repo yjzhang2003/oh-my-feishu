@@ -1,4 +1,5 @@
 import logging
+import subprocess
 from typing import Any, Dict, List
 
 from skills.registry import Skill
@@ -58,8 +59,6 @@ class AutoRepairSkill(Skill):
         logger.info("AutoRepairSkill unloaded")
 
     def run_tests(self, target: str = ".") -> Dict[str, Any]:
-        import subprocess
-
         try:
             result = subprocess.run(
                 ["pytest", target, "-v", "--tb=short"],

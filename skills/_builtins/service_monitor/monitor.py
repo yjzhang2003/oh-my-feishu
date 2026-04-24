@@ -1,6 +1,8 @@
 import logging
 from typing import Any, Dict, List, Optional
 
+import httpx
+
 from skills.registry import Skill
 
 logger = logging.getLogger(__name__)
@@ -59,8 +61,6 @@ class ServiceMonitorSkill(Skill):
         logger.info("ServiceMonitorSkill unloaded")
 
     def check_health(self, url: str) -> Dict[str, Any]:
-        import httpx
-
         try:
             resp = httpx.get(url, timeout=10.0)
             return {"status_code": resp.status_code, "healthy": resp.status_code < 400}
