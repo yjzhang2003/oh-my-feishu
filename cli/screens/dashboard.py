@@ -36,8 +36,7 @@ class DashboardScreen(Screen):
         layout: grid;
         grid-size: 2;
         grid-columns: 1fr 1fr;
-        column-gap: 2;
-        row-gap: 1;
+        grid-gutter: 1;
     }
 
     .footer-actions {

@@ -22,12 +22,12 @@ class FeishuAgentApp(App):
 
     Header {
         background: $primary;
-        color: $text-on-primary;
+        color: $text;
     }
 
     Footer {
         background: $primary-darken-1;
-        color: $text-on-primary;
+        color: $text;
     }
     """
 
