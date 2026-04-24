@@ -585,12 +585,23 @@ def run_cli() -> int:
     print("-" * 40)
     print("\n  Commands:")
     print("    setup    - Re-run setup wizard")
+    print("    tui      - Launch TUI dashboard")
     print("    help     - Show this help")
-    print("\n  TODO: Interactive CLI coming soon!")
-    print("  For now, use Claude Code Skills directly:")
+    print("\n  For now, use Claude Code Skills directly:")
     print("    claude --skill auto-repair")
     print("    claude --skill analyze-log")
     return 0
+
+
+def run_tui(target: Path) -> int:
+    """Launch the Textual TUI dashboard."""
+    try:
+        from cli.app import run_tui as _run_tui
+        _run_tui(target)
+        return 0
+    except ImportError:
+        print("❌ TUI requires textual. Install with: pip install textual")
+        return 1
 
 
 def is_setup_complete(target: Path) -> bool:
@@ -608,8 +619,8 @@ def main() -> int:
     parser.add_argument(
         "command",
         nargs="?",
-        choices=["setup", "help"],
-        help="Command to run: 'setup' to reconfigure, 'help' for usage",
+        choices=["setup", "tui", "help"],
+        help="Command to run: 'setup' to reconfigure, 'tui' for dashboard, 'help' for usage",
     )
     parser.add_argument(
         "--target",
@@ -626,6 +637,10 @@ def main() -> int:
 
     if args.command == "setup":
         return run_setup(target=args.target)
+
+    if args.command == "tui":
+        target = args.target or Path.cwd()
+        return run_tui(target)
 
     # No command specified - check if setup needed
     target = args.target or Path.cwd()

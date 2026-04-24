@@ -18,6 +18,7 @@ dependencies = [
     "uvicorn>=0.32.0",
     "flask>=3.0.0",
     "qrcode>=7.4.0",
+    "textual>=0.47.0",
 ]
 
 [project.scripts]
@@ -45,7 +46,7 @@ ignore = ["E501"]
 quote-style = "double"
 
 [tool.hatch.build.targets.wheel]
-packages = ["agent", "gateway", "hooks", "monitor", "repair", "skills", "scripts"]
+packages = ["agent", "gateway", "hooks", "monitor", "repair", "skills", "scripts", "cli"]
 
 [tool.mypy]
 python_version = "3.9"
