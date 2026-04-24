@@ -4,6 +4,8 @@
 Deploys .claude/ skills, hooks, settings, and generates .env for a target project.
 """
 
+from __future__ import annotations
+
 import json
 import os
 import shutil
