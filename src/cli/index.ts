@@ -24,11 +24,26 @@ const componentNames = ['Claude Code', 'Feishu', 'GitHub', 'ECC'];
 let selectedIndex = 0;
 
 function clearScreen() {
-  console.clear();
+  // Use ANSI escape codes instead of console.clear() for faster rendering
+  process.stdout.write('\x1Bc');
+}
+
+// Cache statuses to avoid running subprocesses on every keypress
+let cachedStatuses: Record<string, ComponentStatus> | null = null;
+
+function getStatuses(): Record<string, ComponentStatus> {
+  if (!cachedStatuses) {
+    cachedStatuses = getAllStatuses();
+  }
+  return cachedStatuses;
+}
+
+function refreshStatuses() {
+  cachedStatuses = getAllStatuses();
 }
 
 function renderMain() {
-  const statuses = getAllStatuses();
+  const statuses = getStatuses();
 
   clearScreen();
 
@@ -61,7 +76,7 @@ async function configureClaude() {
   const currentKey = getClaudeApiKey();
 
   if (currentKey) {
-    console.log(chalk.dim(`Status: ${getAllStatuses().claude.message}`));
+    console.log(chalk.dim(`Status: ${getStatuses().claude.message}`));
     console.log('[r] reconfigure | [x] reset | [c] cancel');
     const action = await prompt('> ');
 
@@ -91,7 +106,7 @@ async function configureClaude() {
 
 async function configureFeishu() {
   console.log();
-  const status = getAllStatuses().feishu;
+  const status = getStatuses().feishu;
 
   if (status.configured) {
     console.log(chalk.dim(`Status: ${status.message}`));
@@ -131,7 +146,7 @@ async function configureFeishu() {
 
 async function configureGitHub() {
   console.log();
-  const status = getAllStatuses().github;
+  const status = getStatuses().github;
 
   if (status.configured) {
     console.log(chalk.dim(`Status: ${status.message}`));
@@ -236,6 +251,7 @@ process.stdin.on('data', async (key: string) => {
     if (process.stdin.isTTY) {
       process.stdin.setRawMode(true);
     }
+    refreshStatuses();
     renderMain();
   }
 });
