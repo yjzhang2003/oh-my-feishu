@@ -35,7 +35,6 @@ function App() {
     setStatuses(getAllStatuses());
   }, []);
 
-  // 主界面键盘监听
   useInput((input, key) => {
     if (screen !== 'main') return;
 
@@ -52,17 +51,14 @@ function App() {
     }
   });
 
-  // 子页面配置
   const [subIndex, setSubIndex] = useState(0);
   const [inputMode, setInputMode] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState('');
   const [tempAppId, setTempAppId] = useState('');
 
-  // 子页面键盘监听
   useInput(async (input, key) => {
     if (screen === 'main' || screen === 'qr') return;
 
-    // 输入模式
     if (inputMode) {
       if (key.return) {
         if (inputMode === 'feishu-appid') {
@@ -91,7 +87,6 @@ function App() {
       return;
     }
 
-    // ESC 返回主菜单 (不刷新状态，避免卡顿)
     if (key.escape) {
       setScreen('main');
       setSelectedIndex(components.indexOf(screen));
@@ -99,7 +94,6 @@ function App() {
       return;
     }
 
-    // 列表导航
     if (key.upArrow || input === 'k') {
       const maxIndex = getMaxIndex(screen, statuses);
       setSubIndex((prev) => (prev - 1 + maxIndex) % maxIndex);
@@ -118,7 +112,6 @@ function App() {
     }
   });
 
-  // 渲染主界面
   if (screen === 'main') {
     const items = components.map((key, index) => ({
       key,
@@ -138,7 +131,6 @@ function App() {
     );
   }
 
-  // 渲染 QR 扫码页面
   if (screen === 'qr') {
     return (
       <QrScreen
@@ -155,7 +147,6 @@ function App() {
     );
   }
 
-  // 渲染子页面
   const { options, status } = getScreenConfig(screen, statuses);
 
   return (
