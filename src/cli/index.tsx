@@ -50,14 +50,18 @@ function App() {
   const [subIndex, setSubIndex] = useState(0);
 
   useInput(async (input, key) => {
-    if (screen === 'main' || screen === 'init') return;
+    if (screen === 'main') return;
 
     if (key.escape) {
+      const componentIndex = components.indexOf(screen as typeof components[number]);
       setScreen('main');
-      setSelectedIndex(components.indexOf(screen));
+      setSelectedIndex(componentIndex >= 0 ? componentIndex : 1); // Default to feishu if coming from init
       setMessage('');
+      setInitOutput([]); // Clear init output when returning
       return;
     }
+
+    if (screen === 'init') return; // No input handling during init
 
     if (key.upArrow || input === 'k') {
       const maxIndex = getMaxIndex(screen, statuses);

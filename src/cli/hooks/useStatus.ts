@@ -44,8 +44,8 @@ export function checkFeishu(): ComponentStatus {
   }
 
   // Check if lark-cli is configured
-  const configResult = runCommand('lark-cli', ['config', 'show', '--format', 'json']);
-  if (configResult && configResult.success && configResult.stdout) {
+  const configResult = runCommand('lark-cli', ['config', 'show']);
+  if (configResult && configResult.stdout) {
     try {
       // Output may have extra lines after JSON, extract JSON part
       const output = configResult.stdout.trim();

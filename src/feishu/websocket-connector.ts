@@ -259,7 +259,7 @@ export async function loadLarkCliConfig(): Promise<FeishuWebSocketConfig | null>
   const path = await import('path');
   const fs = await import('fs');
 
-  const configPath = path.join(os.homedir(), '.config', 'lark-cli', 'config.json');
+  const configPath = path.join(os.homedir(), '.lark-cli', 'config.json');
 
   if (!fs.existsSync(configPath)) {
     console.error('[Feishu] lark-cli config not found at', configPath);
