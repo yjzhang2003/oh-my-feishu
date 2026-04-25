@@ -224,7 +224,7 @@ async function executeAction(
   const config = getScreenConfig(screen, statuses);
   const option = config.options[index];
 
-  if (option.key === 'back') {
+  if (!option || option.key === 'back') {
     setScreen('main');
     return;
   }
