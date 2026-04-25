@@ -44,12 +44,11 @@ export function checkFeishu(): ComponentStatus {
   }
 
   // Check if lark-cli is configured
-  const configResult = runCommand('lark-cli', ['config', 'show']);
+  const configResult = runCommand('lark-cli', ['config', 'show', '--format', 'json']);
   if (configResult && configResult.success && configResult.stdout) {
     try {
       // Output may have extra lines after JSON, extract JSON part
       const output = configResult.stdout.trim();
-      // Find JSON object (from { to })
       const jsonStart = output.indexOf('{');
       const jsonEnd = output.lastIndexOf('}');
       if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
