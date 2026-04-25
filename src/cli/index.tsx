@@ -9,8 +9,14 @@ import { Footer } from './components/Footer.js';
 import { getAllStatuses, ComponentStatus, checkService, ServiceStatus } from './hooks/useStatus.js';
 import { initLarkConfig, removeLarkConfig } from '../feishu/lark-auth.js';
 import { execa } from 'execa';
+import {
+  beginRegistration,
+  continueQRPolling,
+  renderQRAscii,
+  type QRBeginResult,
+} from '../feishu/qr-onboarding.js';
 
-type Screen = 'main' | 'claude' | 'feishu' | 'github' | 'service' | 'logs' | 'init';
+type Screen = 'main' | 'claude' | 'feishu' | 'github' | 'service' | 'logs' | 'init' | 'qr';
 
 const components = ['claude', 'feishu', 'github', 'service'] as const;
 const componentNames = ['Claude Code', 'Feishu (Lark)', 'GitHub', 'Service'];
@@ -27,6 +33,13 @@ function App() {
   const [logsErr, setLogsErr] = useState<string[]>([]);
   const [logsOffset, setLogsOffset] = useState(0);
   const [logType, setLogType] = useState<'out' | 'err'>('out');
+
+  // QR Auth state
+  const [qrLines, setQrLines] = useState<string[]>([]);
+  const [qrUrl, setQrUrl] = useState('');
+  const [qrUserCode, setQrUserCode] = useState('');
+  const [qrStatus, setQrStatus] = useState('Waiting for scan...');
+  const [qrDeviceCode, setQrDeviceCode] = useState('');
 
   useEffect(() => {
     setStatuses(getAllStatuses());
@@ -107,6 +120,11 @@ function App() {
         setLogsErr,
         setLogsOffset,
         setLogType,
+        setQrLines,
+        setQrUrl,
+        setQrUserCode,
+        setQrStatus,
+        setQrDeviceCode,
       });
     }
   });
@@ -187,6 +205,35 @@ function App() {
     );
   }
 
+  // QR Auth screen
+  if (screen === 'qr') {
+    return (
+      <Box flexDirection="column" padding={1}>
+        <Header title="Feishu QR Auth" />
+        <Box marginTop={1} flexDirection="column" alignItems="center">
+          {qrLines.length > 0 ? (
+            qrLines.map((line, i) => (
+              <Text key={i} color="cyan">{line}</Text>
+            ))
+          ) : (
+            <Text dimColor>Generating QR code...</Text>
+          )}
+        </Box>
+        {qrUrl && (
+          <Box marginTop={1} flexDirection="column">
+            <Text dimColor>Or open URL in browser:</Text>
+            <Text color="blue">{qrUrl}</Text>
+            {qrUserCode && <Text dimColor>User code: {qrUserCode}</Text>}
+          </Box>
+        )}
+        <Box marginTop={1}>
+          <Text color="yellow">{qrStatus}</Text>
+        </Box>
+        <Footer hints={['Scan with Feishu App...', 'ESC Cancel']} />
+      </Box>
+    );
+  }
+
   const { options, status } = getScreenConfig(screen, statuses, serviceStatus);
 
   return (
@@ -261,12 +308,13 @@ function getScreenConfig(screen: Screen, statuses: Record<string, ComponentStatu
       status: statuses.feishu?.message,
       options: configured
         ? [
-            { key: 'reconfigure', label: 'Re-auth', description: 'Re-authenticate with lark-cli' },
+            { key: 'reconfigure', label: 'Re-auth with QR', description: 'Scan QR code to re-authenticate' },
             { key: 'reset', label: 'Reset', description: 'Remove lark-cli config' },
             { key: 'back', label: 'Back', description: 'Return to main menu' },
           ]
         : [
-            { key: 'init', label: 'Auth with lark-cli', description: 'Browser-based authentication', status: '★', statusColor: 'yellow' as const },
+            { key: 'qr', label: 'Auth with QR Code', description: 'Scan QR code with Feishu App (Recommended)', status: '★', statusColor: 'yellow' as const },
+            { key: 'init', label: 'Auth with lark-cli', description: 'Browser-based authentication (legacy)' },
             { key: 'back', label: 'Back', description: 'Return to main menu' },
           ],
     };
@@ -304,9 +352,14 @@ async function executeAction(
     setLogsErr: React.Dispatch<React.SetStateAction<string[]>>;
     setLogsOffset: React.Dispatch<React.SetStateAction<number>>;
     setLogType: React.Dispatch<React.SetStateAction<'out' | 'err'>>;
+    setQrLines: React.Dispatch<React.SetStateAction<string[]>>;
+    setQrUrl: React.Dispatch<React.SetStateAction<string>>;
+    setQrUserCode: React.Dispatch<React.SetStateAction<string>>;
+    setQrStatus: React.Dispatch<React.SetStateAction<string>>;
+    setQrDeviceCode: React.Dispatch<React.SetStateAction<string>>;
   }
 ) {
-  const { setMessage, refreshStatuses, setScreen, setInitOutput, setLogs, setLogsErr, setLogsOffset, setLogType } = handlers;
+  const { setMessage, refreshStatuses, setScreen, setInitOutput, setLogs, setLogsErr, setLogsOffset, setLogType, setQrLines, setQrUrl, setQrUserCode, setQrStatus, setQrDeviceCode } = handlers;
   const config = getScreenConfig(screen, statuses, serviceStatus);
   const option = config.options[index];
 
@@ -334,7 +387,59 @@ async function executeAction(
 
   // Feishu actions
   if (screen === 'feishu') {
-    if (option.key === 'init' || option.key === 'reconfigure') {
+    if (option.key === 'qr' || option.key === 'reconfigure') {
+      // QR Code authentication
+      setScreen('qr');
+      setQrLines([]);
+      setQrUrl('');
+      setQrUserCode('');
+      setQrStatus('Connecting to Feishu...');
+      setQrDeviceCode('');
+
+      try {
+        // Begin QR registration
+        const begin = await beginRegistration('feishu');
+        setQrDeviceCode(begin.deviceCode);
+        setQrUrl(begin.qrUrl);
+        setQrUserCode(begin.userCode);
+
+        // Render QR code as ASCII
+        if (begin.qrUrl) {
+          const lines = await renderQRAscii(begin.qrUrl);
+          setQrLines(lines);
+        }
+
+        setQrStatus('Waiting for scan...');
+
+        // Start polling in background
+        const result = await continueQRPolling(
+          begin.deviceCode,
+          'feishu',
+          begin.interval,
+          begin.expireIn,
+          (attempt) => {
+            setQrStatus(`Waiting for scan... (attempt ${attempt})`);
+          }
+        );
+
+        if (result.success) {
+          setQrStatus(chalk.green('✓ Authentication successful!'));
+          setTimeout(() => {
+            setScreen('feishu');
+            refreshStatuses();
+          }, 1500);
+        } else if (result.error === 'expired') {
+          setQrStatus(chalk.red('✗ QR code expired. Please try again.'));
+        } else if (result.error === 'denied') {
+          setQrStatus(chalk.red('✗ Authentication denied.'));
+        } else {
+          setQrStatus(chalk.red(`✗ ${result.error || 'Authentication failed'}`));
+        }
+      } catch (error) {
+        setQrStatus(chalk.red(`✗ Error: ${error instanceof Error ? error.message : 'Unknown error'}`));
+      }
+    } else if (option.key === 'init') {
+      // Legacy lark-cli authentication
       setScreen('init');
       setInitOutput(['Starting lark-cli config init...', '']);
       setMessage('');

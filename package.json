@@ -25,6 +25,7 @@
     "@hono/node-server": "^1.11.0",
     "@inquirer/prompts": "^5.0.0",
     "@larksuiteoapi/node-sdk": "^1.62.0",
+    "@types/qrcode": "^1.5.6",
     "chalk": "^5.3.0",
     "dotenv": "^16.4.0",
     "execa": "^8.0.1",
@@ -32,6 +33,7 @@
     "ink": "^4.4.1",
     "ink-select-input": "^5.0.0",
     "ink-text-input": "^5.0.1",
+    "qrcode": "^1.5.4",
     "react": "^18.2.0",
     "yaml": "^2.4.0",
     "zod": "^3.23.0"
