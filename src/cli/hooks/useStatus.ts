@@ -83,13 +83,18 @@ export function checkGitHub(): ComponentStatus {
   return { name: 'GitHub', configured: false, message: 'gh CLI not installed' };
 }
 
-// Gateway status - check if gateway is running
-export function checkGateway(): ComponentStatus {
-  const result = runCommand('curl', ['-s', '-o', '/dev/null', '-w', '%{http_code}', 'http://localhost:8000/health']);
-  if (result && result.success && result.stdout.trim() === '200') {
-    return { name: 'Gateway', configured: true, message: 'Running on :8000' };
+// Agent status - check if agent can start (all required components ready)
+export function checkAgent(): ComponentStatus {
+  const claude = checkClaudeCode();
+  const feishu = checkFeishu();
+
+  if (!claude.configured) {
+    return { name: 'Agent', configured: false, message: 'Claude CLI required' };
   }
-  return { name: 'Gateway', configured: false, message: 'Not running' };
+  if (!feishu.configured) {
+    return { name: 'Agent', configured: false, message: 'lark-cli required' };
+  }
+  return { name: 'Agent', configured: true, message: 'Ready to start' };
 }
 
 // Get all statuses
@@ -97,7 +102,6 @@ export function getAllStatuses(): Record<string, ComponentStatus> {
   const claude = checkClaudeCode();
   const feishu = checkFeishu();
   const github = checkGitHub();
-  const gateway = checkGateway();
 
-  return { claude, feishu, github, gateway };
+  return { claude, feishu, github };
 }

@@ -10,10 +10,10 @@ import { getAllStatuses, ComponentStatus } from './hooks/useStatus.js';
 import { initLarkConfig, removeLarkConfig } from '../feishu/lark-auth.js';
 import { execa } from 'execa';
 
-type Screen = 'main' | 'claude' | 'feishu' | 'github' | 'gateway' | 'init';
+type Screen = 'main' | 'claude' | 'feishu' | 'github' | 'init';
 
-const components = ['claude', 'feishu', 'github', 'gateway'] as const;
-const componentNames = ['Claude Code', 'Feishu (Lark)', 'GitHub', 'Gateway'];
+const components = ['claude', 'feishu', 'github'] as const;
+const componentNames = ['Claude Code', 'Feishu (Lark)', 'GitHub'];
 
 function App() {
   const { exit } = useApp();
@@ -191,21 +191,6 @@ function getScreenConfig(screen: Screen, statuses: Record<string, ComponentStatu
     };
   }
 
-  if (screen === 'gateway') {
-    const running = statuses.gateway?.configured;
-    return {
-      status: statuses.gateway?.message,
-      options: running
-        ? [
-            { key: 'back', label: 'Back', description: 'Return to main menu' },
-          ]
-        : [
-            { key: 'start', label: 'Start', description: 'Show start command' },
-            { key: 'back', label: 'Back', description: 'Return to main menu' },
-          ],
-    };
-  }
-
   return { status: '', options: [{ key: 'back', label: 'Back', description: 'Return to main menu' }] };
 }
 
@@ -280,14 +265,6 @@ async function executeAction(
   if (screen === 'github') {
     if (option.key === 'install') {
       setMessage(chalk.cyan('Run: brew install gh  OR  visit https://cli.github.com/'));
-    }
-  }
-
-  // Gateway actions
-  if (screen === 'gateway') {
-    if (option.key === 'start') {
-      const projectRoot = process.cwd();
-      setMessage(chalk.cyan(`cd ${projectRoot} && npm run gateway`));
     }
   }
 }
