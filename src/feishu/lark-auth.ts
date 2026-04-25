@@ -200,11 +200,16 @@ export async function initLarkConfig(
  */
 export async function removeLarkConfig(): Promise<{ success: boolean; error?: string }> {
   return new Promise((resolve) => {
-    const proc = spawn('lark-cli', ['config', 'remove', '--force'], {
+    const proc = spawn('lark-cli', ['config', 'remove'], {
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 
     let stderr = '';
+    let stdout = '';
+
+    proc.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
 
     proc.stderr.on('data', (data) => {
       stderr += data.toString();
@@ -214,7 +219,7 @@ export async function removeLarkConfig(): Promise<{ success: boolean; error?: st
       if (code === 0) {
         resolve({ success: true });
       } else {
-        resolve({ success: false, error: stderr || `Process exited with code ${code}` });
+        resolve({ success: false, error: stderr || stdout || `Process exited with code ${code}` });
       }
     });
 

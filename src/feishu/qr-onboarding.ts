@@ -119,6 +119,7 @@ export async function pollRegistration(
     const res = await postRegistration(domain, {
       action: 'poll',
       device_code: deviceCode,
+      tp: 'ob_app',
     });
 
     // Check for errors
@@ -137,12 +138,14 @@ export async function pollRegistration(
     }
 
     // Success - extract credentials
-    const appId = res.app_id as string;
-    const appSecret = res.app_secret as string;
-    const openId = res.open_id as string;
+    // Note: API returns client_id/client_secret, not app_id/app_secret
+    const appId = (res.client_id || res.app_id) as string;
+    const appSecret = (res.client_secret || res.app_secret) as string;
+    const userInfo = res.user_info as { open_id?: string } || {};
+    const openId = userInfo.open_id || res.open_id as string;
 
     if (!appId || !appSecret) {
-      return { success: false, error: 'Missing app_id or app_secret in response' };
+      return { success: false, error: 'Missing client_id or client_secret in response' };
     }
 
     return {
