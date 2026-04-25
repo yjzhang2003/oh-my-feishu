@@ -47,11 +47,6 @@ export function loadEnv(): Env {
 
 export const env = loadEnv();
 
-// Check if Feishu is configured
-export function isFeishuConfigured(): boolean {
-  return !!(env.FEISHU_APP_ID && env.FEISHU_APP_SECRET);
-}
-
 // Check if GitHub is configured
 export function isGitHubConfigured(): boolean {
   return !!env.GITHUB_TOKEN;

@@ -1,4 +1,8 @@
 import { env } from '../config/env.js';
+import { execSync } from 'child_process';
+import { existsSync, readFileSync } from 'fs';
+import { resolve } from 'path';
+import { homedir } from 'os';
 
 const FEISHU_BASE_URL = 'https://open.feishu.cn/open-apis';
 
@@ -17,14 +21,103 @@ interface SendMessageResponse {
   };
 }
 
+interface LarkCliConfig {
+  app_id?: string;
+  app_secret?: string;
+  brand?: string;
+}
+
 // Token cache
 let cachedToken: string | null = null;
 let tokenExpireAt: number = 0;
+
+// Lark-cli config cache
+let larkConfig: LarkCliConfig | null = null;
+
+/**
+ * Get credentials from lark-cli config or env
+ */
+function getCredentials(): { appId: string; appSecret: string } | null {
+  // First try lark-cli config
+  if (!larkConfig) {
+    larkConfig = loadLarkCliConfig();
+  }
+
+  if (larkConfig?.app_id && larkConfig?.app_secret) {
+    return {
+      appId: larkConfig.app_id,
+      appSecret: larkConfig.app_secret,
+    };
+  }
+
+  // Fallback to env
+  if (env.FEISHU_APP_ID && env.FEISHU_APP_SECRET) {
+    return {
+      appId: env.FEISHU_APP_ID,
+      appSecret: env.FEISHU_APP_SECRET,
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Load config from lark-cli
+ */
+function loadLarkCliConfig(): LarkCliConfig | null {
+  // Try to get config via lark-cli command
+  try {
+    const result = execSync('lark-cli config show --format json', {
+      encoding: 'utf-8',
+      timeout: 5000,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+
+    const config = JSON.parse(result);
+    if (config.app_id) {
+      return {
+        app_id: config.app_id,
+        app_secret: config.app_secret,
+        brand: config.brand,
+      };
+    }
+  } catch {
+    // lark-cli not configured or not installed
+  }
+
+  // Try to read from lark-cli config file
+  const configPaths = [
+    resolve(homedir(), '.lark-cli', 'config.json'),
+    resolve(homedir(), '.config', 'lark-cli', 'config.json'),
+    resolve(homedir(), 'Library', 'Application Support', 'lark-cli', 'config.json'),
+  ];
+
+  for (const configPath of configPaths) {
+    if (existsSync(configPath)) {
+      try {
+        const content = readFileSync(configPath, 'utf-8');
+        const config = JSON.parse(content);
+        if (config.app_id) {
+          return config;
+        }
+      } catch {
+        // Ignore read errors
+      }
+    }
+  }
+
+  return null;
+}
 
 export async function getTenantAccessToken(): Promise<string> {
   // Return cached token if still valid
   if (cachedToken && Date.now() < tokenExpireAt) {
     return cachedToken;
+  }
+
+  const creds = getCredentials();
+  if (!creds) {
+    throw new Error('Feishu credentials not configured. Run: lark-cli config init');
   }
 
   const response = await fetch(`${FEISHU_BASE_URL}/auth/v3/tenant_access_token/internal`, {
@@ -33,8 +126,8 @@ export async function getTenantAccessToken(): Promise<string> {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      app_id: env.FEISHU_APP_ID,
-      app_secret: env.FEISHU_APP_SECRET,
+      app_id: creds.appId,
+      app_secret: creds.appSecret,
     }),
   });
 
@@ -102,4 +195,19 @@ export async function sendCardMessage(receiveId: string, card: object, receiveId
     msgType: 'interactive',
     content: card,
   });
+}
+
+/**
+ * Check if Feishu is configured (via lark-cli or env)
+ */
+export function isFeishuConfigured(): boolean {
+  return getCredentials() !== null;
+}
+
+/**
+ * Get current app_id
+ */
+export function getAppId(): string | null {
+  const creds = getCredentials();
+  return creds?.appId || null;
 }
