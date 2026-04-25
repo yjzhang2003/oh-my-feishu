@@ -1,7 +1,8 @@
 import { execa } from 'execa';
 import { resolve } from 'path';
 import { env } from '../config/env.js';
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'fs';
+import { createHash } from 'crypto';
 
 export interface InvokeOptions {
   skill: string;
@@ -42,6 +43,16 @@ function loadWorkspaceEnv(): Record<string, string> {
   }
 
   return vars;
+}
+
+/**
+ * Generate a deterministic UUID from chat ID for session persistence
+ */
+function chatIdToSessionUuid(chatId: string): string {
+  // Create a hash of the chat ID
+  const hash = createHash('sha256').update(chatId).digest('hex');
+  // Format as UUID: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+  return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-4${hash.slice(13, 15)}-${(parseInt(hash.slice(15, 16), 16) & 0x3 | 0x8).toString(16)}${hash.slice(16, 18)}-${hash.slice(18, 30)}`;
 }
 
 /**
@@ -90,41 +101,55 @@ export async function invokeClaudeSkill(options: InvokeOptions): Promise<InvokeR
 
 /**
  * Invoke Claude Code directly with a chat message
- * Claude has full access to lark-cli for responding
+ * Uses session persistence so Claude remembers conversation history
  */
 export async function invokeClaudeChat(context: ChatContext, timeout: number = 300000): Promise<InvokeResult> {
   const workspaceDir = resolve(env.REPO_ROOT, 'workspace');
 
-  const prompt = `You are a Feishu chat assistant. A user sent you a message.
+  // Generate session ID for this chat
+  const sessionId = chatIdToSessionUuid(context.chatId);
 
-Context:
-- Chat ID: ${context.chatId}
-- Chat Type: ${context.chatType}
-- Sender Open ID: ${context.senderOpenId}
-- Message: ${context.message}
+  // Create a session prompt file with context
+  const sessionsDir = resolve(workspaceDir, '.claude', 'sessions');
+  if (!existsSync(sessionsDir)) {
+    mkdirSync(sessionsDir, { recursive: true });
+  }
 
-You have full access to lark-cli to interact with Feishu. Use these commands as needed:
+  // Write a context file for this session
+  const contextFile = resolve(sessionsDir, `${context.chatId}.md`);
+  const contextContent = `# Feishu Chat Context
 
-For messaging:
-- lark-cli im send-text --chat-id <chat_id> "<message>"  - Send text to a chat
-- lark-cli im send-card --chat-id <chat_id> '<card_json>' - Send interactive card
+- **Chat ID**: ${context.chatId}
+- **Chat Type**: ${context.chatType}
+- **Sender Open ID**: ${context.senderOpenId}
 
-For user info:
-- lark-cli contact user get --open-id <open_id> - Get user info
+## Available Commands
 
-You can also use other tools available in this workspace.
+You have full access to lark-cli to interact with Feishu:
 
-Respond to the user's message appropriately. If they ask about code, analyze it.
-If they ask about logs, check them. Be helpful and concise.
+### Messaging
+- \`lark-cli im send-text --chat-id ${context.chatId} "<message>"\` - Send text
+- \`lark-cli im send-card --chat-id ${context.chatId} '<card_json>'\` - Send card
 
-After processing, use lark-cli to send your response back to chat ID: ${context.chatId}`;
+### User Info
+- \`lark-cli contact user get --open-id <open_id>\` - Get user info
+
+## Instructions
+
+1. Respond to the user's message
+2. Use lark-cli to send your response back
+3. Be helpful and concise
+`;
+
+  writeFileSync(contextFile, contextContent);
 
   try {
     const workspaceEnv = loadWorkspaceEnv();
     const result = await execa('claude', [
       '-p',
       '--dangerously-skip-permissions',
-      prompt,
+      '--session-id', sessionId,
+      context.message,
     ], {
       cwd: workspaceDir,
       timeout,
