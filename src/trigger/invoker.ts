@@ -103,13 +103,10 @@ export async function invokeClaudeSkill(options: InvokeOptions): Promise<InvokeR
 
 /**
  * Invoke Claude Code directly with a chat message
- * Uses session persistence so Claude remembers conversation history
+ * Uses --continue to maintain conversation context
  */
 export async function invokeClaudeChat(context: ChatContext, timeout: number = 300000): Promise<InvokeResult> {
   const workspaceDir = resolve(env.REPO_ROOT, 'workspace');
-
-  // Generate session ID for this chat
-  const sessionId = chatIdToSessionUuid(context.chatId);
 
   // Create prompt with lark-cli capabilities
   const systemPrompt = `You are a Feishu chat assistant with full access to lark-cli.
@@ -133,7 +130,7 @@ Always send your response back via lark-cli, not just output text.`;
     const result = await execa('claude', [
       '-p',
       '--dangerously-skip-permissions',
-      '--session-id', sessionId,
+      '-c', // Continue previous conversation for context
       '--append-system-prompt', systemPrompt,
       context.message,
     ], {
