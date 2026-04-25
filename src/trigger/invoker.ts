@@ -49,7 +49,8 @@ export async function invokeClaudeSkill(options: InvokeOptions): Promise<InvokeR
 
   try {
     const workspaceEnv = loadWorkspaceEnv();
-    const result = await execa('claude', ['--skill', skill], {
+    // Skills are invoked via /skill-name, not --skill option
+    const result = await execa('claude', ['-p', `/${skill}`], {
       cwd: workspaceDir,
       timeout,
       reject: false,
