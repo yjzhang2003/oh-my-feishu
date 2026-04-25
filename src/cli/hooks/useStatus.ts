@@ -1,5 +1,15 @@
 import { spawnSync } from 'child_process';
 
+export interface ServiceStatus {
+  name: string;
+  running: boolean;
+  status: string;
+  uptime?: string;
+  memory?: string;
+  cpu?: string;
+  restarts?: number;
+}
+
 export interface ComponentStatus {
   name: string;
   configured: boolean;
@@ -103,4 +113,81 @@ export function getAllStatuses(): Record<string, ComponentStatus> {
   const github = checkGitHub();
 
   return { claude, feishu, github };
+}
+
+// Check if PM2 is installed
+export function checkPM2(): boolean {
+  const result = runCommand('pm2', ['--version']);
+  return result !== null && result.success;
+}
+
+// Get feishu-agent service status from PM2
+export function checkService(): ServiceStatus {
+  // First check PM2 is installed
+  if (!checkPM2()) {
+    return {
+      name: 'feishu-agent',
+      running: false,
+      status: 'PM2 not installed',
+    };
+  }
+
+  // Use pm2 jlist for JSON output
+  const result = runCommand('pm2', ['jlist']);
+  if (!result || !result.success) {
+    return {
+      name: 'feishu-agent',
+      running: false,
+      status: 'Failed to get PM2 status',
+    };
+  }
+
+  try {
+    const processes = JSON.parse(result.stdout);
+    const agent = processes.find((p: { name: string }) => p.name === 'feishu-agent');
+
+    if (!agent) {
+      return {
+        name: 'feishu-agent',
+        running: false,
+        status: 'Not started',
+      };
+    }
+
+    const status = agent.pm2_env?.status || 'unknown';
+    const running = status === 'online';
+
+    return {
+      name: 'feishu-agent',
+      running,
+      status: running ? 'Running' : status,
+      uptime: running ? formatUptime(agent.pm2_env?.pm_uptime) : undefined,
+      memory: agent.monit?.memory ? formatMemory(agent.monit.memory) : undefined,
+      cpu: agent.monit?.cpu !== undefined ? `${agent.monit.cpu}%` : undefined,
+      restarts: agent.pm2_env?.restart_time,
+    };
+  } catch {
+    return {
+      name: 'feishu-agent',
+      running: false,
+      status: 'Failed to parse PM2 output',
+    };
+  }
+}
+
+function formatUptime(uptimeMs: number | undefined): string {
+  if (!uptimeMs) return 'N/A';
+  const seconds = Math.floor((Date.now() - uptimeMs) / 1000);
+
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+  return `${Math.floor(seconds / 86400)}d ${Math.floor((seconds % 86400) / 3600)}h`;
+}
+
+function formatMemory(bytes: number): string {
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)}GB`;
 }

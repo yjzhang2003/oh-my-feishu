@@ -6,29 +6,32 @@ import chalk from 'chalk';
 import { SelectList } from './components/SelectList.js';
 import { Header } from './components/Header.js';
 import { Footer } from './components/Footer.js';
-import { getAllStatuses, ComponentStatus } from './hooks/useStatus.js';
+import { getAllStatuses, ComponentStatus, checkService, ServiceStatus } from './hooks/useStatus.js';
 import { initLarkConfig, removeLarkConfig } from '../feishu/lark-auth.js';
 import { execa } from 'execa';
 
-type Screen = 'main' | 'claude' | 'feishu' | 'github' | 'init';
+type Screen = 'main' | 'claude' | 'feishu' | 'github' | 'service' | 'init';
 
-const components = ['claude', 'feishu', 'github'] as const;
-const componentNames = ['Claude Code', 'Feishu (Lark)', 'GitHub'];
+const components = ['claude', 'feishu', 'github', 'service'] as const;
+const componentNames = ['Claude Code', 'Feishu (Lark)', 'GitHub', 'Service'];
 
 function App() {
   const { exit } = useApp();
   const [screen, setScreen] = useState<Screen>('main');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [statuses, setStatuses] = useState<Record<string, ComponentStatus>>({});
+  const [serviceStatus, setServiceStatus] = useState<ServiceStatus | null>(null);
   const [message, setMessage] = useState('');
   const [initOutput, setInitOutput] = useState<string[]>([]);
 
   useEffect(() => {
     setStatuses(getAllStatuses());
+    setServiceStatus(checkService());
   }, []);
 
   const refreshStatuses = useCallback(() => {
     setStatuses(getAllStatuses());
+    setServiceStatus(checkService());
   }, []);
 
   useInput((input, key) => {
@@ -64,13 +67,13 @@ function App() {
     if (screen === 'init') return; // No input handling during init
 
     if (key.upArrow || input === 'k') {
-      const maxIndex = getMaxIndex(screen, statuses);
+      const maxIndex = getMaxIndex(screen, statuses, serviceStatus);
       setSubIndex((prev) => (prev - 1 + maxIndex) % maxIndex);
     } else if (key.downArrow || input === 'j') {
-      const maxIndex = getMaxIndex(screen, statuses);
+      const maxIndex = getMaxIndex(screen, statuses, serviceStatus);
       setSubIndex((prev) => (prev + 1) % maxIndex);
     } else if (key.return) {
-      await executeAction(screen, subIndex, statuses, {
+      await executeAction(screen, subIndex, statuses, serviceStatus, {
         setMessage,
         refreshStatuses,
         setScreen,
@@ -80,12 +83,25 @@ function App() {
   });
 
   if (screen === 'main') {
-    const items = components.map((key, index) => ({
-      key,
-      label: componentNames[index],
-      status: statuses[key]?.configured ? '✓' : '✗',
-      statusColor: (statuses[key]?.configured ? 'green' : 'red') as 'green' | 'red',
-    }));
+    const items = components.map((key, index) => {
+      let status: string;
+      let statusColor: 'green' | 'red' | 'yellow';
+
+      if (key === 'service') {
+        status = serviceStatus?.running ? '●' : '○';
+        statusColor = serviceStatus?.running ? 'green' : 'red';
+      } else {
+        status = statuses[key]?.configured ? '✓' : '✗';
+        statusColor = statuses[key]?.configured ? 'green' : 'red';
+      }
+
+      return {
+        key,
+        label: componentNames[index],
+        status,
+        statusColor,
+      };
+    });
 
     return (
       <Box flexDirection="column" padding={1}>
@@ -117,7 +133,7 @@ function App() {
     );
   }
 
-  const { options, status } = getScreenConfig(screen, statuses);
+  const { options, status } = getScreenConfig(screen, statuses, serviceStatus);
 
   return (
     <Box flexDirection="column" padding={1}>
@@ -125,7 +141,7 @@ function App() {
       {status && (
         <Box marginTop={1}>
           <Text dimColor>Status: </Text>
-          <Text color={statuses[screen]?.configured ? 'green' : 'yellow'}>{status}</Text>
+          <Text color={screen === 'service' ? (serviceStatus?.running ? 'green' : 'yellow') : (statuses[screen]?.configured ? 'green' : 'yellow')}>{status}</Text>
         </Box>
       )}
       <Box marginTop={1}>
@@ -141,12 +157,34 @@ function App() {
   );
 }
 
-function getMaxIndex(screen: Screen, statuses: Record<string, ComponentStatus>): number {
-  const config = getScreenConfig(screen, statuses);
+function getMaxIndex(screen: Screen, statuses: Record<string, ComponentStatus>, serviceStatus?: ServiceStatus | null): number {
+  const config = getScreenConfig(screen, statuses, serviceStatus);
   return config.options.length;
 }
 
-function getScreenConfig(screen: Screen, statuses: Record<string, ComponentStatus>) {
+function getScreenConfig(screen: Screen, statuses: Record<string, ComponentStatus>, serviceStatus?: ServiceStatus | null) {
+  if (screen === 'service') {
+    const running = serviceStatus?.running;
+    const statusText = running
+      ? `Running | Uptime: ${serviceStatus.uptime || 'N/A'} | Memory: ${serviceStatus.memory || 'N/A'} | CPU: ${serviceStatus.cpu || 'N/A'}`
+      : serviceStatus?.status || 'Not started';
+
+    return {
+      status: statusText,
+      options: running
+        ? [
+            { key: 'stop', label: 'Stop Service', description: 'Stop the feishu-agent background service' },
+            { key: 'restart', label: 'Restart Service', description: 'Restart the feishu-agent service' },
+            { key: 'logs', label: 'View Logs', description: 'Open PM2 logs viewer' },
+            { key: 'back', label: 'Back', description: 'Return to main menu' },
+          ]
+        : [
+            { key: 'start', label: 'Start Service', description: 'Start feishu-agent as background service', status: '★', statusColor: 'yellow' as const },
+            { key: 'back', label: 'Back', description: 'Return to main menu' },
+          ],
+    };
+  }
+
   if (screen === 'claude') {
     const installed = statuses.claude?.configured;
     return {
@@ -202,6 +240,7 @@ async function executeAction(
   screen: Screen,
   index: number,
   statuses: Record<string, ComponentStatus>,
+  serviceStatus: ServiceStatus | null,
   handlers: {
     setMessage: (msg: string) => void;
     refreshStatuses: () => void;
@@ -210,7 +249,7 @@ async function executeAction(
   }
 ) {
   const { setMessage, refreshStatuses, setScreen, setInitOutput } = handlers;
-  const config = getScreenConfig(screen, statuses);
+  const config = getScreenConfig(screen, statuses, serviceStatus);
   const option = config.options[index];
 
   if (!option || option.key === 'back') {
@@ -269,6 +308,46 @@ async function executeAction(
   if (screen === 'github') {
     if (option.key === 'install') {
       setMessage(chalk.cyan('Run: brew install gh  OR  visit https://cli.github.com/'));
+    }
+  }
+
+  // Service actions
+  if (screen === 'service') {
+    if (option.key === 'start') {
+      setMessage(chalk.cyan('Starting feishu-agent service...'));
+      try {
+        await execa('pm2', ['start', 'ecosystem.config.cjs'], { stdio: 'inherit' });
+        setMessage(chalk.green('✓ Service started'));
+        refreshStatuses();
+      } catch (error) {
+        setMessage(chalk.red(`✗ Failed to start: ${error instanceof Error ? error.message : 'Unknown error'}`));
+      }
+    } else if (option.key === 'stop') {
+      setMessage(chalk.cyan('Stopping feishu-agent service...'));
+      try {
+        await execa('pm2', ['stop', 'feishu-agent'], { stdio: 'inherit' });
+        setMessage(chalk.green('✓ Service stopped'));
+        refreshStatuses();
+      } catch (error) {
+        setMessage(chalk.red(`✗ Failed to stop: ${error instanceof Error ? error.message : 'Unknown error'}`));
+      }
+    } else if (option.key === 'restart') {
+      setMessage(chalk.cyan('Restarting feishu-agent service...'));
+      try {
+        await execa('pm2', ['restart', 'feishu-agent'], { stdio: 'inherit' });
+        setMessage(chalk.green('✓ Service restarted'));
+        refreshStatuses();
+      } catch (error) {
+        setMessage(chalk.red(`✗ Failed to restart: ${error instanceof Error ? error.message : 'Unknown error'}`));
+      }
+    } else if (option.key === 'logs') {
+      setMessage(chalk.cyan('Opening logs... (Ctrl+C to exit)'));
+      try {
+        await execa('pm2', ['logs', 'feishu-agent'], { stdio: 'inherit' });
+        setMessage('');
+      } catch {
+        setMessage('');
+      }
     }
   }
 }
