@@ -183,7 +183,7 @@ function App() {
   if (screen === 'logs') {
     const currentLogs = logType === 'out' ? logs : logsErr;
     const visibleLogs = currentLogs.slice(logsOffset, logsOffset + 15);
-    const logTitle = logType === 'out' ? 'Service Logs (stdout)' : 'Service Logs (stderr)';
+    const logTitle = logType === 'out' ? 'Service Logs (stdout, newest first)' : 'Service Logs (stderr, newest first)';
 
     return (
       <Box flexDirection="column" padding={1}>
@@ -198,7 +198,7 @@ function App() {
           )}
         </Box>
         <Box marginTop={1}>
-          <Text dimColor>Lines {logsOffset + 1}-{Math.min(logsOffset + 15, currentLogs.length)} of {currentLogs.length}</Text>
+          <Text dimColor>Showing newest {visibleLogs.length} of {currentLogs.length} lines</Text>
         </Box>
         <Footer hints={['↑↓ Scroll', 't Toggle stdout/stderr', 'ESC Back']} />
       </Box>
@@ -422,21 +422,34 @@ async function executeAction(
           }
         );
 
+        // Clear QR state before navigating
+        setQrLines([]);
+        setQrUrl('');
+        setQrUserCode('');
+        setQrDeviceCode('');
+
         if (result.success) {
-          setQrStatus(chalk.green('✓ Authentication successful!'));
-          setTimeout(() => {
-            setScreen('feishu');
-            refreshStatuses();
-          }, 1500);
+          setMessage(chalk.green('✓ Authentication successful!'));
+          setScreen('feishu');
+          refreshStatuses();
         } else if (result.error === 'expired') {
-          setQrStatus(chalk.red('✗ QR code expired. Please try again.'));
+          setMessage(chalk.red('✗ QR code expired. Please try again.'));
+          setScreen('feishu');
         } else if (result.error === 'denied') {
-          setQrStatus(chalk.red('✗ Authentication denied.'));
+          setMessage(chalk.red('✗ Authentication denied.'));
+          setScreen('feishu');
         } else {
-          setQrStatus(chalk.red(`✗ ${result.error || 'Authentication failed'}`));
+          setMessage(chalk.red(`✗ ${result.error || 'Authentication failed'}`));
+          setScreen('feishu');
         }
       } catch (error) {
-        setQrStatus(chalk.red(`✗ Error: ${error instanceof Error ? error.message : 'Unknown error'}`));
+        // Clear QR state on error
+        setQrLines([]);
+        setQrUrl('');
+        setQrUserCode('');
+        setQrDeviceCode('');
+        setMessage(chalk.red(`✗ Error: ${error instanceof Error ? error.message : 'Unknown error'}`));
+        setScreen('feishu');
       }
     } else if (option.key === 'init') {
       // Legacy lark-cli authentication
@@ -529,11 +542,13 @@ async function executeAction(
         // Ignore read errors
       }
 
-      const logLines = logContent.trim().split('\n').filter(Boolean);
-      const errLogLines = errLogContent.trim().split('\n').filter(Boolean);
+      // Reverse logs so newest is at the top
+      const logLines = logContent.trim().split('\n').filter(Boolean).reverse();
+      const errLogLines = errLogContent.trim().split('\n').filter(Boolean).reverse();
 
       setLogs(logLines);
       setLogsErr(errLogLines);
+      // Start from the beginning (newest logs after reverse)
       setLogsOffset(0);
       setLogType('out');
       setScreen('logs');
