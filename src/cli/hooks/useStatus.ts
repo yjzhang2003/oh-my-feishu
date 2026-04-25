@@ -1,4 +1,4 @@
-import { execSync } from 'child_process';
+import { spawnSync } from 'child_process';
 import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 
@@ -8,27 +8,21 @@ export interface ComponentStatus {
   message: string;
 }
 
-const CHECK_TIMEOUT_MS = 3000;
+const CHECK_TIMEOUT_MS = 5000;
 
 // Helper to run command with timeout
-function runCommand(cmd: string, timeoutMs: number = CHECK_TIMEOUT_MS): { stdout: string; stderr: string; success: boolean } | null {
+function runCommand(cmd: string, args: string[] = [], timeoutMs: number = CHECK_TIMEOUT_MS): { stdout: string; stderr: string; success: boolean } | null {
   try {
-    const result = execSync(cmd, {
+    const result = spawnSync(cmd, args, {
       encoding: 'utf-8',
       timeout: timeoutMs,
-      stdio: ['pipe', 'pipe', 'pipe']
     });
-    return { stdout: result, stderr: '', success: true };
-  } catch (error: unknown) {
-    const execError = error as { stdout?: string; stderr?: string; status?: number };
-    // Return output even on failure (gh auth status writes to stderr on success)
-    if (execError.stdout || execError.stderr) {
-      return {
-        stdout: execError.stdout || '',
-        stderr: execError.stderr || '',
-        success: false
-      };
-    }
+    return {
+      stdout: result.stdout || '',
+      stderr: result.stderr || '',
+      success: result.status === 0
+    };
+  } catch {
     return null;
   }
 }
@@ -40,7 +34,7 @@ const PROJECT_ENV_PATH = resolve(PROJECT_CLAUDE_DIR, '.env');
 
 // Claude Code CLI status - check global installation only
 export function checkClaudeCode(): ComponentStatus {
-  const result = runCommand('claude --version');
+  const result = runCommand('claude', ['--version']);
   if (result && result.success) {
     const version = result.stdout.trim().split('\n')[0];
     return { name: 'Claude Code', configured: true, message: `${version} installed` };
@@ -93,14 +87,14 @@ export function checkFeishu(): ComponentStatus {
 
 // GitHub status - global check
 export function checkGitHub(): ComponentStatus {
-  const result = runCommand('gh auth status');
+  const result = runCommand('gh', ['auth', 'status']);
 
   if (!result) {
     return { name: 'GitHub', configured: false, message: 'Not authenticated' };
   }
 
-  // gh auth status outputs to both stdout and stderr
-  const output = result.stdout + result.stderr;
+  // gh auth status outputs to stdout
+  const output = result.stdout;
 
   // Extract username - match "Logged in to github.com account xxx" format
   const match = output.match(/Logged in to github\.com account (\S+)/);
