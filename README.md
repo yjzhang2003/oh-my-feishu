@@ -1,141 +1,138 @@
-# Feishu Agent — 基于 Agent 的服务自动化修复系统
+# Feishu Agent — 基于 Claude Code 的飞书自动化 Agent
 
 ## 项目简介
 
 Feishu Agent 是一个具备环境感知 Tool Use 能力的自动化 Agent，能够：
 
-1. **监控 Web 服务**：通过健康检查、日志监听、GitHub Issue 轮询发现异常
+1. **监控 Web 服务**：通过健康检查、日志监听发现异常
 2. **智能分析**：利用 Claude LLM 分析 Traceback 根因
 3. **自动修复**：生成代码补丁、运行测试、提交 PR
 4. **飞书通知**：通过飞书（Lark）交互卡片通知开发者
 
-## 架构设计（混合架构）
+## 架构设计
 
 本项目采用 **Gateway + Claude Code Skills** 的混合架构：
 
-- **Gateway（Python / FastAPI）**：负责接收飞书消息、监控告警、发送通知。轻量级，无重逻辑。
-- **Claude Code Skills（标准 SKILL.md）**：核心 Agent 逻辑（自动修复、日志分析、安全检查、飞书通知）以标准 Skill 形式存在，由 Claude Code CLI 执行。
+- **Gateway（TypeScript / Hono）**：负责接收飞书消息、监控告警、发送通知
+- **Claude Code Skills（标准 SKILL.md）**：核心 Agent 逻辑以标准 Skill 形式存在
 
 ```
-Feishu Message / Monitor Alert
-         |
-         v
-+---------------------------+
-|  Gateway (FastAPI)        |
-|  - webhook_server.py      |
-|  - bot.py                 |
-|  - trigger.py             |
-+-----------+---------------+
-            | 写入 trigger
-            v
-+---------------------------+
-|  Claude Code Skills       |
-|  - auto-repair            |
-|  - analyze-log            |
-|  - safety-check           |
-|  - notify-feishu          |
-+-----------+---------------+
-            | 执行修复 / 通知
-            v
-      GitHub PR / Feishu Card
+飞书消息 / 监控告警 / 手动触发
+         │
+         ▼
+┌─────────────────────────────┐
+│  Gateway (Hono :8000)       │
+│  /webhook  - 飞书事件回调    │
+│  /monitor  - 外部监控告警    │
+│  /trigger  - 手动触发(测试)  │
+│  /health   - 健康检查        │
+└──────────┬──────────────────┘
+           │ 写入 trigger 文件
+           ▼
+┌─────────────────────────────┐
+│  workspace/.claude/         │
+│  ├── settings.json          │  ← Claude Code 项目配置
+│  ├── triggers/latest.json   │  ← 触发上下文
+│  └── skills/                │  ← 27 个 Lark Skills
+│      ├── auto-repair/       │
+│      ├── lark-im/           │
+│      ├── lark-doc/          │
+│      └── ...                │
+└──────────┬──────────────────┘
+           │ claude --skill xxx
+           ▼
+┌─────────────────────────────┐
+│  Claude Code CLI            │
+│  读取 SKILL.md → 执行协议    │
+│  调用 lark-cli → 操作飞书    │
+│  调用 gh → GitHub PR        │
+└─────────────────────────────┘
 ```
-
-### 为什么选择混合架构？
-
-- **Gateway 专注 I/O**：接收 webhook、调用外部 API，保持简单稳定
-- **Skills 专注智能**：利用 Claude Code 的原生能力（工具调用、代码编辑、测试运行）
-- **可扩展**：新增能力只需添加 Skill，无需修改 Gateway
-- **标准兼容**：Skills 遵循 Claude Code 标准，可复用社区生态
 
 ## 技术栈
 
-- **LLM / Agent**: Claude Code CLI + Standard Skills (`SKILL.md`)
-- **飞书集成**: `lark-oapi` SDK + 自建 Webhook 服务器
-- **GitHub**: REST API 自动化 PR
-- **测试**: pytest + pytest-cov（覆盖率 86%）
+- **语言**: TypeScript + Node.js
+- **CLI 框架**: Ink (React for CLI)
+- **Web 框架**: Hono
+- **飞书集成**: lark-cli + 自建 Webhook 服务器
+- **GitHub**: gh CLI
+- **Agent**: Claude Code CLI + Standard Skills
 
 ## 项目结构
 
 ```
 feishu-agent/
-├── .claude/
-│   ├── skills/             # 标准 Claude Code Skills
-│   │   ├── auto-repair/    # 7 步自动修复流水线
-│   │   ├── analyze-log/    # 日志分析与根因定位
-│   │   ├── safety-check/   # 安全审查（Path/Diff/Secret/Test Guard）
-│   │   └── notify-feishu/  # 飞书交互卡片通知
-│   └── triggers/           # Gateway 与 Skills 的触发文件
-├── gateway/                # 飞书网关（Python FastAPI）
-│   ├── bot.py              # 轻量级消息发送器 + 简单命令分发
-│   ├── card_builder.py     # 交互卡片构建
-│   ├── trigger.py          # 触发器写入 + Skill 调用桥接
-│   └── webhook_server.py   # FastAPI Webhook 接收
-├── agent/                  # 遗留：Claude Agent SDK 核心（参考用）
-│   ├── core.py             # 对话循环 + 工具调用
-│   ├── tools/              # 内置工具
-│   └── prompts/            # 系统提示词
-├── skills/                 # 遗留：Python Skill 注册表（参考用）
-│   ├── registry.py
-│   └── _builtins/
-├── hooks/                  # 生命周期 Hook 系统
-│   ├── manager.py
-│   └── built_in.py
-├── monitor/                # 监控实现
-│   ├── log_watcher.py
-│   ├── health_checker.py
-│   └── issue_poller.py
-├── repair/                 # 遗留：自动修复流程（参考用）
-│   ├── flow.py
-│   ├── safety.py
-│   └── github_client.py
-├── demo/                   # 演示服务（带故意 Bug 的 Flask 应用）
-│   └── web_service/
-└── tests/                  # 测试套件
-    ├── unit/
-    └── integration/
+├── src/
+│   ├── cli/                 # 交互式 CLI (Ink)
+│   │   ├── index.tsx        # 入口
+│   │   ├── components/      # UI 组件
+│   │   └── hooks/           # 状态检测
+│   ├── gateway/             # 飞书网关
+│   │   ├── server.ts        # Hono 服务器
+│   │   └── routes/webhook.ts
+│   ├── feishu/              # 飞书客户端
+│   │   ├── client.ts        # 消息发送
+│   │   ├── card.ts          # 卡片构建
+│   │   └── lark-auth.ts     # lark-cli 认证
+│   ├── monitor/             # 监控模块
+│   │   ├── index.ts         # 入口
+│   │   └── health-checker.ts
+│   ├── trigger/             # 触发器
+│   │   ├── trigger.ts       # 写入触发
+│   │   └── invoker.ts       # 调用 Skill
+│   └── config/              # 配置
+│       └── env.ts           # 环境变量
+├── workspace/
+│   └── .claude/             # Claude Code 工作目录
+│       ├── settings.json    # Claude Code 配置
+│       ├── .env             # 飞书凭证 (可选)
+│       ├── triggers/        # 触发文件
+│       └── skills/          # 27 个 Skills
+│           ├── auto-repair/
+│           ├── lark-im/
+│           ├── lark-doc/
+│           └── ...
+└── package.json
 ```
 
 ## 快速开始
 
 ### 前置要求
 
-- Python 3.10+
-- [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code/installation) 已安装并登录
+- Node.js 18+
+- [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code/installation) 已安装
+- [lark-cli](https://github.com/larksuite/cli) 已安装
 
-### 1. 安装依赖
-
-```bash
-pip install -e ".[dev]"
-```
-
-### 2. 一键配置（推荐）
-
-运行交互式安装脚本，自动检查 Claude CLI、部署 Skills、生成 `.env`：
+### 安装
 
 ```bash
-python scripts/install.py
+npm install
+npm run build
 ```
 
-或从 npm 入口调用：
+### 配置
+
+运行交互式配置 CLI：
 
 ```bash
-npm run setup
+npm run cli
 ```
 
-脚本会引导你完成：
-1. 检查 Claude Code CLI 是否已安装
-2. 部署 `.claude/skills/` 和 `.claude/settings.json`
-3. 交互式填写飞书 / GitHub / Agent 环境变量，生成 `.env`
-4. 检查 ECC (oh-my-claudecode) 插件
-5. 运行单元测试验证
+CLI 会引导你完成：
+1. **Claude Code** - 检测全局安装状态
+2. **Feishu** - 使用 lark-cli 浏览器认证
+3. **GitHub** - 检测 gh CLI 安装状态
+4. **Gateway** - 启动网关服务
 
-### 3. 手动配置（备选）
+#### Claude Code 项目配置
 
-如果你不想用安装脚本，可以手动配置：
+如需配置 Claude Code（模型、API 等），编辑：
 
-#### Claude Code 配置
+```
+workspace/.claude/settings.json
+```
 
-Claude Code CLI 优先读取项目级 `.claude/settings.json`：
+示例配置：
 
 ```json
 {
@@ -146,54 +143,26 @@ Claude Code CLI 优先读取项目级 `.claude/settings.json`：
 }
 ```
 
-敏感的 API Key（`ANTHROPIC_API_KEY` 或 `ANTHROPIC_AUTH_TOKEN`）建议放在全局配置 `~/.claude/settings.json` 中，避免泄露。
+敏感的 API Key 建议放在全局配置 `~/.claude/settings.json` 中。
 
-#### 项目环境变量
-
-复制 `.env.example` 为 `.env` 并填写：
+### 启动 Gateway
 
 ```bash
-# 飞书
-FEISHU_APP_ID=your_app_id
-FEISHU_APP_SECRET=your_app_secret
-
-# Monitor webhook 保护（生产环境建议启用）
-MONITOR_API_KEY=your_random_api_key
-
-# GitHub
-GITHUB_TOKEN=ghp_your_token
-GITHUB_REPO_OWNER=your_org
-GITHUB_REPO_NAME=your_repo
-
-# Agent
-REPO_ROOT=/absolute/path/to/repo
+npm run gateway
 ```
 
-### 4. 运行测试
+Gateway 启动后：
+- Health: http://localhost:8000/health
+- Webhook: http://localhost:8000/webhook
+- Monitor: http://localhost:8000/monitor
 
-```bash
-pytest tests/ -v --cov=agent --cov=gateway --cov=repair --cov=skills --cov=hooks --cov=monitor
-```
-
-当前覆盖率：**86%**（87 个测试）
-
-### 5. 启动 Gateway
-
-```bash
-# 开发模式
-fastapi dev gateway/webhook_server.py
-
-# 或生产模式
-uvicorn gateway.webhook_server:app --host 0.0.0.0 --port 8000
-```
-
-### 6. 触发自动修复
+### 触发自动修复
 
 **方式一：飞书命令**
 
 在飞书群中 @机器人并发送：
 ```
-/repair 修复 demo/web_service/app.py 中的 ZeroDivisionError
+/repair 修复登录页面的 500 错误
 ```
 
 **方式二：监控告警**
@@ -201,59 +170,78 @@ uvicorn gateway.webhook_server:app --host 0.0.0.0 --port 8000
 ```bash
 curl -X POST http://localhost:8000/monitor \
   -H "Content-Type: application/json" \
-  -d '{"context":"Health check failed","error_log":"Traceback (most recent call last): ..."}'
+  -d '{"context":"Health check failed","error_log":"Traceback..."}'
 ```
 
-**方式三：本地直接调用 Skill**
+**方式三：手动触发**
 
 ```bash
-# 写入触发器
-echo '{"context":"fix bug","error_log":"","source":"manual"}' > .claude/triggers/latest.json
-
-# 执行 Skill
-claude --skill auto-repair
+curl -X POST http://localhost:8000/trigger \
+  -H "Content-Type: application/json" \
+  -d '{"context":"Manual repair request"}'
 ```
 
-### 7. 启动演示服务（可选）
+## 监控配置
+
+Gateway 支持自动健康检查，通过环境变量配置：
 
 ```bash
-python demo/web_service/app.py
+# 在 .env 或环境变量中设置
+MONITOR_TARGET_URL=http://your-service:port
+MONITOR_INTERVAL_SEC=60    # 检查间隔（秒）
+MONITOR_TIMEOUT_MS=5000    # 请求超时（毫秒）
 ```
 
-触发 Bug：
+当目标服务连续 2 次健康检查失败时，会自动触发 `auto-repair` Skill。
+
+## Skills 列表
+
+项目内置 27 个 Lark Skills，覆盖飞书各项能力：
+
+| Skill | 描述 |
+|-------|------|
+| `lark-im` | 即时通讯：收发消息、管理群聊 |
+| `lark-doc` | 文档操作：创建、编辑文档 |
+| `lark-sheets` | 表格操作：读写电子表格 |
+| `lark-calendar` | 日历管理：事件、日程 |
+| `lark-drive` | 云盘操作：文件上传下载 |
+| `lark-approval` | 审批流程：发起、查询审批 |
+| `auto-repair` | 自动修复：分析错误、生成修复 |
+| ... | 完整列表见 `workspace/.claude/skills/` |
+
+## Webhook 签名验证
+
+Gateway 自动验证飞书 Webhook 签名（如果配置了 `FEISHU_ENCRYPT_KEY`）：
+
 ```bash
-curl "http://localhost:5000/divide?a=10&b=0"    # ZeroDivisionError
-curl "http://localhost:5000/user?id=alice"        # KeyError
-curl "http://localhost:5000/concat?prefix=hi_&num=1"  # TypeError
+# 可选：配置签名验证密钥
+FEISHU_ENCRYPT_KEY=your_encrypt_key
+FEISHU_VERIFICATION_TOKEN=your_token
 ```
 
 ## 安全设计
 
-| 层级 | 机制 | 说明 |
-|------|------|------|
-| PathGuard | `realpath` 必须在 `REPO_ROOT` 内 | 防止 AI 修改系统文件 |
-| DiffGuard | 限制最大文件数（10）和行数（500） | 防止大规模破坏性变更 |
-| TestGuard | 修复后强制跑测试 | 确保修复不引入回归 |
-| SecretGuard | 禁止 diff 中出现 api_key / password / token | 防止密钥泄露 |
-| HITL | 超限时停止并请求人工确认 | 关键操作人工把关 |
+| 机制 | 说明 |
+|------|------|
+| Webhook 签名验证 | HMAC-SHA256 验证请求来源 |
+| Monitor API Key | 保护 /monitor 端点 |
+| lark-cli 认证 | 凭证存储在用户目录，不入代码库 |
 
-## Skill / Hook 扩展
+## 扩展 Skill
 
-### 添加新 Claude Code Skill
-
-在 `.claude/skills/` 下创建目录：
+在 `workspace/.claude/skills/` 下创建目录：
 
 ```
-.claude/skills/my_skill/
-└── SKILL.md       # 标准 Skill 文档（YAML frontmatter + Markdown 协议）
+workspace/.claude/skills/my-skill/
+└── SKILL.md
 ```
 
-Skill 文档格式示例：
+SKILL.md 格式：
+
 ```yaml
 ---
 name: my-skill
-description: 描述这个 Skill 的功能
-allowed-tools: Read Edit Bash(pytest *)
+description: 描述功能
 ---
 
 # 协议
@@ -269,37 +257,24 @@ allowed-tools: Read Edit Bash(pytest *)
 - 期望输出
 ```
 
-然后即可通过以下方式调用：
+调用方式：
 ```bash
 claude --skill my-skill
 ```
 
-### 添加新 Hook
+## 开发命令
 
-```python
-from hooks.manager import HookManager
+```bash
+# 开发
+npm run dev          # 监听模式编译
+npm run build        # 构建
+npm run cli          # 启动配置 CLI
+npm run gateway      # 启动 Gateway
 
-def my_hook(**kwargs):
-    print("Before repair:", kwargs)
-
-manager = HookManager()
-manager.register("before_repair", my_hook)
+# 类型检查
+npx tsc --noEmit
 ```
 
-支持的事件：`before_repair`, `after_repair`, `before_tool_call`, `after_tool_call`, `on_error`
+## License
 
-## 交付物
-
-1. 代码仓库：包含 Agent 逻辑代码和自动修复记录
-2. 测试覆盖：68 个测试，86% 覆盖率
-3. 标准 Skills：4 个可复用的 Claude Code Skills
-4. 演示视频：展示从报错到飞书通知的全过程（需录制）
-
-## 评判标准对应
-
-| 标准 | 实现 |
-|------|------|
-| 工具链整合 | Claude Code CLI + lark-oapi + GitHub API + pytest |
-| 安全性 | PathGuard + DiffGuard + TestGuard + SecretGuard + HITL |
-| 可扩展性 | 标准 Skill 系统 + Hook 管理器 |
-| 可测试性 | 86% 覆盖率 |
+MIT
