@@ -73,11 +73,12 @@ function loadLarkCliConfig(): LarkCliConfig | null {
       stdio: ['pipe', 'pipe', 'pipe'],
     });
 
-    // Output has JSON on first line, may have extra text after
-    const lines = result.trim().split('\n');
-    const jsonLine = lines.find(line => line.startsWith('{'));
-    if (jsonLine) {
-      const config = JSON.parse(jsonLine);
+    // Output may have extra lines after JSON, extract JSON part
+    const jsonStart = result.indexOf('{');
+    const jsonEnd = result.lastIndexOf('}');
+    if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+      const jsonStr = result.slice(jsonStart, jsonEnd + 1);
+      const config = JSON.parse(jsonStr);
       if (config.appId) {
         return {
           appId: config.appId,

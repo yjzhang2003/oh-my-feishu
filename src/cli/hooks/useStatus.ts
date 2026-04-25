@@ -47,11 +47,14 @@ export function checkFeishu(): ComponentStatus {
   const configResult = runCommand('lark-cli', ['config', 'show']);
   if (configResult && configResult.success && configResult.stdout) {
     try {
-      // Output may have extra lines, extract JSON part
-      const lines = configResult.stdout.trim().split('\n');
-      const jsonLine = lines.find(line => line.startsWith('{'));
-      if (jsonLine) {
-        const config = JSON.parse(jsonLine);
+      // Output may have extra lines after JSON, extract JSON part
+      const output = configResult.stdout.trim();
+      // Find JSON object (from { to })
+      const jsonStart = output.indexOf('{');
+      const jsonEnd = output.lastIndexOf('}');
+      if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+        const jsonStr = output.slice(jsonStart, jsonEnd + 1);
+        const config = JSON.parse(jsonStr);
         const appId = config.appId || '';
         const brand = config.brand || 'feishu';
         if (appId) {

@@ -52,11 +52,12 @@ export async function checkLarkConfig(): Promise<LarkConfigStatus> {
     proc.on('close', (code) => {
       if (code === 0 && stdout) {
         try {
-          // Output may have extra lines, extract JSON part
-          const lines = stdout.trim().split('\n');
-          const jsonLine = lines.find(line => line.startsWith('{'));
-          if (jsonLine) {
-            const config = JSON.parse(jsonLine);
+          // Output may have extra lines after JSON, extract JSON part
+          const jsonStart = stdout.indexOf('{');
+          const jsonEnd = stdout.lastIndexOf('}');
+          if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+            const jsonStr = stdout.slice(jsonStart, jsonEnd + 1);
+            const config = JSON.parse(jsonStr);
             resolve({
               configured: true,
               appId: config.appId,
