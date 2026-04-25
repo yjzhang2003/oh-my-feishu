@@ -9,6 +9,11 @@ import { checkLarkConfig } from './feishu/lark-auth.js';
 import { checkClaudeCli } from './trigger/invoker.js';
 import { env } from './config/env.js';
 
+function keepAlive(): void {
+  // Keep the process alive with a no-op interval
+  setInterval(() => {}, 24 * 60 * 60 * 1000); // 24 hours
+}
+
 async function main() {
   console.log('🚀 Starting Feishu Agent...\n');
 
@@ -17,7 +22,10 @@ async function main() {
   if (!claudeStatus.available) {
     console.error('❌ Claude CLI not available. Please install it first:');
     console.error('   npm install -g @anthropic-ai/claude-code\n');
-    process.exit(1);
+    console.error('Waiting for configuration... (service will auto-connect when ready)');
+    console.error('Run "npm run cli" to configure, then restart this service.\n');
+    keepAlive();
+    return;
   }
   console.log(`✅ Claude CLI: ${claudeStatus.version}`);
 
@@ -26,7 +34,10 @@ async function main() {
   if (!larkStatus.configured) {
     console.error('❌ lark-cli not configured. Please run:');
     console.error('   lark-cli config init --new\n');
-    process.exit(1);
+    console.error('Waiting for configuration... (service will auto-connect when ready)');
+    console.error('Run "npm run cli" to configure, then restart this service.\n');
+    keepAlive();
+    return;
   }
   console.log(`✅ Lark CLI: ${larkStatus.appId?.slice(0, 8)}... (${larkStatus.brand})`);
 
@@ -43,7 +54,10 @@ async function main() {
   const config = await loadLarkCliConfig();
   if (!config) {
     console.error('❌ Failed to load lark-cli config');
-    process.exit(1);
+    console.error('Waiting for configuration... (service will auto-connect when ready)');
+    console.error('Run "npm run cli" to configure, then restart this service.\n');
+    keepAlive();
+    return;
   }
 
   const ws = new FeishuWebSocket(config);
@@ -66,7 +80,7 @@ async function main() {
     console.log('Press Ctrl+C to stop.\n');
   } catch (error) {
     console.error('❌ Failed to connect:', error);
-    process.exit(1);
+    // Stay running to allow manual intervention
   }
 }
 
