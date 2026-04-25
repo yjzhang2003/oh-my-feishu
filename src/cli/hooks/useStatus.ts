@@ -85,24 +85,14 @@ export function checkFeishu(): ComponentStatus {
   }
 }
 
-// GitHub status - global check
+// GitHub status - check if gh CLI is installed
 export function checkGitHub(): ComponentStatus {
-  const result = runCommand('gh', ['auth', 'status']);
-
-  if (!result) {
-    return { name: 'GitHub', configured: false, message: 'Not authenticated' };
+  const result = runCommand('gh', ['--version']);
+  if (result && result.success) {
+    const version = result.stdout.trim().split('\n')[0];
+    return { name: 'GitHub', configured: true, message: `${version} installed` };
   }
-
-  // gh auth status outputs to stdout
-  const output = result.stdout;
-
-  // Extract username - match "Logged in to github.com account xxx" format
-  const match = output.match(/Logged in to github\.com account (\S+)/);
-  if (match) {
-    return { name: 'GitHub', configured: true, message: `Authenticated as ${match[1]}` };
-  }
-
-  return { name: 'GitHub', configured: false, message: 'Not authenticated' };
+  return { name: 'GitHub', configured: false, message: 'gh CLI not installed' };
 }
 
 // Get all statuses

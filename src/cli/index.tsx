@@ -7,7 +7,6 @@ import { SelectList } from './components/SelectList.js';
 import { Header } from './components/Header.js';
 import { Footer } from './components/Footer.js';
 import { QrScreen } from './components/QrScreen.js';
-import { GitHubScreen } from './components/GitHubScreen.js';
 import { getAllStatuses, ComponentStatus } from './hooks/useStatus.js';
 import {
   setFeishuCredentials,
@@ -16,7 +15,7 @@ import {
 import { RegisterResult } from '../feishu/qr-register.js';
 import { execa } from 'execa';
 
-type Screen = 'main' | 'claude' | 'feishu' | 'github' | 'qr' | 'github-auth';
+type Screen = 'main' | 'claude' | 'feishu' | 'github' | 'qr';
 
 const components = ['claude', 'feishu', 'github'] as const;
 const componentNames = ['Claude Code', 'Feishu', 'GitHub'];
@@ -61,7 +60,7 @@ function App() {
 
   // 子页面键盘监听
   useInput(async (input, key) => {
-    if (screen === 'main' || screen === 'qr' || screen === 'github-auth') return;
+    if (screen === 'main' || screen === 'qr') return;
 
     // 输入模式
     if (inputMode) {
@@ -156,22 +155,6 @@ function App() {
     );
   }
 
-  // 渲染 GitHub OAuth 页面
-  if (screen === 'github-auth') {
-    return (
-      <GitHubScreen
-        onSuccess={() => {
-          setMessage(chalk.green('✓ GitHub authenticated'));
-          setScreen('github');
-          refreshStatuses();
-        }}
-        onCancel={() => {
-          setScreen('github');
-        }}
-      />
-    );
-  }
-
   // 渲染子页面
   const { options, status } = getScreenConfig(screen, statuses);
 
@@ -240,16 +223,15 @@ function getScreenConfig(screen: Screen, statuses: Record<string, ComponentStatu
   }
 
   if (screen === 'github') {
-    const configured = statuses.github?.configured;
+    const installed = statuses.github?.configured;
     return {
       status: statuses.github?.message,
-      options: configured
+      options: installed
         ? [
-            { key: 'logout', label: 'Logout', description: 'Sign out from GitHub' },
             { key: 'back', label: 'Back', description: 'Return to main menu' },
           ]
         : [
-            { key: 'login', label: 'Login', description: 'OAuth with GitHub' },
+            { key: 'install', label: 'Install gh CLI', description: 'Visit GitHub CLI website' },
             { key: 'back', label: 'Back', description: 'Return to main menu' },
           ],
     };
@@ -314,16 +296,8 @@ async function executeAction(
 
   // GitHub actions
   if (screen === 'github') {
-    if (option.key === 'login') {
-      setScreen('github-auth');
-    } else if (option.key === 'logout') {
-      try {
-        await execa('gh', ['auth', 'logout', '--hostname', 'github.com']);
-        setMessage(chalk.green('✓ Logged out'));
-        refreshStatuses();
-      } catch (error) {
-        setMessage(chalk.red(`✗ Logout failed: ${error instanceof Error ? error.message : 'Unknown error'}`));
-      }
+    if (option.key === 'install') {
+      setMessage(chalk.cyan('Open: https://cli.github.com/ to install GitHub CLI'));
     }
   }
 }
