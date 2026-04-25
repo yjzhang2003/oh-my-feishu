@@ -100,12 +100,11 @@ function App() {
       return;
     }
 
-    // ESC 返回主菜单
+    // ESC 返回主菜单 (不刷新状态，避免卡顿)
     if (key.escape) {
       setScreen('main');
       setSelectedIndex(components.indexOf(screen));
       setMessage('');
-      refreshStatuses();
       return;
     }
 
