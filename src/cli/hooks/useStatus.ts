@@ -1,5 +1,4 @@
 import { spawnSync } from 'child_process';
-import { resolve } from 'path';
 
 export interface ComponentStatus {
   name: string;
@@ -25,10 +24,6 @@ function runCommand(cmd: string, args: string[] = [], timeoutMs: number = CHECK_
     return null;
   }
 }
-
-// Project-level paths in workspace/
-const PROJECT_CLAUDE_DIR = resolve(process.cwd(), 'workspace', '.claude');
-const PROJECT_SETTINGS_PATH = resolve(PROJECT_CLAUDE_DIR, 'settings.json');
 
 // Claude Code CLI status - check global installation only
 export function checkClaudeCode(): ComponentStatus {
