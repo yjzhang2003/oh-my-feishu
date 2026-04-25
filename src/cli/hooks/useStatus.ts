@@ -34,8 +34,8 @@ function runCommand(cmd: string, timeoutMs: number = CHECK_TIMEOUT_MS): { stdout
   }
 }
 
-// Project-level paths
-const PROJECT_CLAUDE_DIR = resolve(process.cwd(), '.claude');
+// Project-level paths in workspace/
+const PROJECT_CLAUDE_DIR = resolve(process.cwd(), 'workspace', '.claude');
 const PROJECT_SETTINGS_PATH = resolve(PROJECT_CLAUDE_DIR, 'settings.json');
 const PROJECT_ENV_PATH = resolve(PROJECT_CLAUDE_DIR, '.env');
 

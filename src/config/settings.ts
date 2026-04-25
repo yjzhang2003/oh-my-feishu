@@ -2,13 +2,13 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { resolve } from 'path';
 import { homedir } from 'os';
 
-// Project-level .claude directory
-const PROJECT_CLAUDE_DIR = resolve(process.cwd(), '.claude');
+// Project-level .claude directory in workspace/
+const PROJECT_CLAUDE_DIR = resolve(process.cwd(), 'workspace', '.claude');
 const PROJECT_SETTINGS_PATH = resolve(PROJECT_CLAUDE_DIR, 'settings.json');
 const PROJECT_ENV_PATH = resolve(PROJECT_CLAUDE_DIR, '.env');
 
 // ECC plugin ID
-const ECC_PLUGIN_ID = 'oh-my-claudecode@omc';
+const ECC_PLUGIN_ID = 'everything-claude-code@everything-claude-code';
 
 export interface ClaudeSettings {
   env?: Record<string, string>;

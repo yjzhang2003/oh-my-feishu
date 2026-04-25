@@ -2,7 +2,7 @@ import { writeFileSync, existsSync, mkdirSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 import { env } from '../config/env.js';
 
-const TRIGGERS_DIR = resolve(env.REPO_ROOT, '.claude', 'triggers');
+const TRIGGERS_DIR = resolve(env.REPO_ROOT, 'workspace', '.claude', 'triggers');
 const TRIGGER_FILE = resolve(TRIGGERS_DIR, 'latest.json');
 const RESULT_FILE = resolve(TRIGGERS_DIR, 'result.md');
 
