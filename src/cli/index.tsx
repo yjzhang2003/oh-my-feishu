@@ -3,6 +3,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { render, Box, Text, useInput, useApp } from 'ink';
 import chalk from 'chalk';
 import { SelectList } from './components/SelectList.js';
+import { Header } from './components/Header.js';
+import { Footer } from './components/Footer.js';
+import { QrScreen } from './components/QrScreen.js';
 import { getAllStatuses, ComponentStatus } from './hooks/useStatus.js';
 import {
   getClaudeApiKey,
@@ -12,10 +15,10 @@ import {
   setFeishuCredentials,
   resetFeishuCredentials,
 } from '../config/settings.js';
-import { qrRegisterFeishu } from '../feishu/qr-register.js';
+import { RegisterResult } from '../feishu/qr-register.js';
 import { execa } from 'execa';
 
-type Screen = 'main' | 'claude' | 'feishu' | 'github' | 'ecc';
+type Screen = 'main' | 'claude' | 'feishu' | 'github' | 'ecc' | 'qr';
 
 const components = ['claude', 'feishu', 'github', 'ecc'] as const;
 const componentNames = ['Claude Code', 'Feishu', 'GitHub', 'ECC'];
@@ -60,7 +63,7 @@ function App() {
 
   // 子页面键盘监听
   useInput(async (input, key) => {
-    if (screen === 'main') return;
+    if (screen === 'main' || screen === 'qr') return;
 
     // 输入模式
     if (inputMode) {
@@ -130,18 +133,35 @@ function App() {
     const items = components.map((key, index) => ({
       key,
       label: componentNames[index],
-      description: statuses[key]?.message || '...',
+      status: statuses[key]?.configured ? '✓' : '✗',
+      statusColor: (statuses[key]?.configured ? 'green' : 'red') as 'green' | 'red',
     }));
 
     return (
       <Box flexDirection="column" padding={1}>
-        <Text bold color="cyan">Feishu Agent Setup</Text>
-        <Text dimColor>{'='.repeat(30)}</Text>
-        <Text dimColor>↑↓ navigate | Enter configure | q quit</Text>
+        <Header title="Feishu Agent Setup" />
         <Box marginTop={1}>
           <SelectList items={items} selectedIndex={selectedIndex} />
         </Box>
+        <Footer hints={['↑↓ Navigate', 'Enter Configure', 'q Quit']} />
       </Box>
+    );
+  }
+
+  // 渲染 QR 扫码页面
+  if (screen === 'qr') {
+    return (
+      <QrScreen
+        onSuccess={(result: RegisterResult) => {
+          setFeishuCredentials(result.app_id, result.app_secret);
+          setMessage(chalk.green('✓ Feishu credentials saved'));
+          setScreen('feishu');
+          refreshStatuses();
+        }}
+        onCancel={() => {
+          setScreen('feishu');
+        }}
+      />
     );
   }
 
@@ -150,10 +170,13 @@ function App() {
 
   return (
     <Box flexDirection="column" padding={1}>
-      <Text bold color="cyan">{componentNames[components.indexOf(screen)]} Configuration</Text>
-      <Text dimColor>{'='.repeat(30)}</Text>
-      {status && <Text dimColor>Status: {status}</Text>}
-      <Text dimColor>↑↓ navigate | Enter select | ESC back</Text>
+      <Header title={`${componentNames[components.indexOf(screen)]} Config`} />
+      {status && (
+        <Box marginTop={1}>
+          <Text dimColor>Status: </Text>
+          <Text color={statuses[screen]?.configured ? 'green' : 'yellow'}>{status}</Text>
+        </Box>
+      )}
       <Box marginTop={1}>
         <SelectList items={options} selectedIndex={subIndex} />
       </Box>
@@ -163,6 +186,7 @@ function App() {
           {inputMode && <Text color="cyan"> {inputValue}</Text>}
         </Box>
       )}
+      <Footer hints={['↑↓ Navigate', 'Enter Select', 'ESC Back']} />
     </Box>
   );
 }
@@ -203,7 +227,7 @@ function getScreenConfig(screen: Screen, statuses: Record<string, ComponentStatu
           ]
         : [
             { key: 'manual', label: 'Enter Credentials', description: 'Input APP_ID and SECRET' },
-            { key: 'scan', label: 'Scan QR', description: 'Create bot via QR code (Recommended)' },
+            { key: 'scan', label: 'Scan QR', description: 'Recommended', status: '★', statusColor: 'yellow' as const },
             { key: 'back', label: 'Back', description: 'Return to main menu' },
           ],
     };
@@ -286,12 +310,7 @@ async function executeAction(
       setMessage('Enter FEISHU_APP_ID:');
       setInputValue('');
     } else if (option.key === 'scan') {
-      const result = await qrRegisterFeishu();
-      if (result) {
-        setFeishuCredentials(result.app_id, result.app_secret);
-        setMessage(chalk.green('✓ Feishu credentials saved'));
-        refreshStatuses();
-      }
+      setScreen('qr');
     } else if (option.key === 'reset') {
       resetFeishuCredentials();
       setMessage(chalk.green('✓ Feishu credentials removed'));
@@ -302,26 +321,42 @@ async function executeAction(
   // GitHub actions
   if (screen === 'github') {
     if (option.key === 'login') {
-      await execa('gh', ['auth', 'login', '--git-protocol', 'https', '--web'], { stdio: 'inherit' });
-      setMessage(chalk.green('✓ GitHub authenticated'));
-      refreshStatuses();
+      try {
+        await execa('gh', ['auth', 'login', '--git-protocol', 'https', '--web'], { stdio: 'inherit' });
+        setMessage(chalk.green('✓ GitHub authenticated'));
+        refreshStatuses();
+      } catch (error) {
+        setMessage(chalk.red(`✗ Login failed: ${error instanceof Error ? error.message : 'Unknown error'}`));
+      }
     } else if (option.key === 'logout') {
-      await execa('gh', ['auth', 'logout', '--hostname', 'github.com']);
-      setMessage(chalk.green('✓ Logged out'));
-      refreshStatuses();
+      try {
+        await execa('gh', ['auth', 'logout', '--hostname', 'github.com']);
+        setMessage(chalk.green('✓ Logged out'));
+        refreshStatuses();
+      } catch (error) {
+        setMessage(chalk.red(`✗ Logout failed: ${error instanceof Error ? error.message : 'Unknown error'}`));
+      }
     }
   }
 
   // ECC actions
   if (screen === 'ecc') {
     if (option.key === 'install') {
-      await execa('claude', ['plugins', 'install', 'everything-claude-code@everything-claude-code']);
-      setMessage(chalk.green('✓ ECC plugin installed'));
-      refreshStatuses();
+      try {
+        await execa('claude', ['plugins', 'install', 'everything-claude-code@everything-claude-code']);
+        setMessage(chalk.green('✓ ECC plugin installed'));
+        refreshStatuses();
+      } catch (error) {
+        setMessage(chalk.red(`✗ Install failed: ${error instanceof Error ? error.message : 'Unknown error'}`));
+      }
     } else if (option.key === 'update') {
-      await execa('claude', ['plugins', 'update', 'everything-claude-code@everything-claude-code']);
-      setMessage(chalk.green('✓ ECC plugin updated'));
-      refreshStatuses();
+      try {
+        await execa('claude', ['plugins', 'update', 'everything-claude-code@everything-claude-code']);
+        setMessage(chalk.green('✓ ECC plugin updated'));
+        refreshStatuses();
+      } catch (error) {
+        setMessage(chalk.red(`✗ Update failed: ${error instanceof Error ? error.message : 'Unknown error'}`));
+      }
     }
   }
 }

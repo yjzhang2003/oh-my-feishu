@@ -1,13 +1,13 @@
 import qrcode from 'qrcode';
-import chalk from 'chalk';
-import { setFeishuCredentials } from '../config/settings.js';
 
 const ACCOUNTS_URLS: Record<string, string> = {
-  feishu: 'https://accounts.feishu.cn/open-apis/authen/v1/sdk_register',
-  lark: 'https://accounts.larksuite.com/open-apis/authen/v1/sdk_register',
+  feishu: 'https://accounts.feishu.cn',
+  lark: 'https://accounts.larksuite.com',
 };
 
-interface BeginResult {
+const REGISTRATION_PATH = '/oauth/v1/app/registration';
+
+export interface BeginResult {
   device_code: string;
   qr_url: string;
   user_code: string;
@@ -15,18 +15,33 @@ interface BeginResult {
   expire_in: number;
 }
 
-interface RegisterResult {
+export interface RegisterResult {
   app_id: string;
   app_secret: string;
   domain: string;
   open_id?: string;
 }
 
+export interface QrStatus {
+  phase: 'connecting' | 'waiting' | 'success' | 'denied' | 'expired' | 'timeout' | 'error';
+  message: string;
+  qrString?: string;
+  qrUrl?: string;
+  result?: RegisterResult;
+}
+
 async function postRegistration(baseUrl: string, data: Record<string, unknown>): Promise<Record<string, unknown>> {
-  const response = await fetch(baseUrl, {
+  const formBody = new URLSearchParams();
+  for (const [key, value] of Object.entries(data)) {
+    if (value !== undefined) {
+      formBody.append(key, String(value));
+    }
+  }
+
+  const response = await fetch(`${baseUrl}${REGISTRATION_PATH}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: formBody.toString(),
   });
 
   if (!response.ok) {
@@ -36,7 +51,7 @@ async function postRegistration(baseUrl: string, data: Record<string, unknown>):
   return response.json() as Promise<Record<string, unknown>>;
 }
 
-async function initRegistration(domain: string): Promise<void> {
+export async function initRegistration(domain: string): Promise<void> {
   const baseUrl = ACCOUNTS_URLS[domain] || ACCOUNTS_URLS.feishu;
   const res = await postRegistration(baseUrl, { action: 'init' });
   const methods = (res.supported_auth_methods as string[]) || [];
@@ -46,7 +61,7 @@ async function initRegistration(domain: string): Promise<void> {
   }
 }
 
-async function beginRegistration(domain: string): Promise<BeginResult> {
+export async function beginRegistration(domain: string): Promise<BeginResult> {
   const baseUrl = ACCOUNTS_URLS[domain] || ACCOUNTS_URLS.feishu;
   const res = await postRegistration(baseUrl, {
     action: 'begin',
@@ -76,135 +91,55 @@ async function beginRegistration(domain: string): Promise<BeginResult> {
   };
 }
 
-async function pollRegistration(
+export async function pollOnce(
   deviceCode: string,
-  interval: number,
-  expireIn: number,
-  domain: string,
-  onWaiting: () => void
-): Promise<RegisterResult | null> {
-  const deadline = Date.now() + expireIn * 1000;
-  let currentDomain = domain;
-  let pollCount = 0;
+  domain: string
+): Promise<{ status: 'pending' | 'success' | 'denied' | 'expired'; result?: RegisterResult; newDomain?: string }> {
+  const baseUrl = ACCOUNTS_URLS[domain] || ACCOUNTS_URLS.feishu;
 
-  while (Date.now() < deadline) {
-    const baseUrl = ACCOUNTS_URLS[currentDomain] || ACCOUNTS_URLS.feishu;
+  try {
+    const res = await postRegistration(baseUrl, {
+      action: 'poll',
+      device_code: deviceCode,
+      tp: 'ob_app',
+    });
 
-    try {
-      const res = await postRegistration(baseUrl, {
-        action: 'poll',
-        device_code: deviceCode,
-        tp: 'ob_app',
-      });
+    // Domain auto-detection
+    const userInfo = (res.user_info as Record<string, unknown>) || {};
+    const tenantBrand = userInfo.tenant_brand as string;
+    const newDomain = tenantBrand === 'lark' ? 'lark' : undefined;
 
-      pollCount++;
-      if (pollCount === 1 || pollCount % 6 === 0) {
-        onWaiting();
-      }
-
-      // Domain auto-detection
-      const userInfo = (res.user_info as Record<string, unknown>) || {};
-      const tenantBrand = userInfo.tenant_brand as string;
-      if (tenantBrand === 'lark' && currentDomain !== 'lark') {
-        currentDomain = 'lark';
-      }
-
-      // Success
-      if (res.client_id && res.client_secret) {
-        return {
+    // Success
+    if (res.client_id && res.client_secret) {
+      return {
+        status: 'success',
+        result: {
           app_id: res.client_id as string,
           app_secret: res.client_secret as string,
-          domain: currentDomain,
+          domain: newDomain || domain,
           open_id: userInfo.open_id as string,
-        };
-      }
-
-      // Terminal errors
-      const error = res.error as string;
-      if (error === 'access_denied') {
-        console.log('\n❌ Registration denied by user.');
-        return null;
-      }
-      if (error === 'expired_token') {
-        console.log('\n❌ QR code expired. Please try again.');
-        return null;
-      }
-    } catch {
-      // Network error, retry
+        },
+      };
     }
 
-    await new Promise(resolve => setTimeout(resolve, interval * 1000));
-  }
+    // Terminal errors
+    const error = res.error as string;
+    if (error === 'access_denied') {
+      return { status: 'denied' };
+    }
+    if (error === 'expired_token') {
+      return { status: 'expired' };
+    }
 
-  console.log('\n❌ Registration timed out.');
-  return null;
-}
-
-async function renderQrTerminal(url: string): Promise<boolean> {
-  try {
-    const qrString = await qrcode.toString(url, {
-      type: 'terminal',
-      small: true,
-    });
-    console.log(qrString);
-    return true;
+    return { status: 'pending', newDomain };
   } catch {
-    return false;
+    return { status: 'pending' };
   }
 }
 
-export async function qrRegisterFeishu(
-  domain: string = 'feishu',
-  timeoutSeconds: number = 300
-): Promise<RegisterResult | null> {
-  console.log('\n📱 Feishu / Lark Bot Registration');
-  console.log('-'.repeat(40));
-
-  try {
-    process.stdout.write('  Connecting to Feishu / Lark...');
-    await initRegistration(domain);
-    const begin = await beginRegistration(domain);
-    console.log(' done.\n');
-
-    const qrUrl = begin.qr_url;
-    const rendered = await renderQrTerminal(qrUrl);
-
-    if (rendered) {
-      console.log(`\n  Scan the QR code above, or open this URL:\n  ${qrUrl}`);
-    } else {
-      console.log(`  Open this URL in Feishu / Lark on your phone:\n\n  ${qrUrl}\n`);
-    }
-    console.log();
-
-    const result = await pollRegistration(
-      begin.device_code,
-      begin.interval,
-      Math.min(begin.expire_in, timeoutSeconds),
-      domain,
-      () => process.stdout.write('.')
-    );
-
-    if (result) {
-      console.log(`\n✅ Bot created successfully!`);
-      console.log(`   App ID: ${result.app_id}`);
-      console.log(`   Domain: ${result.domain}`);
-    }
-
-    return result;
-  } catch (error) {
-    console.log(`\n❌ Registration failed: ${error}`);
-    return null;
-  }
-}
-
-export async function setupFeishuWithQR(): Promise<boolean> {
-  const result = await qrRegisterFeishu();
-
-  if (result) {
-    setFeishuCredentials(result.app_id, result.app_secret);
-    console.log(chalk.green('✓ Feishu credentials saved to .env'));
-    return true;
-  }
-
-  return false;
+export async function generateQrString(url: string): Promise<string> {
+  return qrcode.toString(url, {
+    type: 'terminal',
+    small: true,
+  });
 }

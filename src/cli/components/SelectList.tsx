@@ -5,7 +5,8 @@ interface SelectItem {
   key: string;
   label: string;
   description?: string;
-  disabled?: boolean;
+  status?: string;
+  statusColor?: 'green' | 'red' | 'yellow' | 'blue' | 'cyan' | 'magenta' | 'gray';
 }
 
 interface SelectListProps {
@@ -21,15 +22,22 @@ export function SelectList({ items, selectedIndex }: SelectListProps) {
         const prefix = isSelected ? '❯ ' : '  ';
         
         return (
-          <Text key={item.key}>
+          <Box key={item.key}>
             <Text color={isSelected ? 'cyan' : undefined}>{prefix}</Text>
             <Text color={isSelected ? 'white' : 'gray'} bold={isSelected}>
               {item.label}
             </Text>
             {item.description && (
-              <Text dimColor> - {item.description}</Text>
+              <Text dimColor>  {item.description}</Text>
             )}
-          </Text>
+            {item.status !== undefined && (
+              <Box marginLeft={1}>
+                <Text color={item.statusColor || 'gray'} dimColor={!isSelected}>
+                  [{item.status}]
+                </Text>
+              </Box>
+            )}
+          </Box>
         );
       })}
     </Box>
