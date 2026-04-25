@@ -7,13 +7,13 @@ import { SelectList } from './components/SelectList.js';
 import { Header } from './components/Header.js';
 import { Footer } from './components/Footer.js';
 import { getAllStatuses, ComponentStatus } from './hooks/useStatus.js';
-import { initLarkConfig, checkLarkConfig, removeLarkConfig } from '../feishu/lark-auth.js';
+import { initLarkConfig, removeLarkConfig } from '../feishu/lark-auth.js';
 import { execa } from 'execa';
 
-type Screen = 'main' | 'claude' | 'feishu' | 'github' | 'lark' | 'gateway' | 'init';
+type Screen = 'main' | 'claude' | 'feishu' | 'github' | 'gateway' | 'init';
 
-const components = ['claude', 'feishu', 'github', 'lark', 'gateway'] as const;
-const componentNames = ['Claude Code', 'Feishu', 'GitHub', 'Lark CLI', 'Gateway'];
+const components = ['claude', 'feishu', 'github', 'gateway'] as const;
+const componentNames = ['Claude Code', 'Feishu (Lark)', 'GitHub', 'Gateway'];
 
 function App() {
   const { exit } = useApp();
@@ -97,7 +97,7 @@ function App() {
   if (screen === 'init') {
     return (
       <Box flexDirection="column" padding={1}>
-        <Header title="Lark CLI Init" />
+        <Header title="Lark CLI Auth" />
         <Box marginTop={1} flexDirection="column">
           {initOutput.map((line, i) => (
             <Text key={i}>{line}</Text>
@@ -108,7 +108,7 @@ function App() {
             <Text>{message}</Text>
           </Box>
         )}
-        <Footer hints={['Wait for browser auth...', 'ESC Cancel']} />
+        <Footer hints={['Complete auth in browser...', 'ESC Cancel']} />
       </Box>
     );
   }
@@ -165,12 +165,12 @@ function getScreenConfig(screen: Screen, statuses: Record<string, ComponentStatu
       status: statuses.feishu?.message,
       options: configured
         ? [
-            { key: 'reconfigure', label: 'Reconfigure', description: 'Re-auth with lark-cli init' },
+            { key: 'reconfigure', label: 'Re-auth', description: 'Re-authenticate with lark-cli' },
             { key: 'reset', label: 'Reset', description: 'Remove lark-cli config' },
             { key: 'back', label: 'Back', description: 'Return to main menu' },
           ]
         : [
-            { key: 'init', label: 'Init with lark-cli', description: 'Create bot via browser auth', status: '★', statusColor: 'yellow' as const },
+            { key: 'init', label: 'Auth with lark-cli', description: 'Browser-based authentication', status: '★', statusColor: 'yellow' as const },
             { key: 'back', label: 'Back', description: 'Return to main menu' },
           ],
     };
@@ -186,21 +186,6 @@ function getScreenConfig(screen: Screen, statuses: Record<string, ComponentStatu
           ]
         : [
             { key: 'install', label: 'Install gh CLI', description: 'Visit GitHub CLI website' },
-            { key: 'back', label: 'Back', description: 'Return to main menu' },
-          ],
-    };
-  }
-
-  if (screen === 'lark') {
-    const installed = statuses.lark?.configured;
-    return {
-      status: statuses.lark?.message,
-      options: installed
-        ? [
-            { key: 'back', label: 'Back', description: 'Return to main menu' },
-          ]
-        : [
-            { key: 'install', label: 'Install lark-cli', description: 'Visit larksuite/cli GitHub' },
             { key: 'back', label: 'Back', description: 'Return to main menu' },
           ],
     };
@@ -261,11 +246,11 @@ async function executeAction(
     }
   }
 
-  // Feishu actions - use lark-cli
+  // Feishu actions
   if (screen === 'feishu') {
     if (option.key === 'init' || option.key === 'reconfigure') {
       setScreen('init');
-      setInitOutput(['Starting lark-cli config init...']);
+      setInitOutput(['Starting lark-cli config init...', '']);
       setMessage('');
 
       const result = await initLarkConfig((line) => {
@@ -294,14 +279,7 @@ async function executeAction(
   // GitHub actions
   if (screen === 'github') {
     if (option.key === 'install') {
-      setMessage(chalk.cyan('Open: https://cli.github.com/ to install GitHub CLI'));
-    }
-  }
-
-  // Lark CLI actions
-  if (screen === 'lark') {
-    if (option.key === 'install') {
-      setMessage(chalk.cyan('Run: npm install -g @larksuite/cli'));
+      setMessage(chalk.cyan('Run: brew install gh  OR  visit https://cli.github.com/'));
     }
   }
 

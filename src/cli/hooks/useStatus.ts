@@ -75,16 +75,6 @@ export function checkGitHub(): ComponentStatus {
   return { name: 'GitHub', configured: false, message: 'gh CLI not installed' };
 }
 
-// Lark CLI status - check if lark-cli is installed
-export function checkLarkCli(): ComponentStatus {
-  const result = runCommand('lark', ['--version']);
-  if (result && result.success) {
-    const version = result.stdout.trim().split('\n')[0];
-    return { name: 'Lark CLI', configured: true, message: `${version} installed` };
-  }
-  return { name: 'Lark CLI', configured: false, message: 'lark-cli not installed' };
-}
-
 // Gateway status - check if gateway is running
 export function checkGateway(): ComponentStatus {
   const result = runCommand('curl', ['-s', '-o', '/dev/null', '-w', '%{http_code}', 'http://localhost:8000/health']);
@@ -99,8 +89,7 @@ export function getAllStatuses(): Record<string, ComponentStatus> {
   const claude = checkClaudeCode();
   const feishu = checkFeishu();
   const github = checkGitHub();
-  const lark = checkLarkCli();
   const gateway = checkGateway();
 
-  return { claude, feishu, github, lark, gateway };
+  return { claude, feishu, github, gateway };
 }
