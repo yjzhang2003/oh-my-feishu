@@ -8,6 +8,7 @@
   },
   "scripts": {
     "cli": "tsx src/cli/index.tsx",
+    "mcp:build": "tsc src/mcp/feishu-server.ts --outDir dist/mcp --module NodeNext --moduleResolution NodeNext --target ES2022 --esModuleInterop",
     "start": "tsx src/start.ts",
     "start:dev": "pm2 start ecosystem.config.cjs --env development",
     "start:prod": "pm2 start ecosystem.config.cjs",
@@ -25,6 +26,7 @@
     "@hono/node-server": "^1.11.0",
     "@inquirer/prompts": "^5.0.0",
     "@larksuiteoapi/node-sdk": "^1.62.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@types/qrcode": "^1.5.6",
     "chalk": "^5.3.0",
     "dotenv": "^16.4.0",

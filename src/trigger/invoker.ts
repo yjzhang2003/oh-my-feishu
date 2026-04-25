@@ -103,34 +103,48 @@ export async function invokeClaudeSkill(options: InvokeOptions): Promise<InvokeR
 
 /**
  * Invoke Claude Code directly with a chat message
- * Uses --continue to maintain conversation context
+ * Uses MCP server to provide send_text/send_card tools
  */
 export async function invokeClaudeChat(context: ChatContext, timeout: number = 300000): Promise<InvokeResult> {
   const workspaceDir = resolve(env.REPO_ROOT, 'workspace');
+  const mcpConfigPath = resolve(env.REPO_ROOT, 'mcp-config.json');
 
-  // Create prompt with lark-cli capabilities
-  const systemPrompt = `You are a Feishu chat assistant with full access to lark-cli.
+  // Create MCP config with context
+  const mcpConfig = {
+    mcpServers: {
+      'feishu-mcp': {
+        command: 'node',
+        args: [resolve(env.REPO_ROOT, 'dist', 'mcp', 'feishu-server.js')],
+        env: {
+          LARK_APP_ID: process.env.LARK_APP_ID || '',
+          LARK_APP_SECRET: process.env.LARK_APP_SECRET || '',
+          LARK_DOMAIN: process.env.LARK_DOMAIN || 'feishu',
+        },
+      },
+    },
+  };
 
-You MUST respond using lark-cli commands. Choose the appropriate method:
-- Text: lark-cli im send-text --chat-id ${context.chatId} "message"
-- Card (for rich content/structured data): lark-cli im send-card --chat-id ${context.chatId} '<card_json>'
-- Message with markdown: use send-card with appropriate card structure
+  // Write MCP config
+  writeFileSync(mcpConfigPath, JSON.stringify(mcpConfig, null, 2));
 
-Use lark-cli --help to discover more capabilities like documents, calendar, contacts, etc.
+  // Create prompt with context
+  const systemPrompt = `You are a Feishu chat assistant. You have access to tools for sending messages.
 
-Context:
+IMPORTANT: You MUST use the send_text or send_card tools to respond to the user. Do not just output text.
+
+Current context:
 - Chat ID: ${context.chatId}
 - Chat Type: ${context.chatType}
 - Sender Open ID: ${context.senderOpenId}
 
-Always send your response back via lark-cli, not just output text.`;
+Always send your response using the send_text or send_card tool.`;
 
   try {
     const workspaceEnv = loadWorkspaceEnv();
     const result = await execa('claude', [
       '-p',
       '--dangerously-skip-permissions',
-      '-c', // Continue previous conversation for context
+      '--mcp-config', mcpConfigPath,
       '--append-system-prompt', systemPrompt,
       context.message,
     ], {
