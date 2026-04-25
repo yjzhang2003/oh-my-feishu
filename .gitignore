@@ -31,8 +31,19 @@ coverage/
 # TypeScript cache
 *.tsbuildinfo
 
-# Claude Code internals (root level - workspace has its own .claude)
+# Claude Code internals (root level only)
 .claude/
+
+# But track workspace skills
+!workspace/.claude/
+!workspace/.claude/skills/
+!workspace/.claude/skills/**/
+
+# Ignore workspace .claude internals except skills
+workspace/.claude/.env
+workspace/.claude/settings.json
+workspace/.claude/triggers/
+workspace/.claude/sessions/
 
 # OMC plugin internals
 .omc/
