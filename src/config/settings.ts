@@ -1,39 +1,53 @@
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { resolve } from 'path';
 import { homedir } from 'os';
 
-const CLAUDE_DIR = resolve(homedir(), '.claude');
-const SETTINGS_PATH = resolve(CLAUDE_DIR, 'settings.json');
+// Project-level .claude directory
+const PROJECT_CLAUDE_DIR = resolve(process.cwd(), '.claude');
+const PROJECT_SETTINGS_PATH = resolve(PROJECT_CLAUDE_DIR, 'settings.json');
+const PROJECT_ENV_PATH = resolve(PROJECT_CLAUDE_DIR, '.env');
+
+// ECC plugin ID
+const ECC_PLUGIN_ID = 'oh-my-claudecode@omc';
 
 export interface ClaudeSettings {
   env?: Record<string, string>;
   enabledPlugins?: Record<string, boolean>;
 }
 
+// Ensure .claude directory exists
+function ensureClaudeDir(): void {
+  if (!existsSync(PROJECT_CLAUDE_DIR)) {
+    mkdirSync(PROJECT_CLAUDE_DIR, { recursive: true });
+  }
+}
+
+// Load project-level settings
 export function loadSettings(): ClaudeSettings {
-  if (!existsSync(SETTINGS_PATH)) {
+  if (!existsSync(PROJECT_SETTINGS_PATH)) {
     return {};
   }
   try {
-    const content = readFileSync(SETTINGS_PATH, 'utf-8');
+    const content = readFileSync(PROJECT_SETTINGS_PATH, 'utf-8');
     return JSON.parse(content);
   } catch {
     return {};
   }
 }
 
+// Save project-level settings
 export function saveSettings(settings: ClaudeSettings): void {
-  if (!existsSync(CLAUDE_DIR)) {
-    require('fs').mkdirSync(CLAUDE_DIR, { recursive: true });
-  }
-  writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
+  ensureClaudeDir();
+  writeFileSync(PROJECT_SETTINGS_PATH, JSON.stringify(settings, null, 2));
 }
 
+// Get Claude API key
 export function getClaudeApiKey(): string | undefined {
   const settings = loadSettings();
   return settings.env?.ANTHROPIC_API_KEY || settings.env?.ANTHROPIC_AUTH_TOKEN;
 }
 
+// Set Claude API key
 export function setClaudeApiKey(apiKey: string): void {
   const settings = loadSettings();
   if (!settings.env) {
@@ -43,6 +57,7 @@ export function setClaudeApiKey(apiKey: string): void {
   saveSettings(settings);
 }
 
+// Reset Claude API key
 export function resetClaudeApiKey(): void {
   const settings = loadSettings();
   if (settings.env) {
@@ -52,42 +67,66 @@ export function resetClaudeApiKey(): void {
   saveSettings(settings);
 }
 
-// ECC Plugin
-const PLUGINS_PATH = resolve(CLAUDE_DIR, 'plugins', 'installed_plugins.json');
-
-export interface PluginInfo {
-  version: string;
-}
-
-export interface PluginsConfig {
-  plugins?: Record<string, PluginInfo[]>;
-}
-
+// ECC Plugin - check if enabled in project settings
 export function getEccPluginStatus(): { installed: boolean; version?: string } {
-  if (!existsSync(PLUGINS_PATH)) {
-    return { installed: false };
+  const settings = loadSettings();
+  const isEnabled = settings.enabledPlugins?.[ECC_PLUGIN_ID] === true;
+
+  if (isEnabled) {
+    return { installed: true, version: 'enabled' };
   }
-  try {
-    const content = readFileSync(PLUGINS_PATH, 'utf-8');
-    const config: PluginsConfig = JSON.parse(content);
-    const eccId = 'everything-claude-code@everything-claude-code';
-    const plugin = config.plugins?.[eccId];
-    if (plugin && plugin[0]) {
-      return { installed: true, version: plugin[0].version };
+
+  // Fallback: check global installation
+  const globalPluginsPath = resolve(homedir(), '.claude', 'plugins', 'installed_plugins.json');
+  if (existsSync(globalPluginsPath)) {
+    try {
+      const content = readFileSync(globalPluginsPath, 'utf-8');
+      const config = JSON.parse(content);
+      const plugins = config.plugins || {};
+
+      // Check for ECC plugin variants
+      for (const pluginId of Object.keys(plugins)) {
+        if (pluginId.includes('oh-my-claudecode') || pluginId.includes('everything-claude-code')) {
+          const plugin = plugins[pluginId];
+          if (plugin && plugin[0]) {
+            return { installed: true, version: plugin[0].version };
+          }
+        }
+      }
+    } catch {
+      // Ignore errors
     }
-    return { installed: false };
-  } catch {
-    return { installed: false };
   }
+
+  return { installed: false };
 }
 
-// .env file management
-const ENV_PATH = resolve(process.cwd(), '.env');
+// Enable ECC plugin in project settings
+export function enableEccPlugin(): void {
+  const settings = loadSettings();
+  if (!settings.enabledPlugins) {
+    settings.enabledPlugins = {};
+  }
+  settings.enabledPlugins[ECC_PLUGIN_ID] = true;
+  saveSettings(settings);
+}
 
-export function updateEnvFile(key: string, value: string): void {
+// Disable ECC plugin in project settings
+export function disableEccPlugin(): void {
+  const settings = loadSettings();
+  if (settings.enabledPlugins) {
+    delete settings.enabledPlugins[ECC_PLUGIN_ID];
+  }
+  saveSettings(settings);
+}
+
+// .env file management in .claude directory
+function updateEnvFile(key: string, value: string): void {
+  ensureClaudeDir();
+
   let content = '';
-  if (existsSync(ENV_PATH)) {
-    content = readFileSync(ENV_PATH, 'utf-8');
+  if (existsSync(PROJECT_ENV_PATH)) {
+    content = readFileSync(PROJECT_ENV_PATH, 'utf-8');
   }
 
   const lines = content.split('\n');
@@ -105,20 +144,21 @@ export function updateEnvFile(key: string, value: string): void {
     lines.push(`${key}=${value}`);
   }
 
-  writeFileSync(ENV_PATH, lines.join('\n'));
+  writeFileSync(PROJECT_ENV_PATH, lines.join('\n'));
 }
 
-export function removeFromEnvFile(key: string): void {
-  if (!existsSync(ENV_PATH)) {
+function removeFromEnvFile(key: string): void {
+  if (!existsSync(PROJECT_ENV_PATH)) {
     return;
   }
 
-  const content = readFileSync(ENV_PATH, 'utf-8');
+  const content = readFileSync(PROJECT_ENV_PATH, 'utf-8');
   const lines = content.split('\n').filter(line => !line.startsWith(`${key}=`));
 
-  writeFileSync(ENV_PATH, lines.join('\n'));
+  writeFileSync(PROJECT_ENV_PATH, lines.join('\n'));
 }
 
+// Feishu credentials
 export function setFeishuCredentials(appId: string, appSecret: string): void {
   updateEnvFile('FEISHU_APP_ID', appId);
   updateEnvFile('FEISHU_APP_SECRET', appSecret);

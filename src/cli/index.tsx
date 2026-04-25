@@ -13,6 +13,8 @@ import {
   setClaudeApiKey,
   resetClaudeApiKey,
   getEccPluginStatus,
+  enableEccPlugin,
+  disableEccPlugin,
   setFeishuCredentials,
   resetFeishuCredentials,
 } from '../config/settings.js';
@@ -268,14 +270,14 @@ function getScreenConfig(screen: Screen, statuses: Record<string, ComponentStatu
   if (screen === 'ecc') {
     const eccStatus = getEccPluginStatus();
     return {
-      status: eccStatus.installed ? `v${eccStatus.version} installed` : 'Not installed',
+      status: eccStatus.installed ? (eccStatus.version || 'Enabled') : 'Not enabled',
       options: eccStatus.installed
         ? [
-            { key: 'update', label: 'Update', description: 'Update to latest version' },
+            { key: 'disable', label: 'Disable', description: 'Disable ECC for this project' },
             { key: 'back', label: 'Back', description: 'Return to main menu' },
           ]
         : [
-            { key: 'install', label: 'Install', description: 'Install ECC plugin' },
+            { key: 'enable', label: 'Enable', description: 'Enable ECC for this project' },
             { key: 'back', label: 'Back', description: 'Return to main menu' },
           ],
     };
@@ -349,24 +351,16 @@ async function executeAction(
     }
   }
 
-  // ECC actions
+  // ECC actions - enable/disable in project settings
   if (screen === 'ecc') {
-    if (option.key === 'install') {
-      try {
-        await execa('claude', ['plugins', 'install', 'everything-claude-code@everything-claude-code']);
-        setMessage(chalk.green('✓ ECC plugin installed'));
-        refreshStatuses();
-      } catch (error) {
-        setMessage(chalk.red(`✗ Install failed: ${error instanceof Error ? error.message : 'Unknown error'}`));
-      }
-    } else if (option.key === 'update') {
-      try {
-        await execa('claude', ['plugins', 'update', 'everything-claude-code@everything-claude-code']);
-        setMessage(chalk.green('✓ ECC plugin updated'));
-        refreshStatuses();
-      } catch (error) {
-        setMessage(chalk.red(`✗ Update failed: ${error instanceof Error ? error.message : 'Unknown error'}`));
-      }
+    if (option.key === 'enable') {
+      enableEccPlugin();
+      setMessage(chalk.green('✓ ECC plugin enabled for this project'));
+      refreshStatuses();
+    } else if (option.key === 'disable') {
+      disableEccPlugin();
+      setMessage(chalk.green('✓ ECC plugin disabled for this project'));
+      refreshStatuses();
     }
   }
 }
