@@ -52,12 +52,19 @@ export async function checkLarkConfig(): Promise<LarkConfigStatus> {
     proc.on('close', (code) => {
       if (code === 0 && stdout) {
         try {
-          const config = JSON.parse(stdout);
-          resolve({
-            configured: true,
-            appId: config.app_id,
-            brand: config.brand,
-          });
+          // Output may have extra lines, extract JSON part
+          const lines = stdout.trim().split('\n');
+          const jsonLine = lines.find(line => line.startsWith('{'));
+          if (jsonLine) {
+            const config = JSON.parse(jsonLine);
+            resolve({
+              configured: true,
+              appId: config.appId,
+              brand: config.brand,
+            });
+          } else {
+            resolve({ configured: false, error: 'Failed to parse config' });
+          }
         } catch {
           resolve({ configured: false, error: 'Failed to parse config' });
         }

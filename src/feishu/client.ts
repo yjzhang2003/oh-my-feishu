@@ -22,8 +22,8 @@ interface SendMessageResponse {
 }
 
 interface LarkCliConfig {
-  app_id?: string;
-  app_secret?: string;
+  appId?: string;
+  appSecret?: string;
   brand?: string;
 }
 
@@ -43,10 +43,10 @@ function getCredentials(): { appId: string; appSecret: string } | null {
     larkConfig = loadLarkCliConfig();
   }
 
-  if (larkConfig?.app_id && larkConfig?.app_secret) {
+  if (larkConfig?.appId && larkConfig?.appSecret) {
     return {
-      appId: larkConfig.app_id,
-      appSecret: larkConfig.app_secret,
+      appId: larkConfig.appId,
+      appSecret: larkConfig.appSecret,
     };
   }
 
@@ -67,19 +67,24 @@ function getCredentials(): { appId: string; appSecret: string } | null {
 function loadLarkCliConfig(): LarkCliConfig | null {
   // Try to get config via lark-cli command
   try {
-    const result = execSync('lark-cli config show --format json', {
+    const result = execSync('lark-cli config show', {
       encoding: 'utf-8',
       timeout: 5000,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
 
-    const config = JSON.parse(result);
-    if (config.app_id) {
-      return {
-        app_id: config.app_id,
-        app_secret: config.app_secret,
-        brand: config.brand,
-      };
+    // Output has JSON on first line, may have extra text after
+    const lines = result.trim().split('\n');
+    const jsonLine = lines.find(line => line.startsWith('{'));
+    if (jsonLine) {
+      const config = JSON.parse(jsonLine);
+      if (config.appId) {
+        return {
+          appId: config.appId,
+          appSecret: config.appSecret,
+          brand: config.brand,
+        };
+      }
     }
   } catch {
     // lark-cli not configured or not installed
@@ -97,7 +102,7 @@ function loadLarkCliConfig(): LarkCliConfig | null {
       try {
         const content = readFileSync(configPath, 'utf-8');
         const config = JSON.parse(content);
-        if (config.app_id) {
+        if (config.appId) {
           return config;
         }
       } catch {

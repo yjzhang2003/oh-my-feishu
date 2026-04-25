@@ -44,18 +44,23 @@ export function checkFeishu(): ComponentStatus {
   }
 
   // Check if lark-cli is configured
-  const configResult = runCommand('lark-cli', ['config', 'show', '--format', 'json']);
+  const configResult = runCommand('lark-cli', ['config', 'show']);
   if (configResult && configResult.success && configResult.stdout) {
     try {
-      const config = JSON.parse(configResult.stdout);
-      const appId = config.app_id || '';
-      const brand = config.brand || 'feishu';
-      if (appId) {
-        return {
-          name: 'Feishu',
-          configured: true,
-          message: `${brand}: ${appId.slice(0, 8)}...`
-        };
+      // Output may have extra lines, extract JSON part
+      const lines = configResult.stdout.trim().split('\n');
+      const jsonLine = lines.find(line => line.startsWith('{'));
+      if (jsonLine) {
+        const config = JSON.parse(jsonLine);
+        const appId = config.appId || '';
+        const brand = config.brand || 'feishu';
+        if (appId) {
+          return {
+            name: 'Feishu',
+            configured: true,
+            message: `${brand}: ${appId.slice(0, 8)}...`
+          };
+        }
       }
     } catch {
       // Config not valid JSON
