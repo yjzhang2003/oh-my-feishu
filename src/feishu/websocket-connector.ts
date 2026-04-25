@@ -132,9 +132,13 @@ export class FeishuWebSocket {
    */
   private async sendAckReaction(messageId: string): Promise<void> {
     try {
-      // Use lark-cli to add reaction (simpler than SDK)
+      // Use lark-cli to add reaction with proper params format
       const { execa } = await import('execa');
-      await execa('lark-cli', ['im', 'reactions', 'create', '--message-id', messageId, '--emoji-type', 'OK'], {
+      await execa('lark-cli', [
+        'im', 'reactions', 'create',
+        '--params', JSON.stringify({ message_id: messageId }),
+        '--data', JSON.stringify({ reaction_type: { emoji_type: 'OK' } }),
+      ], {
         timeout: 5000,
         reject: false,
       });
