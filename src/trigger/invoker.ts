@@ -103,55 +103,34 @@ export async function invokeClaudeSkill(options: InvokeOptions): Promise<InvokeR
 
 /**
  * Invoke Claude Code directly with a chat message
- * Uses MCP server to provide send_text/send_card tools
+ * Uses skills to teach Claude how to respond via lark-cli
  */
 export async function invokeClaudeChat(context: ChatContext, timeout: number = 300000): Promise<InvokeResult> {
   const workspaceDir = resolve(env.REPO_ROOT, 'workspace');
-  const mcpConfigPath = resolve(env.REPO_ROOT, 'mcp-config.json');
 
-  // Create MCP config with context
-  const mcpConfig = {
-    mcpServers: {
-      'feishu-mcp': {
-        command: 'node',
-        args: [resolve(env.REPO_ROOT, 'dist', 'mcp', 'feishu-server.js')],
-        env: {
-          LARK_APP_ID: process.env.LARK_APP_ID || '',
-          LARK_APP_SECRET: process.env.LARK_APP_SECRET || '',
-          LARK_DOMAIN: process.env.LARK_DOMAIN || 'feishu',
-        },
-      },
-    },
+  // Pass context as environment variables for the skill to use
+  const contextEnv = {
+    FEISHU_CHAT_ID: context.chatId,
+    FEISHU_SENDER_OPEN_ID: context.senderOpenId,
+    FEISHU_CHAT_TYPE: context.chatType,
   };
 
-  // Write MCP config
-  writeFileSync(mcpConfigPath, JSON.stringify(mcpConfig, null, 2));
+  // Create a prompt that triggers the chat skill
+  const prompt = `用户消息: ${context.message}
 
-  // Create prompt with context
-  const systemPrompt = `You are a Feishu chat assistant. You have access to tools for sending messages.
-
-IMPORTANT: You MUST use the send_text or send_card tools to respond to the user. Do not just output text.
-
-Current context:
-- Chat ID: ${context.chatId}
-- Chat Type: ${context.chatType}
-- Sender Open ID: ${context.senderOpenId}
-
-Always send your response using the send_text or send_card tool.`;
+请使用 /chat skill 回复用户。记住你必须用 lark-cli 发送回复，不要只输出文本。`;
 
   try {
     const workspaceEnv = loadWorkspaceEnv();
     const result = await execa('claude', [
       '-p',
       '--dangerously-skip-permissions',
-      '--mcp-config', mcpConfigPath,
-      '--append-system-prompt', systemPrompt,
-      context.message,
+      prompt,
     ], {
       cwd: workspaceDir,
       timeout,
       reject: false,
-      env: { ...process.env, ...workspaceEnv },
+      env: { ...process.env, ...workspaceEnv, ...contextEnv },
     });
 
     return {
