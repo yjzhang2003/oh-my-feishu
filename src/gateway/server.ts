@@ -89,9 +89,13 @@ export function startGateway(): void {
   const port = Number(process.env.PORT) || 8000;
 
   // Start health-check monitor if configured
-  import('../monitor/index.js').then(({ startMonitor }) => {
-    startMonitor();
-  });
+  import('../monitor/index.js')
+    .then(({ startMonitor }) => {
+      startMonitor();
+    })
+    .catch((err) => {
+      console.error('[Gateway] Failed to start monitor:', err);
+    });
 
   const server = serve({
     fetch: app.fetch,
@@ -104,8 +108,17 @@ export function startGateway(): void {
   console.log(`   Monitor: http://localhost:${port}/monitor`);
 
   // Graceful shutdown
-  const shutdown = () => {
+  const shutdown = async () => {
     console.log('\nShutting down gateway...');
+
+    // Stop monitor before closing server
+    try {
+      const { stopMonitor } = await import('../monitor/index.js');
+      stopMonitor();
+    } catch {
+      // Monitor may not have started
+    }
+
     server.close();
     process.exit(0);
   };

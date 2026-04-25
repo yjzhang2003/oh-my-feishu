@@ -50,7 +50,17 @@ function verifySignature(timestamp: string, nonce: string, body: string, signatu
  * Handle Feishu webhook events
  */
 export async function handleWebhook(c: Context) {
-  const body = await c.req.json() as FeishuWebhookBody;
+  // Verify signature if encryption key is configured
+  const timestamp = c.req.header('X-Lark-Request-Timestamp') || '';
+  const nonce = c.req.header('X-Lark-Request-Nonce') || '';
+  const signature = c.req.header('X-Lark-Signature') || '';
+  const rawBody = await c.req.text();
+
+  if (!verifySignature(timestamp, nonce, rawBody, signature)) {
+    return c.json({ error: 'Invalid signature' }, 401);
+  }
+
+  const body = JSON.parse(rawBody) as FeishuWebhookBody;
 
   // Handle URL verification challenge
   if (body.type === 'url_verification' && body.challenge) {
