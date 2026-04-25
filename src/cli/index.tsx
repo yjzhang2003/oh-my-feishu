@@ -6,16 +6,11 @@ import chalk from 'chalk';
 import { SelectList } from './components/SelectList.js';
 import { Header } from './components/Header.js';
 import { Footer } from './components/Footer.js';
-import { QrScreen } from './components/QrScreen.js';
 import { getAllStatuses, ComponentStatus } from './hooks/useStatus.js';
-import {
-  setFeishuCredentials,
-  resetFeishuCredentials,
-} from '../config/settings.js';
-import { RegisterResult } from '../feishu/qr-register.js';
+import { initLarkConfig, checkLarkConfig, removeLarkConfig } from '../feishu/lark-auth.js';
 import { execa } from 'execa';
 
-type Screen = 'main' | 'claude' | 'feishu' | 'github' | 'lark' | 'gateway' | 'qr';
+type Screen = 'main' | 'claude' | 'feishu' | 'github' | 'lark' | 'gateway' | 'init';
 
 const components = ['claude', 'feishu', 'github', 'lark', 'gateway'] as const;
 const componentNames = ['Claude Code', 'Feishu', 'GitHub', 'Lark CLI', 'Gateway'];
@@ -26,6 +21,7 @@ function App() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [statuses, setStatuses] = useState<Record<string, ComponentStatus>>({});
   const [message, setMessage] = useState('');
+  const [initOutput, setInitOutput] = useState<string[]>([]);
 
   useEffect(() => {
     setStatuses(getAllStatuses());
@@ -52,40 +48,9 @@ function App() {
   });
 
   const [subIndex, setSubIndex] = useState(0);
-  const [inputMode, setInputMode] = useState<string | null>(null);
-  const [inputValue, setInputValue] = useState('');
-  const [tempAppId, setTempAppId] = useState('');
 
   useInput(async (input, key) => {
-    if (screen === 'main' || screen === 'qr') return;
-
-    if (inputMode) {
-      if (key.return) {
-        if (inputMode === 'feishu-appid') {
-          setTempAppId(inputValue);
-          setInputMode('feishu-secret');
-          setInputValue('');
-          setMessage('Enter FEISHU_APP_SECRET:');
-        } else if (inputMode === 'feishu-secret') {
-          setFeishuCredentials(tempAppId, inputValue);
-          setMessage(chalk.green('✓ Feishu credentials saved'));
-          setInputMode(null);
-          setInputValue('');
-          setTempAppId('');
-          refreshStatuses();
-        }
-      } else if (key.escape) {
-        setInputMode(null);
-        setInputValue('');
-        setTempAppId('');
-        setMessage('');
-      } else if (key.backspace || key.delete) {
-        setInputValue((prev) => prev.slice(0, -1));
-      } else if (input && input.length === 1) {
-        setInputValue((prev) => prev + input);
-      }
-      return;
-    }
+    if (screen === 'main' || screen === 'init') return;
 
     if (key.escape) {
       setScreen('main');
@@ -103,11 +68,9 @@ function App() {
     } else if (key.return) {
       await executeAction(screen, subIndex, statuses, {
         setMessage,
-        setInputMode,
-        setInputValue,
-        setTempAppId,
         refreshStatuses,
         setScreen,
+        setInitOutput,
       });
     }
   });
@@ -131,19 +94,22 @@ function App() {
     );
   }
 
-  if (screen === 'qr') {
+  if (screen === 'init') {
     return (
-      <QrScreen
-        onSuccess={(result: RegisterResult) => {
-          setFeishuCredentials(result.app_id, result.app_secret);
-          setMessage(chalk.green('✓ Feishu credentials saved'));
-          setScreen('feishu');
-          refreshStatuses();
-        }}
-        onCancel={() => {
-          setScreen('feishu');
-        }}
-      />
+      <Box flexDirection="column" padding={1}>
+        <Header title="Lark CLI Init" />
+        <Box marginTop={1} flexDirection="column">
+          {initOutput.map((line, i) => (
+            <Text key={i}>{line}</Text>
+          ))}
+        </Box>
+        {message && (
+          <Box marginTop={1}>
+            <Text>{message}</Text>
+          </Box>
+        )}
+        <Footer hints={['Wait for browser auth...', 'ESC Cancel']} />
+      </Box>
     );
   }
 
@@ -164,7 +130,6 @@ function App() {
       {message && (
         <Box marginTop={1}>
           <Text>{message}</Text>
-          {inputMode && <Text color="cyan"> {inputValue}</Text>}
         </Box>
       )}
       <Footer hints={['↑↓ Navigate', 'Enter Select', 'ESC Back']} />
@@ -200,14 +165,12 @@ function getScreenConfig(screen: Screen, statuses: Record<string, ComponentStatu
       status: statuses.feishu?.message,
       options: configured
         ? [
-            { key: 'reconfigure', label: 'Reconfigure', description: 'Enter credentials manually' },
-            { key: 'scan', label: 'Scan QR', description: 'Create bot via QR code' },
-            { key: 'reset', label: 'Reset', description: 'Remove credentials' },
+            { key: 'reconfigure', label: 'Reconfigure', description: 'Re-auth with lark-cli init' },
+            { key: 'reset', label: 'Reset', description: 'Remove lark-cli config' },
             { key: 'back', label: 'Back', description: 'Return to main menu' },
           ]
         : [
-            { key: 'manual', label: 'Enter Credentials', description: 'Input APP_ID and SECRET' },
-            { key: 'scan', label: 'Scan QR', description: 'Recommended', status: '★', statusColor: 'yellow' as const },
+            { key: 'init', label: 'Init with lark-cli', description: 'Create bot via browser auth', status: '★', statusColor: 'yellow' as const },
             { key: 'back', label: 'Back', description: 'Return to main menu' },
           ],
     };
@@ -267,14 +230,12 @@ async function executeAction(
   statuses: Record<string, ComponentStatus>,
   handlers: {
     setMessage: (msg: string) => void;
-    setInputMode: (mode: string | null) => void;
-    setInputValue: (val: string) => void;
-    setTempAppId: (id: string) => void;
     refreshStatuses: () => void;
     setScreen: (s: Screen) => void;
+    setInitOutput: React.Dispatch<React.SetStateAction<string[]>>;
   }
 ) {
-  const { setMessage, setInputMode, setInputValue, setTempAppId, refreshStatuses, setScreen } = handlers;
+  const { setMessage, refreshStatuses, setScreen, setInitOutput } = handlers;
   const config = getScreenConfig(screen, statuses);
   const option = config.options[index];
 
@@ -296,21 +257,36 @@ async function executeAction(
       }
     } else if (option.key === 'open') {
       const workspacePath = resolve(process.cwd(), 'workspace');
-      setMessage(chalk.cyan(`cd ${workspacePath} && claude`));
+      setMessage(chalk.cyan(`claude ${workspacePath}`));
     }
   }
 
-  // Feishu actions
+  // Feishu actions - use lark-cli
   if (screen === 'feishu') {
-    if (option.key === 'manual' || option.key === 'reconfigure') {
-      setInputMode('feishu-appid');
-      setMessage('Enter FEISHU_APP_ID:');
-      setInputValue('');
-    } else if (option.key === 'scan') {
-      setScreen('qr');
+    if (option.key === 'init' || option.key === 'reconfigure') {
+      setScreen('init');
+      setInitOutput(['Starting lark-cli config init...']);
+      setMessage('');
+
+      const result = await initLarkConfig((line) => {
+        setInitOutput((prev) => [...prev, line]);
+      });
+
+      if (result.success) {
+        setMessage(chalk.green('✓ Lark CLI configured successfully'));
+        setScreen('feishu');
+        refreshStatuses();
+      } else {
+        setMessage(chalk.red(`✗ ${result.error || 'Configuration failed'}`));
+        setScreen('feishu');
+      }
     } else if (option.key === 'reset') {
-      resetFeishuCredentials();
-      setMessage(chalk.green('✓ Feishu credentials removed'));
+      const result = await removeLarkConfig();
+      if (result.success) {
+        setMessage(chalk.green('✓ Lark CLI config removed'));
+      } else {
+        setMessage(chalk.red(`✗ ${result.error || 'Failed to remove config'}`));
+      }
       refreshStatuses();
     }
   }
@@ -325,7 +301,7 @@ async function executeAction(
   // Lark CLI actions
   if (screen === 'lark') {
     if (option.key === 'install') {
-      setMessage(chalk.cyan('Open: https://github.com/larksuite/cli to install lark-cli'));
+      setMessage(chalk.cyan('Run: npm install -g @larksuite/cli'));
     }
   }
 

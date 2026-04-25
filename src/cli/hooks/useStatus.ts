@@ -1,5 +1,4 @@
 import { spawnSync } from 'child_process';
-import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 
 export interface ComponentStatus {
@@ -30,7 +29,6 @@ function runCommand(cmd: string, args: string[] = [], timeoutMs: number = CHECK_
 // Project-level paths in workspace/
 const PROJECT_CLAUDE_DIR = resolve(process.cwd(), 'workspace', '.claude');
 const PROJECT_SETTINGS_PATH = resolve(PROJECT_CLAUDE_DIR, 'settings.json');
-const PROJECT_ENV_PATH = resolve(PROJECT_CLAUDE_DIR, '.env');
 
 // Claude Code CLI status - check global installation only
 export function checkClaudeCode(): ComponentStatus {
@@ -42,47 +40,34 @@ export function checkClaudeCode(): ComponentStatus {
   return { name: 'Claude Code', configured: false, message: 'CLI not installed' };
 }
 
-// Feishu status - check project-level .env in .claude directory
+// Feishu/Lark status - check lark-cli configuration
 export function checkFeishu(): ComponentStatus {
-  if (!existsSync(PROJECT_ENV_PATH)) {
-    // Fallback to root .env for backwards compatibility
-    const rootEnvPath = resolve(process.cwd(), '.env');
-    if (!existsSync(rootEnvPath)) {
-      return { name: 'Feishu', configured: false, message: 'No .env file' };
-    }
+  // First check if lark-cli is installed
+  const larkResult = runCommand('lark-cli', ['--version']);
+  if (!larkResult || !larkResult.success) {
+    return { name: 'Feishu', configured: false, message: 'lark-cli not installed' };
+  }
 
+  // Check if lark-cli is configured
+  const configResult = runCommand('lark-cli', ['config', 'show', '--format', 'json']);
+  if (configResult && configResult.success && configResult.stdout) {
     try {
-      const content = readFileSync(rootEnvPath, 'utf-8');
-      const hasAppId = /FEISHU_APP_ID=.+/.test(content);
-      const hasSecret = /FEISHU_APP_SECRET=.+/.test(content);
-
-      if (hasAppId && hasSecret) {
-        const match = content.match(/FEISHU_APP_ID=(.+)/);
-        const appId = match ? match[1].trim() : '';
-        return { name: 'Feishu', configured: true, message: `Bot: ${appId.slice(0, 8)}...` };
+      const config = JSON.parse(configResult.stdout);
+      const appId = config.app_id || '';
+      const brand = config.brand || 'feishu';
+      if (appId) {
+        return {
+          name: 'Feishu',
+          configured: true,
+          message: `${brand}: ${appId.slice(0, 8)}...`
+        };
       }
     } catch {
-      // Ignore errors
+      // Config not valid JSON
     }
-
-    return { name: 'Feishu', configured: false, message: 'Bot credentials not configured' };
   }
 
-  try {
-    const content = readFileSync(PROJECT_ENV_PATH, 'utf-8');
-    const hasAppId = /FEISHU_APP_ID=.+/.test(content);
-    const hasSecret = /FEISHU_APP_SECRET=.+/.test(content);
-
-    if (hasAppId && hasSecret) {
-      const match = content.match(/FEISHU_APP_ID=(.+)/);
-      const appId = match ? match[1].trim() : '';
-      return { name: 'Feishu', configured: true, message: `Bot: ${appId.slice(0, 8)}...` };
-    }
-
-    return { name: 'Feishu', configured: false, message: 'Bot credentials not configured' };
-  } catch {
-    return { name: 'Feishu', configured: false, message: 'Cannot read .env' };
-  }
+  return { name: 'Feishu', configured: false, message: 'lark-cli not configured' };
 }
 
 // GitHub status - check if gh CLI is installed
