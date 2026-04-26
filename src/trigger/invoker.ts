@@ -74,6 +74,7 @@ export async function invokeClaudeSkill(options: InvokeOptions): Promise<InvokeR
       cwd: workspaceDir,
       timeout,
       reject: false,
+      stdin: 'ignore',
       env: { ...process.env, ...workspaceEnv },
     });
 
@@ -119,26 +120,22 @@ export async function invokeClaudeChat(context: ChatContext, timeout: number = 3
   // Generate a session ID based on chat ID for conversation continuity
   const sessionId = chatIdToSessionUuid(context.chatId);
 
-  // Create a prompt that triggers the chat skill
-  const prompt = `用户消息: ${context.message}
-
-请使用 /chat skill 回复用户。记住你必须用 lark-cli 发送回复，不要只输出文本。
-
-上下文:
-- Chat ID: ${context.chatId}
-- 发送者: ${context.senderOpenId}`;
+  // Pass the user message directly — do NOT prepend "用户消息:" or echo context
+  // The chat skill reads FEISHU_CHAT_ID and FEISHU_SENDER_OPEN_ID from env vars
+  const prompt = context.message;
 
   try {
     const workspaceEnv = loadWorkspaceEnv();
     const result = await execa('claude', [
       '-p',
       '--dangerously-skip-permissions',
-      '--resume', sessionId,  // Resume or create session for this chat
+      '--resume', sessionId,
       prompt,
     ], {
       cwd: workspaceDir,
       timeout,
       reject: false,
+      stdin: 'ignore',
       env: { ...process.env, ...workspaceEnv, ...contextEnv },
     });
 

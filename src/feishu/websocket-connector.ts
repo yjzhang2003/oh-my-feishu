@@ -225,22 +225,26 @@ Or just send a message to chat with Claude Code!`);
   private async handleChatMessage(chatId: string, chatType: string, text: string, senderOpenId: string): Promise<void> {
     log.info('chat', 'Processing message', { chatId, text: text.slice(0, 50) });
 
-    // Invoke Claude directly with chat context
     invokeClaudeChat({
       message: text,
       chatId,
       chatType,
       senderOpenId,
     })
-      .then((result) => {
-        if (result.success) {
+      .then(async (result) => {
+        if (result.success && result.stdout.trim()) {
           log.info('chat', 'Claude responded', { chatId });
+          await this.sendMarkdownMessage(chatId, result.stdout.trim());
+        } else if (result.success) {
+          await this.sendTextMessage(chatId, '（Claude 未返回内容）');
         } else {
-          log.error('chat', 'Claude failed', { error: result.stderr });
+          log.error('chat', 'Claude failed', { exitCode: result.exitCode, stderr: result.stderr, stdout: result.stdout.slice(0, 200) });
+          await this.sendTextMessage(chatId, `❌ Claude 调用失败 (exit ${result.exitCode}): ${(result.stderr || result.stdout).slice(0, 200)}`);
         }
       })
-      .catch((err) => {
+      .catch(async (err) => {
         log.error('chat', 'Chat failed', { error: String(err) });
+        await this.sendTextMessage(chatId, `❌ 处理失败: ${String(err).slice(0, 200)}`);
       });
   }
 
@@ -259,6 +263,34 @@ Or just send a message to chat with Claude Code!`);
       log.messageOut(chatId, text, 'text');
     } catch (error) {
       log.error('feishu', 'Error sending text message', { chatId, error: String(error) });
+    }
+  }
+
+  async sendMarkdownMessage(chatId: string, text: string): Promise<void> {
+    try {
+      // Feishu bots use "post" msg_type for rich text (markdown-like) content
+      const content = JSON.stringify({
+        zh_cn: {
+          title: '',
+          content: [[{ tag: 'text', text }]],
+        },
+      });
+
+      await this.client.im.v1.message.create({
+        params: {
+          receive_id_type: 'chat_id',
+        },
+        data: {
+          receive_id: chatId,
+          content,
+          msg_type: 'post',
+        },
+      });
+      log.messageOut(chatId, text.slice(0, 50), 'post');
+    } catch (error) {
+      log.error('feishu', 'Error sending post message', { chatId, error: String(error) });
+      // Fallback to plain text
+      await this.sendTextMessage(chatId, text);
     }
   }
 
