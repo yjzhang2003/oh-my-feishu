@@ -1,9 +1,13 @@
 import * as lark from '@larksuiteoapi/node-sdk';
-import { writeTrigger } from '../trigger/trigger.js';
-import { invokeClaudeSkill, invokeClaudeChat } from '../trigger/invoker.js';
-import { env } from '../config/env.js';
 import { log } from '../utils/logger.js';
-import { addService, removeService, listServices, updateService, type ServiceEntry } from '../service/registry.js';
+import { MessageRouter, type MessageData, type SendMessageFn } from './message-router.js';
+import { CardDispatcher, type CardActionPayload } from './interactions/card-dispatcher.js';
+import { SessionStore } from './interactions/session-store.js';
+import { CommandRegistry } from './commands/command-registry.js';
+import { RepairCommand } from './commands/repair-command.js';
+import { StatusCommand } from './commands/status-command.js';
+import { ServiceCommand } from './commands/service-command.js';
+import { HelpCommand } from './commands/help-command.js';
 
 export interface FeishuWebSocketConfig {
   appId: string;
@@ -20,7 +24,12 @@ export class FeishuWebSocket {
   private config: FeishuWebSocketConfig;
   private connected = false;
   private processedMessageIds = new Set<string>();
-  private inFlightChats = new Map<string, Promise<void>>();
+
+  // Dependencies
+  private sessionStore: SessionStore;
+  private commandRegistry: CommandRegistry;
+  private messageRouter: MessageRouter;
+  private cardDispatcher: CardDispatcher;
 
   constructor(config: FeishuWebSocketConfig) {
     this.config = config;
@@ -29,12 +38,40 @@ export class FeishuWebSocket {
       appSecret: config.appSecret,
       domain: config.domain || lark.Domain.Feishu,
     });
+
+    // Initialize dependencies
+    this.sessionStore = new SessionStore();
+    this.commandRegistry = new CommandRegistry();
+
+    // Register commands
+    this.commandRegistry.register(new RepairCommand());
+    this.commandRegistry.register(new StatusCommand());
+    this.commandRegistry.register(new ServiceCommand());
+    this.commandRegistry.register(new HelpCommand());
+
+    // Create sendMessage interface for MessageRouter
+    const sendMessage: SendMessageFn = {
+      sendTextMessage: (chatId: string, text: string) => this.sendTextMessage(chatId, text),
+      sendCardMessage: (chatId: string, card: object) => this.sendCardMessageRaw(chatId, card),
+      sendAckReaction: (messageId: string) => this.sendAckReaction(messageId),
+      sendCompletionReaction: (messageId: string) => this.sendCompletionReaction(messageId),
+      isConnected: () => this.connected,
+    };
+
+    this.messageRouter = new MessageRouter(this.commandRegistry, this.sessionStore, sendMessage);
+
+    // CardDispatcher needs sendMessage to send cards
+    const sendCard = (chatId: string, card: object) => this.sendCardMessageRaw(chatId, card);
+    this.cardDispatcher = new CardDispatcher(this.sessionStore, sendCard);
   }
 
   async connect(): Promise<void> {
     const eventDispatcher = new lark.EventDispatcher({}).register({
-      'im.message.receive_v1': async (data) => {
+      'im.message.receive_v1': async (data: MessageData) => {
         await this.handleMessage(data);
+      },
+      'card.action.trigger': async (data: CardActionPayload) => {
+        await this.handleCardAction(data);
       },
     });
 
@@ -58,6 +95,7 @@ export class FeishuWebSocket {
       this.wsClient.close();
       this.wsClient = null;
       this.connected = false;
+      this.sessionStore.destroy();
       log.info('feishu', 'WebSocket disconnected');
     }
   }
@@ -70,84 +108,32 @@ export class FeishuWebSocket {
     return this.client;
   }
 
-  private async handleMessage(data: {
-    sender: { sender_id?: { open_id?: string }; sender_type: string };
-    message: { message_id: string; chat_id: string; content: string; chat_type: string; message_type?: string };
-  }): Promise<void> {
+  private async handleMessage(data: MessageData): Promise<void> {
     try {
-      const { message, sender } = data;
-
-      // Skip bot messages
-      if (sender.sender_type === 'bot') {
-        return;
-      }
-
-      // Parse message content
-      let text = '';
-      let msgType = message.message_type || 'text';
-      try {
-        const content = JSON.parse(message.content);
-        text = content.text || '';
-      } catch {
-        text = message.content;
-      }
-
-      const chatId = message.chat_id;
-      const chatType = message.chat_type;
-      const messageId = message.message_id;
-      const senderOpenId = sender.sender_id?.open_id || '';
-
-      if (!senderOpenId) {
-        log.warn('feishu', 'Message without sender_id, skipping');
-        return;
-      }
+      const { message } = data;
 
       // Dedup: skip already-processed messages
-      if (this.processedMessageIds.has(messageId)) {
-        log.debug('feishu', 'Duplicate message, skipping', { messageId });
+      if (this.processedMessageIds.has(message.message_id)) {
+        log.debug('feishu', 'Duplicate message, skipping', { messageId: message.message_id });
         return;
       }
-      this.processedMessageIds.add(messageId);
-      // Evict oldest entries when set grows too large
+      this.processedMessageIds.add(message.message_id);
       if (this.processedMessageIds.size > MAX_DEDUP_SET_SIZE) {
         const entries = [...this.processedMessageIds];
         this.processedMessageIds = new Set(entries.slice(-DEDUP_RETAIN_COUNT));
       }
 
-      // Log incoming message
-      log.messageIn(chatId, senderOpenId, text, msgType);
-
-      // Send ACK emoji reaction immediately (non-blocking)
-      this.sendAckReaction(messageId).catch(() => {});
-
-      // Handle commands
-      if (text.startsWith('/repair') || text.startsWith('/fix')) {
-        await this.handleRepairCommand(chatId, text, senderOpenId);
-        return;
-      }
-
-      if (text.startsWith('/status')) {
-        log.command(chatId, '/status');
-        await this.handleStatusCommand(chatId);
-        return;
-      }
-
-      if (text.startsWith('/service')) {
-        log.command(chatId, '/service');
-        await this.handleServiceCommand(chatId, text, senderOpenId);
-        return;
-      }
-
-      if (text.startsWith('/help')) {
-        log.command(chatId, '/help');
-        await this.handleHelpCommand(chatId);
-        return;
-      }
-
-      // Regular message - invoke Claude directly
-      await this.handleChatMessage(chatId, chatType, text, senderOpenId, messageId);
+      await this.messageRouter.handleMessage(data);
     } catch (error) {
       log.error('feishu', 'Error handling message', { error: String(error) });
+    }
+  }
+
+  private async handleCardAction(data: CardActionPayload): Promise<void> {
+    try {
+      await this.cardDispatcher.dispatch(data);
+    } catch (error) {
+      log.error('feishu', 'Error handling card action', { error: String(error) });
     }
   }
 
@@ -171,275 +157,8 @@ export class FeishuWebSocket {
         log.debug('feishu', 'ACK reaction response', { code: response.code, msg: response.msg });
       }
     } catch (error) {
-      // Non-critical - don't block on failure
       log.debug('feishu', 'Failed to send ACK reaction', { error: String(error) });
     }
-  }
-
-  private async handleRepairCommand(chatId: string, text: string, senderOpenId: string): Promise<void> {
-    const context = text.replace(/^\/(repair|fix)\s*/, '').trim() || 'Repair requested';
-    log.command(chatId, '/repair', context);
-
-    // Send acknowledgment
-    await this.sendCardMessage(chatId, {
-      title: '🔄 Auto Repair Started',
-      elements: [
-        `**Context:** ${context}`,
-        'Analyzing the issue...',
-      ],
-    });
-
-    // Write trigger
-    writeTrigger({
-      context,
-      source: 'feishu',
-      timestamp: new Date().toISOString(),
-      metadata: {
-        chat_id: chatId,
-        sender_open_id: senderOpenId,
-      },
-    });
-
-    // Invoke skill asynchronously
-    log.skill('auto-repair', 'start', { chatId, context });
-    invokeClaudeSkill({ skill: 'auto-repair' })
-      .then(async (result) => {
-        if (result.success) {
-          log.skill('auto-repair', 'success', { chatId });
-          await this.sendCardMessage(chatId, {
-            title: '✅ Repair Complete',
-            elements: ['The repair has been completed successfully.'],
-          });
-        } else {
-          log.skill('auto-repair', 'error', { chatId, error: result.stderr });
-          await this.sendCardMessage(chatId, {
-            title: '❌ Repair Failed',
-            elements: [`\`\`\`\n${result.stderr || 'Unknown error'}\n\`\`\``],
-          });
-        }
-      })
-      .catch((error) => {
-        log.error('feishu', 'Repair command failed', { error: String(error) });
-      });
-  }
-
-  private async handleStatusCommand(chatId: string): Promise<void> {
-    const { checkClaudeCli } = await import('../trigger/invoker.js');
-    const claudeStatus = await checkClaudeCli();
-    const services = listServices();
-    const enabledCount = services.filter(s => s.enabled).length;
-
-    const statusText = `📊 System Status
-
-**Claude CLI:** ${claudeStatus.available ? `✅ ${claudeStatus.version}` : '❌ Not available'}
-**WebSocket:** ${this.connected ? '✅ Connected' : '❌ Disconnected'}
-**GitHub:** ${env.GITHUB_TOKEN ? '✅ Configured' : '❌ Not configured'}
-**Services:** ${enabledCount} enabled / ${services.length} registered`;
-
-    await this.sendTextMessage(chatId, statusText);
-  }
-
-  private async handleServiceCommand(chatId: string, text: string, senderOpenId: string): Promise<void> {
-    const parts = text.trim().split(/\s+/);
-    const subCommand = parts[1]?.toLowerCase();
-
-    switch (subCommand) {
-      case 'add': {
-        const [,,, name, repo, tracebackUrl] = parts;
-        if (!name || !repo || !tracebackUrl) {
-          await this.sendCardMessage(chatId, {
-            title: '❌ Invalid /service add',
-            elements: ['Usage: `/service add <name> <owner/repo> <traceback_url>`'],
-          });
-          return;
-        }
-
-        // Validate repo format: owner/repo
-        if (!/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(repo)) {
-          await this.sendCardMessage(chatId, {
-            title: '❌ Invalid repo format',
-            elements: ['Repo must be in `owner/repo` format (e.g. `myorg/my-api`)'],
-          });
-          return;
-        }
-
-        // Validate URL format
-        if (!/^https?:\/\/.+/.test(tracebackUrl)) {
-          await this.sendCardMessage(chatId, {
-            title: '❌ Invalid URL',
-            elements: ['Traceback URL must start with `http://` or `https://`'],
-          });
-          return;
-        }
-
-        const [githubOwner, githubRepo] = repo.split('/');
-
-        try {
-          addService({
-            name,
-            githubOwner,
-            githubRepo,
-            tracebackUrl,
-            notifyChatId: chatId,
-            tracebackUrlType: 'json',
-            enabled: true,
-            addedAt: new Date().toISOString(),
-            addedBy: senderOpenId,
-          });
-
-          await this.sendCardMessage(chatId, {
-            title: '✅ Service Registered',
-            elements: [
-              `**Name:** ${name}`,
-              `**Repo:** ${repo}`,
-              `**Traceback URL:** ${tracebackUrl}`,
-              `**Notify chat:** ${chatId}`,
-              '',
-              'TracebackMonitor will poll this service for new errors.',
-            ],
-          });
-        } catch (error) {
-          const msg = error instanceof Error ? error.message : 'Unknown error';
-          await this.sendCardMessage(chatId, {
-            title: '❌ Failed to add service',
-            elements: [msg],
-          });
-        }
-        break;
-      }
-
-      case 'remove': {
-        const name = parts[2];
-        if (!name) {
-          await this.sendCardMessage(chatId, {
-            title: '❌ Invalid /service remove',
-            elements: ['Usage: `/service remove <name>`'],
-          });
-          return;
-        }
-
-        const removed = removeService(name);
-        await this.sendCardMessage(chatId, {
-          title: removed ? '✅ Service Removed' : '❌ Service Not Found',
-          elements: [removed ? `Service "${name}" has been removed.` : `Service "${name}" is not registered.`],
-        });
-        break;
-      }
-
-      case 'list': {
-        const services = listServices();
-        if (services.length === 0) {
-          await this.sendCardMessage(chatId, {
-            title: '📋 Service Registry',
-            elements: ['No services registered. Use `/service add` to register one.'],
-          });
-          return;
-        }
-
-        const serviceLines = services.map(s =>
-          `- **${s.name}** \`${s.githubOwner}/${s.githubRepo}\` ${s.enabled ? '🟢' : '🔴'} ${s.lastCheckedAt ? `last: ${s.lastCheckedAt}` : ''}`
-        );
-
-        await this.sendCardMessage(chatId, {
-          title: `📋 Service Registry (${services.length})`,
-          elements: serviceLines,
-        });
-        break;
-      }
-
-      case 'enable':
-      case 'disable': {
-        const name = parts[2];
-        if (!name) {
-          await this.sendCardMessage(chatId, {
-            title: `❌ Invalid /service ${subCommand}`,
-            elements: [`Usage: \`/service ${subCommand} <name>\``],
-          });
-          return;
-        }
-
-        const updated = updateService(name, { enabled: subCommand === 'enable' });
-        if (updated) {
-          await this.sendCardMessage(chatId, {
-            title: `✅ Service ${subCommand === 'enable' ? 'Enabled' : 'Disabled'}`,
-            elements: [`Service "${name}" is now ${subCommand === 'enable' ? 'enabled' : 'disabled'}.`],
-          });
-        } else {
-          await this.sendCardMessage(chatId, {
-            title: '❌ Service Not Found',
-            elements: [`Service "${name}" is not registered.`],
-          });
-        }
-        break;
-      }
-
-      default:
-        await this.sendCardMessage(chatId, {
-          title: '📋 Service Commands',
-          elements: [
-            '`/service add <name> <owner/repo> <traceback_url>`',
-            '`/service remove <name>`',
-            '`/service list`',
-            '`/service enable <name>`',
-            '`/service disable <name>`',
-          ],
-        });
-    }
-  }
-
-  private async handleHelpCommand(chatId: string): Promise<void> {
-    await this.sendTextMessage(chatId, `🤖 Feishu Agent Commands
-
-/repair [context] - Start auto-repair with optional context
-/service add <name> <owner/repo> <traceback_url> - Register a service
-/service remove <name> - Remove a service
-/service list - List registered services
-/service enable <name> - Enable service monitoring
-/service disable <name> - Disable service monitoring
-/status - Check system status
-/help - Show this help message
-
-Or just send a message to chat with Claude Code!`);
-  }
-
-  private async handleChatMessage(chatId: string, chatType: string, text: string, senderOpenId: string, messageId: string): Promise<void> {
-    // Per-chat concurrency lock: reject if Claude is already processing for this chat
-    if (this.inFlightChats.has(chatId)) {
-      log.warn('chat', 'Message rejected — Claude already processing for this chat', { chatId });
-      await this.sendTextMessage(chatId, '⏳ 上一条消息还在处理中，请稍等');
-      return;
-    }
-
-    log.info('chat', 'Processing message', { chatId, text: text.slice(0, 50) });
-
-    const invokePromise = invokeClaudeChat({
-      message: text,
-      chatId,
-      chatType,
-      senderOpenId,
-      messageId,
-    })
-      .then(async (result) => {
-        // Log stdout for debugging (never forward to user)
-        log.claudeLog(chatId, result.stdout);
-
-        if (!result.success) {
-          log.error('chat', 'Claude failed', { exitCode: result.exitCode, stderr: result.stderr, stdout: result.stdout.slice(0, 200) });
-          await this.sendTextMessage(chatId, `❌ Claude 调用失败 (exit ${result.exitCode}): ${(result.stderr || result.stdout).slice(0, 200)}`);
-        }
-      })
-      .catch(async (err) => {
-        log.error('chat', 'Chat failed', { error: String(err) });
-        await this.sendTextMessage(chatId, `❌ 处理失败: ${String(err).slice(0, 200)}`);
-      })
-      .finally(() => {
-        this.inFlightChats.delete(chatId);
-        // Send completion reaction regardless of success/failure
-        this.sendCompletionReaction(messageId).catch(() => {});
-      });
-
-    this.inFlightChats.set(chatId, invokePromise);
-    invokePromise.catch(() => {}); // Prevent unhandled rejection on fire-and-forget promise
   }
 
   /**
@@ -482,7 +201,6 @@ Or just send a message to chat with Claude Code!`);
 
   async sendMarkdownMessage(chatId: string, text: string): Promise<void> {
     try {
-      // Feishu bots use "post" msg_type for rich text (markdown-like) content
       const content = JSON.stringify({
         zh_cn: {
           title: '',
@@ -503,11 +221,13 @@ Or just send a message to chat with Claude Code!`);
       log.messageOut(chatId, text.slice(0, 50), 'post');
     } catch (error) {
       log.error('feishu', 'Error sending post message', { chatId, error: String(error) });
-      // Fallback to plain text
       await this.sendTextMessage(chatId, text);
     }
   }
 
+  /**
+   * Send card message with simple {title, elements} format
+   */
   async sendCardMessage(chatId: string, card: { title: string; elements: string[] }): Promise<void> {
     try {
       const content = lark.messageCard.defaultCard({
@@ -528,6 +248,27 @@ Or just send a message to chat with Claude Code!`);
       log.messageOut(chatId, `[Card] ${card.title}`, 'interactive');
     } catch (error) {
       log.error('feishu', 'Error sending card message', { chatId, error: String(error) });
+    }
+  }
+
+  /**
+   * Send raw card object (for interactive cards with buttons)
+   */
+  private async sendCardMessageRaw(chatId: string, card: object): Promise<void> {
+    try {
+      await this.client.im.v1.message.create({
+        params: {
+          receive_id_type: 'chat_id',
+        },
+        data: {
+          receive_id: chatId,
+          content: JSON.stringify(card),
+          msg_type: 'interactive',
+        },
+      });
+      log.messageOut(chatId, '[Interactive Card]', 'interactive');
+    } catch (error) {
+      log.error('feishu', 'Error sending raw card message', { chatId, error: String(error) });
     }
   }
 }
