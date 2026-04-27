@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import { config } from 'dotenv';
-import { resolve } from 'path';
+import { resolve, dirname } from 'path';
 import { existsSync } from 'fs';
+import { fileURLToPath } from 'url';
 
 // Load .env file
 const envPath = resolve(process.cwd(), '.env');

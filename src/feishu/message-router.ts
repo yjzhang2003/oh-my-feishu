@@ -10,6 +10,7 @@ import { invokeClaudeChat, type InvokeResult } from '../trigger/invoker.js';
 import { log } from '../utils/logger.js';
 import { createNavigationCard } from './card-builder.js';
 import { listServices } from '../service/registry.js';
+import type { SessionManager } from '../gateway/session-manager.js';
 
 export interface MessageData {
   sender: { sender_id?: { open_id?: string }; sender_type: string };
@@ -26,12 +27,17 @@ export interface SendMessageFn {
 
 export class MessageRouter {
   private inFlightChats = new Map<string, Promise<void>>();
+  private sessionManager: SessionManager | null = null;
 
   constructor(
     private commandRegistry: CommandRegistry,
     private sessionStore: SessionStore,
     private sendMessage: SendMessageFn
   ) {}
+
+  setSessionManager(manager: SessionManager): void {
+    this.sessionManager = manager;
+  }
 
   async handleMessage(data: MessageData): Promise<void> {
     const { message, sender } = data;
@@ -138,6 +144,13 @@ export class MessageRouter {
     }
 
     log.info('chat', 'Processing message', { chatId, text: text.slice(0, 50) });
+
+    // Check if this is a directory session
+    if (this.sessionManager?.isDirectorySession(chatId)) {
+      log.info('chat', 'Routing to directory session', { chatId });
+      this.sessionManager.sendToSession(chatId, text, senderOpenId, messageId);
+      return;
+    }
 
     const invokePromise = invokeClaudeChat({
       message: text,

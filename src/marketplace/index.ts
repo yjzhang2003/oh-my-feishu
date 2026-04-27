@@ -3,20 +3,25 @@
  * Main entry point for plugin management
  */
 
-import { resolve } from 'path';
-import { env } from '../config/env.js';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { buildPlugin, type PluginConfig } from './plugin-builder.js';
 import { installPlugin, uninstallPlugin } from './plugin-installer.js';
 
 const PLUGIN_NAME = 'oh-my-feishu';
 const PLUGIN_VERSION = '1.0.0';
 
+// Resolve REPO_ROOT from the package location (where this module resides)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const REPO_ROOT = resolve(__dirname, '../..');
+
 export interface MarketplaceOptions {
   targetDir: string;
 }
 
 export function getPluginConfig(): PluginConfig {
-  const skillsDir = resolve(env.REPO_ROOT, 'workspace', '.claude', 'skills');
+  const skillsDir = resolve(REPO_ROOT, 'workspace', '.claude', 'skills');
   return buildPlugin(skillsDir, PLUGIN_NAME, PLUGIN_VERSION);
 }
 

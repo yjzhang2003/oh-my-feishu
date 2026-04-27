@@ -9,10 +9,10 @@
       "notifyChatId": "oc_test123",
       "tracebackUrlType": "json",
       "enabled": true,
-      "addedAt": "2026-04-27T11:50:33.076Z",
+      "addedAt": "2026-04-27T12:34:38.494Z",
       "addedBy": "cli",
       "lastErrorHash": "",
-      "lastCheckedAt": "2026-04-27T11:57:06.667Z"
+      "lastCheckedAt": "2026-04-27T13:05:46.939Z"
     },
     {
       "name": "test-list-1",
@@ -22,10 +22,10 @@
       "notifyChatId": "oc_test123",
       "tracebackUrlType": "json",
       "enabled": true,
-      "addedAt": "2026-04-27T11:50:33.076Z",
+      "addedAt": "2026-04-27T12:34:38.494Z",
       "addedBy": "cli",
       "lastErrorHash": "",
-      "lastCheckedAt": "2026-04-27T11:57:16.670Z"
+      "lastCheckedAt": "2026-04-27T13:05:56.942Z"
     },
     {
       "name": "test-enabled-1",
@@ -35,10 +35,10 @@
       "notifyChatId": "oc_test123",
       "tracebackUrlType": "json",
       "enabled": true,
-      "addedAt": "2026-04-27T11:50:33.076Z",
+      "addedAt": "2026-04-27T12:34:38.495Z",
       "addedBy": "cli",
       "lastErrorHash": "",
-      "lastCheckedAt": "2026-04-27T11:55:46.663Z"
+      "lastCheckedAt": "2026-04-27T13:06:06.942Z"
     },
     {
       "name": "test-enabled-2",
@@ -48,7 +48,7 @@
       "notifyChatId": "oc_test123",
       "tracebackUrlType": "json",
       "enabled": false,
-      "addedAt": "2026-04-27T11:50:33.076Z",
+      "addedAt": "2026-04-27T12:34:38.495Z",
       "addedBy": "cli"
     },
     {
@@ -59,7 +59,7 @@
       "notifyChatId": "oc_test123",
       "tracebackUrlType": "json",
       "enabled": false,
-      "addedAt": "2026-04-27T11:50:33.077Z",
+      "addedAt": "2026-04-27T12:34:38.495Z",
       "addedBy": "cli"
     },
     {
@@ -70,10 +70,10 @@
       "notifyChatId": "oc_test123",
       "tracebackUrlType": "json",
       "enabled": true,
-      "addedAt": "2026-04-27T11:50:33.077Z",
+      "addedAt": "2026-04-27T12:34:38.496Z",
       "addedBy": "cli",
       "lastErrorHash": "abc123",
-      "lastCheckedAt": "2026-04-27T11:55:56.664Z"
+      "lastCheckedAt": "2026-04-27T13:06:16.943Z"
     }
   ]
 }

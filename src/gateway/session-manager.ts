@@ -9,14 +9,21 @@ import { ClaudeProcessManager } from './claude-process-manager.js';
 import { UnixSocketBridge, type MessageHandler } from './ipc/unix-socket-bridge.js';
 import type { Session, SessionMessage, SessionInfo } from './types.js';
 import type { Socket } from 'net';
+import type { SessionStore } from '../feishu/interactions/session-store.js';
+import type { SendMessageFn } from '../feishu/message-router.js';
 
 export class SessionManager {
   private sessions = new Map<string, Session>();
+  private sessionsSockets = new Map<string, Socket>();
   private processManager: ClaudeProcessManager;
   private socketBridge: UnixSocketBridge;
   private messageHandlers: Map<string, (message: string) => void> = new Map();
+  private sessionStore: SessionStore;
+  private sendMessage: SendMessageFn;
 
-  constructor() {
+  constructor(sessionStore: SessionStore, sendMessage: SendMessageFn) {
+    this.sessionStore = sessionStore;
+    this.sendMessage = sendMessage;
     this.processManager = new ClaudeProcessManager();
     this.socketBridge = new UnixSocketBridge();
   }
@@ -77,23 +84,30 @@ export class SessionManager {
 
     this.sessions.set(chatId, session);
 
+    // Store the socket for this session so we can send Feishu messages to it
+    this.sessionsSockets.set(chatId, socket);
+
     // Start Claude Code process for this directory session
     this.processManager.start({
       directory,
       chatId,
       senderOpenId: message.senderOpenId || '',
       onMessage: (msg) => {
-        // Forward Claude's output back to IPC
-        this.socketBridge.send(socket, {
-          type: 'message',
-          sessionId,
-          chatId,
-          content: msg,
-        });
+        // Forward Claude's output back to the socket (CLI)
+        const sessionSocket = this.sessionsSockets.get(chatId);
+        if (sessionSocket) {
+          this.socketBridge.send(sessionSocket, {
+            type: 'message',
+            sessionId,
+            chatId,
+            content: msg,
+          });
+        }
       },
       onExit: (code) => {
         log.info('session-manager', 'Claude process exited', { chatId, code });
         this.sessions.delete(chatId);
+        this.sessionsSockets.delete(chatId);
       },
     });
 
@@ -105,6 +119,7 @@ export class SessionManager {
 
     this.processManager.stop(message.chatId);
     this.sessions.delete(message.chatId);
+    this.sessionsSockets.delete(message.chatId);
     log.info('session-manager', 'Session destroyed', { chatId: message.chatId });
   }
 
@@ -119,6 +134,20 @@ export class SessionManager {
 
     if (session.type === 'directory') {
       this.processManager.sendMessage(message.chatId, message.content);
+    }
+  }
+
+  // Send message from Feishu to CLI (called by MessageRouter)
+  sendToSession(chatId: string, content: string, senderOpenId: string, messageId: string): void {
+    const socket = this.sessionsSockets.get(chatId);
+    if (socket) {
+      this.socketBridge.send(socket, {
+        type: 'message',
+        chatId,
+        content,
+        senderOpenId,
+        messageId,
+      });
     }
   }
 
@@ -153,6 +182,11 @@ export class SessionManager {
 
   getSession(chatId: string): Session | undefined {
     return this.sessions.get(chatId);
+  }
+
+  isDirectorySession(chatId: string): boolean {
+    const session = this.sessions.get(chatId);
+    return session?.type === 'directory';
   }
 
   getSocketPath(): string {

@@ -11,6 +11,7 @@ import { HelpCommand } from './commands/help-command.js';
 import { MenuCommand } from './commands/menu-command.js';
 import { createNavigationCard } from './card-builder.js';
 import { listServices } from '../service/registry.js';
+import { SessionManager } from '../gateway/session-manager.js';
 
 // SDK 事件类型是扁平的，直接在 data 里
 export interface P2PChatEnteredData {
@@ -41,6 +42,7 @@ export class FeishuWebSocket {
   private commandRegistry: CommandRegistry;
   private messageRouter: MessageRouter;
   private cardDispatcher: CardDispatcher;
+  private sessionManager: SessionManager;
 
   constructor(config: FeishuWebSocketConfig) {
     this.config = config;
@@ -75,6 +77,10 @@ export class FeishuWebSocket {
     // CardDispatcher needs sendMessage to send cards
     const sendCard = (chatId: string, card: object) => this.sendCardMessageRaw(chatId, card);
     this.cardDispatcher = new CardDispatcher(this.sessionStore, sendCard);
+
+    // SessionManager for directory sessions
+    this.sessionManager = new SessionManager(this.sessionStore, sendMessage);
+    this.messageRouter.setSessionManager(this.sessionManager);
   }
 
   async connect(): Promise<void> {
@@ -101,6 +107,9 @@ export class FeishuWebSocket {
       eventDispatcher,
     });
 
+    // Start SessionManager IPC server
+    await this.sessionManager.start();
+
     this.connected = true;
     log.info('feishu', 'WebSocket connected');
   }
@@ -110,6 +119,7 @@ export class FeishuWebSocket {
       this.wsClient.close();
       this.wsClient = null;
       this.connected = false;
+      await this.sessionManager.stop();
       this.sessionStore.destroy();
       log.info('feishu', 'WebSocket disconnected');
     }
