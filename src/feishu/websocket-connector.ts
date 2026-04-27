@@ -11,8 +11,9 @@ import { HelpCommand } from './commands/help-command.js';
 import { createNavigationCard } from './card-builder.js';
 import { listServices } from '../service/registry.js';
 
-export interface P2PChatEnteredEvent {
-  chat_id: string;
+// SDK 事件类型是扁平的，直接在 data 里
+export interface P2PChatEnteredData {
+  chat_id?: string;
   operator_id?: {
     open_id?: string;
   };
@@ -82,8 +83,8 @@ export class FeishuWebSocket {
       'card.action.trigger': async (data: CardActionPayload) => {
         await this.handleCardAction(data);
       },
-      'im.chat.access_event.bot_p2p_chat_entered_v1': async (data: unknown) => {
-        await this.handleP2PChatEntered(data as { event: P2PChatEnteredEvent });
+      'im.chat.access_event.bot_p2p_chat_entered_v1': async (data: P2PChatEnteredData) => {
+        await this.handleP2PChatEntered(data);
       },
     });
 
@@ -149,9 +150,14 @@ export class FeishuWebSocket {
     }
   }
 
-  private async handleP2PChatEntered(data: { event: P2PChatEnteredEvent }): Promise<void> {
+  private async handleP2PChatEntered(data: P2PChatEnteredData): Promise<void> {
     try {
-      const { chat_id: chatId } = data.event;
+      const { chat_id: chatId } = data;
+
+      if (!chatId) {
+        log.warn('feishu', 'P2P chat entered event without chat_id');
+        return;
+      }
 
       // Check if already received nav card for this chat
       const session = this.sessionStore.get(chatId);
