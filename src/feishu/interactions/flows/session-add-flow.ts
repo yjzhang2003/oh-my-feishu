@@ -7,6 +7,7 @@ import { SessionStore } from '../session-store.js';
 import { log } from '../../../utils/logger.js';
 import { createCallbackCard, md } from '../../card-builder.js';
 import { listSessions, type SessionInfo } from '../../../trigger/invoker.js';
+import { install } from '../../../marketplace/index.js';
 
 export interface SendCardFn {
   (chatId: string, card: object): Promise<void>;
@@ -71,7 +72,13 @@ export class SessionAddFlow {
     if (sessions.length > 0) {
       await this.sendCard(chatId, this.createSessionSelectCard(trimmedDir, sessions));
     } else {
-      // No sessions, just create new
+      // No sessions, install plugin and create new
+      try {
+        install({ targetDir: trimmedDir });
+        log.info('flow', 'Marketplace plugin installed', { directory: trimmedDir });
+      } catch (err) {
+        log.warn('flow', 'Failed to install marketplace plugin', { directory: trimmedDir, error: String(err) });
+      }
       this.sessionStore.set(chatId, {
         flow: 'none',
         mode: 'directory',
@@ -89,7 +96,8 @@ export class SessionAddFlow {
     const directory = session.data.directory as string;
 
     if (trimmedInput === 'new' || trimmedInput === '+' || trimmedInput === '新建') {
-      // Create new session
+      // Install plugin and create new session
+      this.installPluginSafely(directory);
       this.sessionStore.set(chatId, {
         flow: 'none',
         mode: 'directory',
@@ -106,6 +114,7 @@ export class SessionAddFlow {
 
     if (!isNaN(selectedIndex) && selectedIndex >= 0 && selectedIndex < sessions.length) {
       const selectedSession = sessions[selectedIndex];
+      this.installPluginSafely(directory);
       this.sessionStore.set(chatId, {
         flow: 'none',
         mode: 'directory',
@@ -118,6 +127,7 @@ export class SessionAddFlow {
     // Try matching by session ID prefix
     const matched = sessions.find(s => s.id.startsWith(trimmedInput));
     if (matched) {
+      this.installPluginSafely(directory);
       this.sessionStore.set(chatId, {
         flow: 'none',
         mode: 'directory',
@@ -129,6 +139,15 @@ export class SessionAddFlow {
 
     await this.sendCard(chatId, this.createErrorCard('无效的选择，请输入编号或 session ID'));
     return { done: false };
+  }
+
+  private installPluginSafely(directory: string): void {
+    try {
+      install({ targetDir: directory });
+      log.info('flow', 'Marketplace plugin installed', { directory });
+    } catch (err) {
+      log.warn('flow', 'Failed to install marketplace plugin', { directory, error: String(err) });
+    }
   }
 
   private createDirectoryInputCard() {

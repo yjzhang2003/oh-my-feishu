@@ -12,7 +12,7 @@
       "addedAt": "2026-04-27T12:34:38.494Z",
       "addedBy": "cli",
       "lastErrorHash": "",
-      "lastCheckedAt": "2026-04-27T15:22:46.926Z"
+      "lastCheckedAt": "2026-04-27T15:30:36.972Z"
     },
     {
       "name": "test-list-1",
@@ -25,7 +25,7 @@
       "addedAt": "2026-04-27T12:34:38.494Z",
       "addedBy": "cli",
       "lastErrorHash": "",
-      "lastCheckedAt": "2026-04-27T15:21:53.032Z"
+      "lastCheckedAt": "2026-04-27T15:30:46.975Z"
     },
     {
       "name": "test-enabled-1",
@@ -38,7 +38,7 @@
       "addedAt": "2026-04-27T12:34:38.495Z",
       "addedBy": "cli",
       "lastErrorHash": "",
-      "lastCheckedAt": "2026-04-27T15:22:03.034Z"
+      "lastCheckedAt": "2026-04-27T15:30:56.978Z"
     },
     {
       "name": "test-enabled-2",
@@ -73,7 +73,7 @@
       "addedAt": "2026-04-27T12:34:38.496Z",
       "addedBy": "cli",
       "lastErrorHash": "abc123",
-      "lastCheckedAt": "2026-04-27T15:22:13.034Z"
+      "lastCheckedAt": "2026-04-27T15:31:06.980Z"
     }
   ]
 }
