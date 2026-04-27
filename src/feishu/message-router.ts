@@ -150,8 +150,46 @@ export class MessageRouter {
 
     // Route based on session mode
     if (session.mode === 'directory') {
-      log.info('chat', 'Routing to directory session (mode=directory)', { chatId });
-      this.sessionManager?.sendToSession(chatId, text, senderOpenId, messageId);
+      log.info('chat', 'Routing to directory session', { chatId, directory: session.data.directory });
+      // Directory mode - invoke Claude with directory and optional sessionId
+      const directory = session.data.directory as string | undefined;
+      const sessionId = session.data.sessionId as string | undefined;
+
+      const invokePromise = invokeClaudeChat({
+        message: text,
+        chatId,
+        chatType,
+        senderOpenId,
+        messageId,
+        directory,
+        sessionId,
+      })
+        .then(async (result: InvokeResult) => {
+          log.claudeLog(chatId, result.stdout);
+
+          if (!result.success) {
+            log.error('chat', 'Claude failed', {
+              exitCode: result.exitCode,
+              stderr: result.stderr,
+              stdout: result.stdout.slice(0, 200),
+            });
+            await this.sendMessage.sendTextMessage(
+              chatId,
+              `❌ Claude 调用失败 (exit ${result.exitCode}): ${(result.stderr || result.stdout).slice(0, 200)}`
+            );
+          }
+        })
+        .catch(async (err: unknown) => {
+          log.error('chat', 'Chat failed', { error: String(err) });
+          await this.sendMessage.sendTextMessage(chatId, `❌ 处理失败: ${String(err).slice(0, 200)}`);
+        })
+        .finally(() => {
+          this.inFlightChats.delete(chatId);
+          this.sendMessage.sendCompletionReaction(messageId).catch(() => {});
+        });
+
+      this.inFlightChats.set(chatId, invokePromise);
+      invokePromise.catch(() => {});
       return;
     }
 

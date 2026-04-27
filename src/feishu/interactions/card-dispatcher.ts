@@ -161,6 +161,9 @@ export class CardDispatcher {
       case 'add-cancel':
         this.sessionAddFlow.cancel(chatId);
         return {};
+      case 'select':
+        // User selected a session - this is handled via text input in handleSessionSelect
+        return {};
       case 'list':
         // List active sessions
         return {

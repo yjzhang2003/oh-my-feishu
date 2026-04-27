@@ -24,6 +24,8 @@ export interface ChatContext {
   senderOpenId: string;
   chatType: string;
   messageId?: string;
+  directory?: string;
+  sessionId?: string;
 }
 
 // Read .env from workspace/.claude/.env and return as env vars object
@@ -135,7 +137,9 @@ export async function invokeClaudeSkill(options: InvokeOptions): Promise<InvokeR
  * Each chat ID gets its own session for context continuity
  */
 export async function invokeClaudeChat(context: ChatContext, timeout: number = 300000): Promise<InvokeResult> {
-  const workspaceDir = resolve(env.REPO_ROOT, 'workspace');
+  const cwd = context.directory
+    ? resolve(context.directory)
+    : resolve(env.REPO_ROOT, 'workspace');
 
   // Pass context as environment variables for the skill to use
   const contextEnv = {
@@ -145,22 +149,24 @@ export async function invokeClaudeChat(context: ChatContext, timeout: number = 3
     ...(context.messageId ? { FEISHU_MESSAGE_ID: context.messageId } : {}),
   };
 
-  // Generate a session ID based on chat ID for conversation continuity
-  const sessionId = chatIdToSessionUuid(context.chatId);
+  // Use provided sessionId or generate from chatId
+  const sessionId = context.sessionId || chatIdToSessionUuid(context.chatId);
 
   // Prepend lark-chat-guide reference so Claude knows to reply via lark-cli
-  // lark-chat-guide contains the rule: must use lark-cli to reply, stdout is not shown to user
   const prompt = `回复用户前请阅读 lark-chat-guide 技能了解回复规则。\n\n${context.message}`;
 
   try {
     const workspaceEnv = loadWorkspaceEnv();
-    const result = await execa('claude', [
-      '-p',
-      '--dangerously-skip-permissions',
-      '--resume', sessionId,
-      prompt,
-    ], {
-      cwd: workspaceDir,
+
+    // Build claude arguments
+    const claudeArgs: string[] = ['-p', '--dangerously-skip-permissions'];
+    if (context.directory) {
+      claudeArgs.unshift('-C', context.directory);
+    }
+    claudeArgs.push('--resume', sessionId, prompt);
+
+    const result = await execa('claude', claudeArgs, {
+      cwd,
       timeout,
       reject: false,
       stdin: 'ignore',
@@ -169,12 +175,14 @@ export async function invokeClaudeChat(context: ChatContext, timeout: number = 3
 
     // If session not found, retry without --resume (session may have been lost after re-auth)
     if (result.stderr?.includes('No conversation found with session ID')) {
-      const retryResult = await execa('claude', [
-        '-p',
-        '--dangerously-skip-permissions',
-        prompt,
-      ], {
-        cwd: workspaceDir,
+      const retryArgs: string[] = ['-p', '--dangerously-skip-permissions'];
+      if (context.directory) {
+        retryArgs.unshift('-C', context.directory);
+      }
+      retryArgs.push(prompt);
+
+      const retryResult = await execa('claude', retryArgs, {
+        cwd,
         timeout,
         reject: false,
         stdin: 'ignore',
@@ -222,5 +230,41 @@ export async function checkClaudeCli(): Promise<{ available: boolean; version?: 
     return { available: true, version };
   } catch {
     return { available: false };
+  }
+}
+
+export interface SessionInfo {
+  id: string;
+  lastActive: string;
+}
+
+/**
+ * List sessions in a directory
+ */
+export async function listSessions(directory: string): Promise<SessionInfo[]> {
+  try {
+    const result = await execa('claude', ['session', 'list', '--json', '-C', directory], {
+      cwd: directory,
+      timeout: 10000,
+      reject: false,
+    });
+
+    if (result.exitCode !== 0) {
+      return [];
+    }
+
+    const output = result.stdout.trim();
+    if (!output) return [];
+
+    const sessions = JSON.parse(output);
+    if (Array.isArray(sessions)) {
+      return sessions.map((s: { id: string; last_active?: string }) => ({
+        id: s.id,
+        lastActive: s.last_active || 'unknown',
+      }));
+    }
+    return [];
+  } catch {
+    return [];
   }
 }
