@@ -121,6 +121,57 @@ export class FeishuWebSocket {
     return this.client;
   }
 
+  /**
+   * Create bot menu using application:bot.menu:write permission
+   * Bot menu appears when user clicks bot in chat
+   */
+  async createBotMenu(): Promise<void> {
+    try {
+      const response = await this.client.httpInstance.post(
+        '/open-apis/application/v6/bots/me/menus',
+        {
+          menu_tree: {
+            chat_menu_top_levels: [
+              {
+                chat_menu_item: {
+                  action_type: 'NONE',
+                  name: '导航',
+                  i18n_names: { zh_cn: '导航' },
+                },
+                children: [
+                  {
+                    chat_menu_item: {
+                      action_type: 'NONE',
+                      name: '服务管理',
+                      i18n_names: { zh_cn: '服务管理' },
+                    },
+                  },
+                  {
+                    chat_menu_item: {
+                      action_type: 'NONE',
+                      name: '报修',
+                      i18n_names: { zh_cn: '报修' },
+                    },
+                  },
+                  {
+                    chat_menu_item: {
+                      action_type: 'NONE',
+                      name: '帮助',
+                      i18n_names: { zh_cn: '帮助' },
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        }
+      );
+      log.info('feishu', 'Bot menu created', { response: JSON.stringify(response) });
+    } catch (error) {
+      log.error('feishu', 'Failed to create bot menu', { error: String(error) });
+    }
+  }
+
   private async handleMessage(data: MessageData): Promise<void> {
     try {
       const { message } = data;
