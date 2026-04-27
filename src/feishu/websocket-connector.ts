@@ -127,8 +127,9 @@ export class FeishuWebSocket {
    */
   async createBotMenu(): Promise<void> {
     try {
+      const domain = this.config.domain === lark.Domain.Lark ? 'https://open.larksuite.com' : 'https://open.feishu.com';
       const response = await this.client.httpInstance.post(
-        '/open-apis/application/v6/bots/me/menus',
+        `${domain}/open-apis/application/v6/bots/me/menus`,
         {
           menu_tree: {
             chat_menu_top_levels: [

@@ -93,6 +93,15 @@ async function main() {
   try {
     await ws.connect();
     console.log('✅ WebSocket connected successfully!');
+
+    // Create bot menu
+    try {
+      await ws.createBotMenu();
+      console.log('✅ Bot menu created');
+    } catch (menuError) {
+      console.log('⚠️ Bot menu creation failed (may need permissions):', menuError);
+    }
+
     console.log('\n💬 Send a message in Feishu to start chatting with Claude Code.');
     console.log('   Commands: /repair, /service, /status, /help\n');
     console.log('Press Ctrl+C to stop.\n');
