@@ -1,19 +1,19 @@
 {
-  "name": "feishu-agent",
+  "name": "oh-my-feishu",
   "version": "0.4.0",
-  "description": "Autonomous service repair agent with Feishu integration",
+  "description": "The best way to use Claude Code on Feishu",
   "type": "module",
   "bin": {
-    "feishu-agent": "./dist/cli/index.js"
+    "oh-my-feishu": "./dist/cli/index.js"
   },
   "scripts": {
     "cli": "tsx src/cli/index.tsx",
     "start": "tsx src/start.ts",
     "start:dev": "pm2 start ecosystem.config.cjs --env development",
     "start:prod": "pm2 start ecosystem.config.cjs",
-    "stop": "pm2 stop feishu-agent",
-    "restart": "pm2 restart feishu-agent",
-    "logs": "pm2 logs feishu-agent",
+    "stop": "pm2 stop oh-my-feishu",
+    "restart": "pm2 restart oh-my-feishu",
+    "logs": "pm2 logs oh-my-feishu",
     "status": "pm2 status",
     "build": "tsc",
     "test": "vitest",

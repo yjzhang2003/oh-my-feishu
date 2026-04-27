@@ -1,6 +1,6 @@
 module.exports = {
   apps: [{
-    name: 'feishu-agent',
+    name: 'oh-my-feishu',
     script: 'npx',
     args: 'tsx src/start.ts',
     cwd: __dirname,

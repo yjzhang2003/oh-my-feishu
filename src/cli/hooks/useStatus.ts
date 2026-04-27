@@ -121,12 +121,12 @@ export function checkPM2(): boolean {
   return result !== null && result.success;
 }
 
-// Get feishu-agent service status from PM2
+// Get oh-my-feishu service status from PM2
 export function checkService(): ServiceStatus {
   // First check PM2 is installed
   if (!checkPM2()) {
     return {
-      name: 'feishu-agent',
+      name: 'oh-my-feishu',
       running: false,
       status: 'PM2 not installed',
     };
@@ -136,7 +136,7 @@ export function checkService(): ServiceStatus {
   const result = runCommand('pm2', ['jlist']);
   if (!result || !result.success) {
     return {
-      name: 'feishu-agent',
+      name: 'oh-my-feishu',
       running: false,
       status: 'Failed to get PM2 status',
     };
@@ -144,11 +144,11 @@ export function checkService(): ServiceStatus {
 
   try {
     const processes = JSON.parse(result.stdout);
-    const agent = processes.find((p: { name: string }) => p.name === 'feishu-agent');
+    const agent = processes.find((p: { name: string }) => p.name === 'oh-my-feishu');
 
     if (!agent) {
       return {
-        name: 'feishu-agent',
+        name: 'oh-my-feishu',
         running: false,
         status: 'Not started',
       };
@@ -158,7 +158,7 @@ export function checkService(): ServiceStatus {
     const running = status === 'online';
 
     return {
-      name: 'feishu-agent',
+      name: 'oh-my-feishu',
       running,
       status: running ? 'Running' : status,
       uptime: running ? formatUptime(agent.pm2_env?.pm_uptime) : undefined,
@@ -168,7 +168,7 @@ export function checkService(): ServiceStatus {
     };
   } catch {
     return {
-      name: 'feishu-agent',
+      name: 'oh-my-feishu',
       running: false,
       status: 'Failed to parse PM2 output',
     };

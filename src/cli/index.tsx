@@ -285,14 +285,14 @@ function getScreenConfig(screen: Screen, statuses: Record<string, ComponentStatu
       status: statusText,
       options: running
         ? [
-            { key: 'stop', label: 'Stop Service', description: 'Stop the feishu-agent background service' },
-            { key: 'restart', label: 'Restart Service', description: 'Restart the feishu-agent service' },
+            { key: 'stop', label: 'Stop Service', description: 'Stop the oh-my-feishu background service' },
+            { key: 'restart', label: 'Restart Service', description: 'Restart the oh-my-feishu service' },
             { key: 'logs', label: 'View Logs', description: 'Open PM2 logs viewer' },
             { key: 'manage', label: 'Manage Services', description: 'Register/unregister traceback monitoring services' },
             { key: 'back', label: 'Back', description: 'Return to main menu' },
           ]
         : [
-            { key: 'start', label: 'Start Service', description: 'Start feishu-agent as background service', status: '★', statusColor: 'yellow' as const },
+            { key: 'start', label: 'Start Service', description: 'Start oh-my-feishu as background service', status: '★', statusColor: 'yellow' as const },
             { key: 'manage', label: 'Manage Services', description: 'Register/unregister traceback monitoring services' },
             { key: 'back', label: 'Back', description: 'Return to main menu' },
           ],
@@ -503,7 +503,7 @@ async function executeAction(
   // Service actions
   if (screen === 'service') {
     if (option.key === 'start') {
-      setMessage(chalk.cyan('Starting feishu-agent service...'));
+      setMessage(chalk.cyan('Starting oh-my-feishu service...'));
       try {
         await execa('pm2', ['start', 'ecosystem.config.cjs']);
         setMessage(chalk.green('✓ Service started'));
@@ -512,18 +512,18 @@ async function executeAction(
         setMessage(chalk.red(`✗ Failed to start: ${error instanceof Error ? error.message : 'Unknown error'}`));
       }
     } else if (option.key === 'stop') {
-      setMessage(chalk.cyan('Stopping feishu-agent service...'));
+      setMessage(chalk.cyan('Stopping oh-my-feishu service...'));
       try {
-        await execa('pm2', ['stop', 'feishu-agent']);
+        await execa('pm2', ['stop', 'oh-my-feishu']);
         setMessage(chalk.green('✓ Service stopped'));
         refreshStatuses();
       } catch (error) {
         setMessage(chalk.red(`✗ Failed to stop: ${error instanceof Error ? error.message : 'Unknown error'}`));
       }
     } else if (option.key === 'restart') {
-      setMessage(chalk.cyan('Restarting feishu-agent service...'));
+      setMessage(chalk.cyan('Restarting oh-my-feishu service...'));
       try {
-        await execa('pm2', ['restart', 'feishu-agent']);
+        await execa('pm2', ['restart', 'oh-my-feishu']);
         setMessage(chalk.green('✓ Service restarted'));
         refreshStatuses();
       } catch (error) {

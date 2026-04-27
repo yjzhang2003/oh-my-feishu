@@ -96,7 +96,7 @@ export async function beginRegistration(domain: string = 'feishu'): Promise<QRBe
 
   let qrUrl = (res.verification_uri_complete as string) || '';
   if (qrUrl) {
-    qrUrl += qrUrl.includes('?') ? '&from=feishu-agent' : '?from=feishu-agent';
+    qrUrl += qrUrl.includes('?') ? '&from=oh-my-feishu' : '?from=oh-my-feishu';
   }
 
   return {
