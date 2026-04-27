@@ -8,6 +8,15 @@ import { RepairCommand } from './commands/repair-command.js';
 import { StatusCommand } from './commands/status-command.js';
 import { ServiceCommand } from './commands/service-command.js';
 import { HelpCommand } from './commands/help-command.js';
+import { createNavigationCard } from './card-builder.js';
+import { listServices } from '../service/registry.js';
+
+export interface P2PChatEnteredEvent {
+  chat_id: string;
+  operator_id?: {
+    open_id?: string;
+  };
+}
 
 export interface FeishuWebSocketConfig {
   appId: string;
@@ -73,6 +82,9 @@ export class FeishuWebSocket {
       'card.action.trigger': async (data: CardActionPayload) => {
         await this.handleCardAction(data);
       },
+      'im.chat.access_event.bot_p2p_chat_entered_v1': async (data: unknown) => {
+        await this.handleP2PChatEntered(data as { event: P2PChatEnteredEvent });
+      },
     });
 
     this.wsClient = new lark.WSClient({
@@ -134,6 +146,28 @@ export class FeishuWebSocket {
       await this.cardDispatcher.dispatch(data);
     } catch (error) {
       log.error('feishu', 'Error handling card action', { error: String(error) });
+    }
+  }
+
+  private async handleP2PChatEntered(data: { event: P2PChatEnteredEvent }): Promise<void> {
+    try {
+      const { chat_id: chatId } = data.event;
+
+      // Check if already received nav card for this chat
+      const session = this.sessionStore.get(chatId);
+      if (session.hasReceivedNav) {
+        return;
+      }
+
+      // Send navigation card
+      const services = listServices();
+      const card = createNavigationCard({ showServiceCount: services.length });
+      await this.sendCardMessageRaw(chatId, card);
+      this.sessionStore.set(chatId, { hasReceivedNav: true });
+
+      log.info('feishu', 'Sent navigation card on P2P chat enter', { chatId });
+    } catch (error) {
+      log.error('feishu', 'Error handling P2P chat entered', { error: String(error) });
     }
   }
 
