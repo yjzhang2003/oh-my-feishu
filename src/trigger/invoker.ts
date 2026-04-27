@@ -148,9 +148,9 @@ export async function invokeClaudeChat(context: ChatContext, timeout: number = 3
   // Generate a session ID based on chat ID for conversation continuity
   const sessionId = chatIdToSessionUuid(context.chatId);
 
-  // Prepend lark-nav reference so Claude knows to reply via lark-cli
-  // lark-nav contains the rule: must use lark-cli to reply, stdout is not shown to user
-  const prompt = `回复用户前请阅读 lark-nav 技能了解回复规则。\n\n${context.message}`;
+  // Prepend lark-chat-guide reference so Claude knows to reply via lark-cli
+  // lark-chat-guide contains the rule: must use lark-cli to reply, stdout is not shown to user
+  const prompt = `回复用户前请阅读 lark-chat-guide 技能了解回复规则。\n\n${context.message}`;
 
   try {
     const workspaceEnv = loadWorkspaceEnv();

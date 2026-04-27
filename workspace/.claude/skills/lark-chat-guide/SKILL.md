@@ -1,7 +1,7 @@
 ---
-name: lark-nav
+name: lark-chat-guide
 version: 1.0.0
-description: "飞书技能导航。根据用户意图推荐合适的飞书技能。当用户需要与飞书交互但不确定用哪个技能时触发。"
+description: "飞书聊天助手行为规范与技能导航。定义回复规则（stdout 不可见，必须走 lark-cli）以及推荐合适的飞书技能。"
 metadata:
   category: "productivity"
   requires:
