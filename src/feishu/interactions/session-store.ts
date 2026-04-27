@@ -10,11 +10,14 @@ export type InteractionFlow =
   | 'service-add-step3'
   | 'repair-context';
 
+export type SessionMode = 'direct' | 'directory';
+
 export interface SessionState {
   chatId: string;
   flow: InteractionFlow;
   data: Record<string, unknown>;
   hasReceivedNav: boolean;
+  mode: SessionMode;
   updatedAt: Date;
 }
 
@@ -22,6 +25,7 @@ const DEFAULT_STATE: Omit<SessionState, 'chatId'> = {
   flow: 'none',
   data: {},
   hasReceivedNav: false,
+  mode: 'direct',
   updatedAt: new Date(),
 };
 

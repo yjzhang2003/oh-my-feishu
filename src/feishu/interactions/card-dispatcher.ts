@@ -146,14 +146,14 @@ export class CardDispatcher {
 
     switch (action) {
       case 'direct':
-        // Gateway direct mode - existing behavior
+        this.sessionStore.set(chatId, { mode: 'direct' });
         return {
-          toast: { type: 'info', content: '💬 直接对话模式 - 发送消息开始对话' },
+          toast: { type: 'success', content: '✅ 已切换到直接对话模式' },
         };
       case 'directory':
-        // Directory session mode - guide user to CLI
+        this.sessionStore.set(chatId, { mode: 'directory' });
         return {
-          toast: { type: 'info', content: '📁 目录会话模式 - 请在 CLI 中运行: ohmyfeishu session new <目录>' },
+          toast: { type: 'info', content: '📁 请在 CLI 中运行: ohmyfeishu session new <目录>' },
         };
       case 'list':
         // List active sessions

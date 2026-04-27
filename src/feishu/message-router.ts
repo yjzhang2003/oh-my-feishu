@@ -145,13 +145,17 @@ export class MessageRouter {
 
     log.info('chat', 'Processing message', { chatId, text: text.slice(0, 50) });
 
-    // Check if this is a directory session
-    if (this.sessionManager?.isDirectorySession(chatId)) {
-      log.info('chat', 'Routing to directory session', { chatId });
-      this.sessionManager.sendToSession(chatId, text, senderOpenId, messageId);
+    // Check session mode from SessionStore
+    const session = this.sessionStore.get(chatId);
+
+    // Route based on session mode
+    if (session.mode === 'directory') {
+      log.info('chat', 'Routing to directory session (mode=directory)', { chatId });
+      this.sessionManager?.sendToSession(chatId, text, senderOpenId, messageId);
       return;
     }
 
+    // Direct mode - invoke main Gateway agent
     const invokePromise = invokeClaudeChat({
       message: text,
       chatId,
