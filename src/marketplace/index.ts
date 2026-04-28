@@ -110,7 +110,3 @@ function installDirect(options: MarketplaceOptions): void {
   writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
   log.info('marketplace', 'Plugin installed via direct copy', { dir: settingsPath });
 }
-
-export function uninstall(options: MarketplaceOptions): void {
-  // No-op for now — claude plugin uninstall handles this
-}

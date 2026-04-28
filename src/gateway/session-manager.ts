@@ -3,7 +3,7 @@
  * Manages all Gateway sessions (direct and directory)
  */
 
-import { createHash } from 'crypto';
+import { chatIdToSessionId } from '../utils/chat-id.js';
 import { log } from '../utils/logger.js';
 import { ClaudeProcessManager } from './claude-process-manager.js';
 import { UnixSocketBridge, type MessageHandler } from './ipc/unix-socket-bridge.js';
@@ -26,11 +26,6 @@ export class SessionManager {
     this.sendMessage = sendMessage;
     this.processManager = new ClaudeProcessManager();
     this.socketBridge = new UnixSocketBridge();
-  }
-
-  private chatIdToSessionId(chatId: string): string {
-    const hash = createHash('sha256').update(chatId).digest('hex');
-    return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-4${hash.slice(12, 15)}-${(parseInt(hash.slice(15, 16), 16) & 0x3 | 0x8).toString(16)}${hash.slice(16, 19)}-${hash.slice(19, 31)}`;
   }
 
   async start(): Promise<void> {
@@ -73,7 +68,7 @@ export class SessionManager {
 
     const chatId = message.chatId;
     const directory = message.directory;
-    const sessionId = this.chatIdToSessionId(chatId);
+    const sessionId = chatIdToSessionId(chatId);
     const session: Session = {
       id: sessionId,
       type: 'directory',
@@ -169,7 +164,7 @@ export class SessionManager {
   // For gateway-direct sessions, we don't need process management
   // Messages go directly to the existing invokeClaudeChat flow
   registerGatewayDirect(chatId: string): Session {
-    const sessionId = this.chatIdToSessionId(chatId);
+    const sessionId = chatIdToSessionId(chatId);
     const session: Session = {
       id: sessionId,
       type: 'gateway-direct',

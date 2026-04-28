@@ -4,6 +4,7 @@
  */
 
 import type { HistoryEntry } from '../interactions/session-history-store.js';
+import type { CardElement } from '../card.js';
 
 export interface CardBuildResult {
   card: object;

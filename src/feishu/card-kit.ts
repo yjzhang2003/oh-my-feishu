@@ -6,11 +6,6 @@
 import * as lark from '@larksuiteoapi/node-sdk';
 import { log } from '../utils/logger.js';
 
-export interface UpdateAction {
-  action: 'partial_update_setting' | 'add_elements' | 'delete_elements' | 'partial_update_element' | 'update_element';
-  params: object;
-}
-
 export class CardKitManager {
   private client: lark.Client;
   private domain: string;
@@ -78,82 +73,4 @@ export class CardKitManager {
     }
   }
 
-  /**
-   * Batch update a card entity
-   * Requires strictly increasing sequence numbers per card
-   */
-  async batchUpdate(cardId: string, sequence: number, actions: UpdateAction[]): Promise<boolean> {
-    try {
-      const headers = await this.getHeaders();
-      const response = await this.client.httpInstance.post(
-        `${this.domain}/open-apis/cardkit/v1/cards/${cardId}/batch_update`,
-        {
-          sequence,
-          actions: JSON.stringify(actions),
-        },
-        { headers }
-      );
-
-      // Response may be { code: 0, msg: 'success' } or just empty success
-      const code = response.data?.code as number | undefined;
-      if (code !== undefined && code !== 0) {
-        log.error('cardkit', 'Batch update failed', {
-          cardId,
-          sequence,
-          code,
-          msg: response.data?.msg,
-        });
-        return false;
-      }
-
-      log.info('cardkit', 'Card updated', { cardId, sequence, response: response.data });
-      return true;
-    } catch (error) {
-      log.error('cardkit', 'Error updating card', { cardId, error: String(error) });
-      return false;
-    }
-  }
-
-  /**
-   * Batch update with detailed debug logging
-   */
-  async batchUpdateDebug(
-    cardId: string,
-    sequence: number,
-    actions: UpdateAction[]
-  ): Promise<{ success: boolean; code?: number; msg?: string }> {
-    try {
-      const headers = await this.getHeaders();
-      log.info('cardkit', 'Batch update request', {
-        cardId,
-        sequence,
-        actionsCount: actions.length,
-        actionsJson: JSON.stringify(actions),
-      });
-
-      const response = await this.client.httpInstance.post(
-        `${this.domain}/open-apis/cardkit/v1/cards/${cardId}/batch_update`,
-        {
-          sequence,
-          actions: JSON.stringify(actions),
-        },
-        { headers }
-      );
-
-      const code = response.data?.code as number | undefined;
-      const msg = response.data?.msg as string | undefined;
-
-      if (code !== undefined && code !== 0) {
-        log.error('cardkit', 'Batch update failed', { cardId, sequence, code, msg, response: response.data });
-        return { success: false, code, msg };
-      }
-
-      log.info('cardkit', 'Batch update succeeded', { cardId, sequence, response: response.data });
-      return { success: true };
-    } catch (error) {
-      const errMsg = error instanceof Error ? error.message : String(error);
-      log.error('cardkit', 'Error updating card', { cardId, error: errMsg });
-      return { success: false, msg: errMsg };
-    }
-  }
 }

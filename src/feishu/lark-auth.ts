@@ -86,52 +86,6 @@ export async function checkLarkConfig(): Promise<LarkConfigStatus> {
 }
 
 /**
- * Run lark-cli config init --new and capture output
- * Returns an async generator that yields output lines
- */
-export async function* runLarkInit(): AsyncGenerator<
-  { type: 'url'; url: string; userCode: string } | { type: 'output'; line: string } | { type: 'done'; success: boolean; error?: string }
-> {
-  return new Promise<AsyncGenerator<never>>((resolve, reject) => {
-    const proc = spawn('lark-cli', ['config', 'init', '--new'], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-
-    let stdout = '';
-    let stderr = '';
-    let resolved = false;
-
-    proc.stdout.on('data', (data) => {
-      const output = data.toString();
-      stdout += output;
-
-      // Try to parse URL from output
-      const parsed = parseInitOutput(output);
-      if (parsed && !resolved) {
-        resolved = true;
-        // Emit URL event
-      }
-    });
-
-    proc.stderr.on('data', (data) => {
-      stderr += data.toString();
-    });
-
-    proc.on('close', (code) => {
-      if (code === 0) {
-        // Success
-      } else {
-        // Failed
-      }
-    });
-
-    proc.on('error', (err) => {
-      reject(err);
-    });
-  });
-}
-
-/**
  * Initialize lark-cli config interactively
  * Returns the verification URL for the user to open
  */

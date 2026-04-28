@@ -4,7 +4,6 @@
  */
 
 import type { FeishuCard, CardElement } from './card.js';
-import { createMainMenuCard } from './card-builder/menu-cards.js';
 
 // Callback button configuration
 export interface CallbackButton {
@@ -73,8 +72,7 @@ export function md(content: string): CardElement {
   return { tag: 'markdown', content };
 }
 
-// Navigation card - shown when user first enters chat
-// NOTE: This is the legacy 1.0 format. Menu cards now use cardkit 2.0 via createMainMenuCard().
+// Navigation card - shown when user first enters chat (legacy 1.0 fallback)
 export function createNavigationCard(): FeishuCard {
   return createCallbackCard({
     title: '🤖 欢迎使用 Feishu Agent',
@@ -88,28 +86,6 @@ export function createNavigationCard(): FeishuCard {
     buttons: [
       { text: '🆕 新建会话', action: 'menu:new', type: 'primary' },
       { text: '📋 历史会话', action: 'menu:history', type: 'default' },
-    ],
-  });
-}
-
-// Service management card
-export function createServiceManageCard(serviceCount: number): FeishuCard {
-  const hasServices = serviceCount > 0;
-
-  return createCallbackCard({
-    title: '📋 服务管理',
-    elements: [
-      md(`当前注册 **${serviceCount}** 个服务`),
-      md(''),
-      md('**➕ 注册服务** - 添加新的 traceback 监控'),
-      md('**📝 查看列表** - 列出所有注册的服务'),
-      md('**✏️ 编辑服务** - 修改已有服务配置'),
-      md('**🗑️ 删除服务** - 移除服务'),
-    ],
-    buttons: [
-      { text: '➕ 注册服务', action: 'service:add-start', type: 'primary' },
-      { text: '📋 查看列表', action: 'service:list', type: 'default' },
-      { text: '◀️ 返回导航', action: 'nav:back', type: 'default' },
     ],
   });
 }
@@ -217,47 +193,6 @@ export function createServiceAddCancelledCard(): FeishuCard {
     ],
     headerColor: 'red',
   });
-}
-
-// Repair started card
-export function createRepairStartedCard(context: string): FeishuCard {
-  return createCallbackCard({
-    title: '🔄 自动修复已启动',
-    elements: [
-      md(`**Context:** ${context}`),
-      md(''),
-      md('正在分析问题并生成修复...'),
-    ],
-  });
-}
-
-// Repair complete card
-export function createRepairCompleteCard(success: boolean, message?: string): FeishuCard {
-  if (success) {
-    return createCallbackCard({
-      title: '✅ 修复完成',
-      elements: [
-        md('**自动修复已完成！**'),
-        message ? md(message) : md('问题已修复，相关代码已更新。'),
-      ],
-      buttons: [
-        { text: '◀️ 返回导航', action: 'nav:back', type: 'default' },
-      ],
-      headerColor: 'green',
-    });
-  } else {
-    return createCallbackCard({
-      title: '❌ 修复失败',
-      elements: [
-        md('**自动修复未能解决问题**'),
-        message ? md(message) : md('请检查日志或手动处理。'),
-      ],
-      buttons: [
-        { text: '◀️ 返回导航', action: 'nav:back', type: 'default' },
-      ],
-      headerColor: 'red',
-    });
-  }
 }
 
 // Error card with message

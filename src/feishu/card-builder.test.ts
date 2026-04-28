@@ -2,7 +2,6 @@ import { describe, test, expect } from 'vitest';
 import {
   createCallbackCard,
   createNavigationCard,
-  createServiceManageCard,
   createServiceAddStep1Card,
   createServiceAddStep2Card,
   createServiceAddStep3Card,
@@ -38,12 +37,6 @@ describe('CardBuilder', () => {
     const card = createNavigationCard();
     expect(card.header?.title.content).toBe('🤖 欢迎使用 Feishu Agent');
     expect(card.elements.length).toBeGreaterThan(0);
-  });
-
-  test('createServiceManageCard shows service count', () => {
-    const card = createServiceManageCard(3);
-    expect(card.header?.title.content).toBe('📋 服务管理');
-    expect(card.elements.some(e => (e as { content?: string }).content?.includes('3'))).toBe(true);
   });
 
   test('createServiceAddStep1Card contains correct guidance', () => {

@@ -5,8 +5,9 @@
 
 import { SessionStore } from './session-store.js';
 import { SessionHistoryStore } from './session-history-store.js';
-import { ServiceAddFlow, type SendCardFn } from './flows/service-add-flow.js';
+import { ServiceAddFlow } from './flows/service-add-flow.js';
 import { SessionAddFlow } from './flows/session-add-flow.js';
+import type { SendCardFn } from '../types.js';
 import { log } from '../../utils/logger.js';
 import { createMainMenuCard, createNewSessionCard, createSessionHistoryCard, createSessionDetailCard, createDirectoryInputCard } from '../card-builder/menu-cards.js';
 import { CardKitManager } from '../card-kit.js';

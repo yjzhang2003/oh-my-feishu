@@ -12,7 +12,6 @@ import { StatusCommand } from './commands/status-command.js';
 import { ServiceCommand } from './commands/service-command.js';
 import { HelpCommand } from './commands/help-command.js';
 import { MenuCommand } from './commands/menu-command.js';
-import { TestCardCommand } from './commands/test-card-command.js';
 import { SessionManager } from '../gateway/session-manager.js';
 import { CardKitManager } from './card-kit.js';
 import { createMainMenuCard } from './card-builder/menu-cards.js';
@@ -71,7 +70,6 @@ export class FeishuWebSocket {
     this.commandRegistry.register(new ServiceCommand());
     this.commandRegistry.register(new HelpCommand());
     this.commandRegistry.register(new MenuCommand());
-    this.commandRegistry.register(new TestCardCommand());
 
     // CardKit manager for in-place card updates
     this.cardKitManager = new CardKitManager(this.client, config.domain);

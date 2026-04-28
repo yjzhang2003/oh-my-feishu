@@ -7,13 +7,10 @@ import { SessionStore } from '../session-store.js';
 import { SessionHistoryStore } from '../session-history-store.js';
 import { log } from '../../../utils/logger.js';
 import { createCallbackCard, md } from '../../card-builder.js';
+import type { SendCardFn } from '../../types.js';
 import { listSessions, type SessionInfo } from '../../../trigger/invoker.js';
 import { install } from '../../../marketplace/index.js';
 import { existsSync, statSync } from 'fs';
-
-export interface SendCardFn {
-  (chatId: string, card: object): Promise<void>;
-}
 
 export class SessionAddFlow {
   constructor(

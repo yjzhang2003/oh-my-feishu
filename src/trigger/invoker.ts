@@ -2,7 +2,7 @@ import { execa } from 'execa';
 import { resolve } from 'path';
 import { env } from '../config/env.js';
 import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'fs';
-import { createHash } from 'crypto';
+import { chatIdToSessionId } from '../utils/chat-id.js';
 import { readTrigger } from './trigger.js';
 import { getService } from '../service/registry.js';
 
@@ -74,18 +74,6 @@ function loadServiceEnv(): Record<string, string> {
 }
 
 /**
- * Generate a deterministic UUID from chat ID for session persistence
- */
-function chatIdToSessionUuid(chatId: string): string {
-  // Create a hash of the chat ID
-  const hash = createHash('sha256').update(chatId).digest('hex');
-  // Format as valid UUID v4: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
-  // 8-4-4-4-12 = 32 hex chars + 4 dashes = 36 chars
-  // y must be one of 8, 9, a, or b
-  return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-4${hash.slice(12, 15)}-${(parseInt(hash.slice(15, 16), 16) & 0x3 | 0x8).toString(16)}${hash.slice(16, 19)}-${hash.slice(19, 31)}`;
-}
-
-/**
  * Invoke Claude Code CLI with a skill
  */
 export async function invokeClaudeSkill(options: InvokeOptions): Promise<InvokeResult> {
@@ -150,7 +138,7 @@ export async function invokeClaudeChat(context: ChatContext, timeout: number = 3
   };
 
   // Use provided sessionId or generate from chatId
-  const sessionId = context.sessionId || chatIdToSessionUuid(context.chatId);
+  const sessionId = context.sessionId || chatIdToSessionId(context.chatId);
 
   // Use /lark-chat-guide skill invocation to force Claude to load the skill
   const prompt = `/lark-chat-guide ${context.message}`;

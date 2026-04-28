@@ -12,11 +12,8 @@ import {
   createServiceAddCancelledCard,
   createErrorCard,
 } from '../../card-builder.js';
+import type { SendCardFn } from '../../types.js';
 import { log } from '../../../utils/logger.js';
-
-export interface SendCardFn {
-  (chatId: string, card: object): Promise<void>;
-}
 
 export class ServiceAddFlow {
   constructor(

@@ -48,7 +48,4 @@ export function loadEnv(): Env {
 
 export const env = loadEnv();
 
-// Check if GitHub is configured
-export function isGitHubConfigured(): boolean {
-  return !!env.GITHUB_TOKEN;
-}
+
