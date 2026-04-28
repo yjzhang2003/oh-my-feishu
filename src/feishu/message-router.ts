@@ -176,6 +176,23 @@ export class MessageRouter {
               chatId,
               `❌ Claude 调用失败 (exit ${result.exitCode}): ${(result.stderr || result.stdout).slice(0, 200)}`
             );
+            return;
+          }
+
+          // Parse structured result from stdout
+          const lines = result.stdout.trim().split('\n');
+          const lastLine = lines[lines.length - 1];
+          try {
+            const parsed = JSON.parse(lastLine);
+            if (!parsed.success) {
+              await this.sendMessage.sendTextMessage(
+                chatId,
+                `❌ ${parsed.error || '操作失败'}`
+              );
+            }
+            // If success=true, message was sent via lark-cli — no action needed
+          } catch {
+            // Not structured JSON — ignore
           }
         })
         .catch(async (err: unknown) => {
@@ -213,6 +230,23 @@ export class MessageRouter {
             chatId,
             `❌ Claude 调用失败 (exit ${result.exitCode}): ${(result.stderr || result.stdout).slice(0, 200)}`
           );
+          return;
+        }
+
+        // Parse structured result from stdout
+        const lines = result.stdout.trim().split('\n');
+        const lastLine = lines[lines.length - 1];
+        try {
+          const parsed = JSON.parse(lastLine);
+          if (!parsed.success) {
+            await this.sendMessage.sendTextMessage(
+              chatId,
+              `❌ ${parsed.error || '操作失败'}`
+            );
+          }
+          // If success=true, message was sent via lark-cli — no action needed
+        } catch {
+          // Not structured JSON — ignore
         }
       })
       .catch(async (err: unknown) => {
