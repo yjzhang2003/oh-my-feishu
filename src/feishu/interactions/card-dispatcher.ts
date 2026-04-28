@@ -62,19 +62,17 @@ export class CardDispatcher {
 
     try {
       // Handle form submission (from input card with form_submit button)
-      // form_submit callback: action.tag === 'form', data in action.form_value
-      if (action?.tag === 'form') {
-        const formValue = (action as unknown as { form_value?: Record<string, unknown> }).form_value || {};
-        // Check if dir_path was submitted (directory input form)
-        if (formValue.dir_path !== undefined) {
-          const dirPath = formValue.dir_path as string;
-          const result = await this.sessionAddFlow.handleDirectorySubmit(chatId, dirPath);
-          if (result.error) {
-            return { toast: { type: 'error', content: result.error } };
-          }
-          return { toast: { type: 'success', content: '目录会话已创建' } };
+      // form_submit callback: action.tag === 'button', form_value contains input data
+      // The submit button has no behaviors/value, so actionValue will be empty
+      // The back button inside the form uses behaviors callback, actionValue will be 'menu:back'
+      const formValue = (action as unknown as { form_value?: Record<string, unknown> }).form_value;
+      if (formValue?.dir_path !== undefined) {
+        const dirPath = formValue.dir_path as string;
+        const result = await this.sessionAddFlow.handleDirectorySubmit(chatId, dirPath);
+        if (result.error) {
+          return { toast: { type: 'error', content: result.error } };
         }
-        return { toast: { type: 'error', content: '未知表单操作' } };
+        return { toast: { type: 'success', content: '目录会话已创建' } };
       }
 
       if (actionValue.startsWith('menu:')) {

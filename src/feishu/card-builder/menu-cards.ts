@@ -149,61 +149,79 @@ export function createNewSessionCard(): CardBuildResult {
 export function createDirectoryInputCard(): object {
   return {
     schema: '2.0',
-    header: {
-      title: { content: '📁 创建目录会话', tag: 'plain_text' },
-      template: 'purple',
-    },
-    config: { update_multi: true },
     body: {
       elements: [
         { tag: 'markdown', content: '**请输入要打开的目录路径**' },
         { tag: 'markdown', content: '`/home/user/my-project` · `./my-project` · `../parent`' },
         {
           tag: 'form',
-          name: 'dir_form',
           elements: [
             {
               tag: 'input',
               element_id: 'input_dir_path',
+              placeholder: {
+                tag: 'plain_text',
+                content: '输入目录路径...',
+              },
+              default_value: '',
+              width: 'default',
+              label: {
+                tag: 'plain_text',
+                content: '目录路径：',
+              },
               name: 'dir_path',
-              placeholder: { tag: 'plain_text', content: '输入目录路径...' },
               max_length: 500,
             },
             {
               tag: 'column_set',
               flex_mode: 'none',
+              background_style: 'default',
               horizontal_spacing: 'default',
               columns: [
                 {
                   tag: 'column',
                   width: 'auto',
+                  vertical_align: 'top',
                   elements: [
                     {
                       tag: 'button',
-                      element_id: 'btn_submit_dir',
-                      text: { tag: 'plain_text', content: '✅ 创建会话' },
+                      text: {
+                        tag: 'plain_text',
+                        content: '✅ 创建会话',
+                      },
                       type: 'primary',
                       action_type: 'form_submit',
+                      name: 'btn_submit_dir',
                     },
                   ],
                 },
                 {
                   tag: 'column',
                   width: 'auto',
+                  vertical_align: 'top',
                   elements: [
                     {
                       tag: 'button',
-                      element_id: 'btn_back_dir',
-                      text: { tag: 'plain_text', content: '◀️ 返回' },
+                      text: {
+                        tag: 'plain_text',
+                        content: '◀️ 返回',
+                      },
                       type: 'default',
-                      action_type: 'callback',
-                      value: { action: 'menu:back' },
+                      behaviors: [
+                        {
+                          type: 'callback',
+                          value: { action: 'menu:back' },
+                        },
+                      ],
+                      name: 'btn_back_dir',
                     },
                   ],
                 },
               ],
+              margin: '0px',
             },
           ],
+          name: 'dir_form',
         },
       ],
     },
