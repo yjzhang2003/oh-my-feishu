@@ -1,0 +1,5 @@
+{
+  "name": "oh-my-feishu",
+  "description": "Feishu/Lark integration skills for Claude Code — messaging, calendar, docs, sheets, and more",
+  "version": "1.0.0"
+}

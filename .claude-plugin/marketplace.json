@@ -1,0 +1,13 @@
+{
+  "name": "oh-my-feishu-marketplace",
+  "owner": {
+    "name": "Feishu Agent"
+  },
+  "plugins": [
+    {
+      "name": "oh-my-feishu",
+      "source": "./oh-my-feishu-plugin",
+      "description": "Feishu/Lark integration skills for Claude Code"
+    }
+  ]
+}

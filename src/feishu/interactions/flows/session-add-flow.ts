@@ -82,7 +82,7 @@ export class SessionAddFlow {
     } else {
       // No sessions, install plugin and create new
       try {
-        install({ targetDir: trimmedDir });
+        await install({ targetDir: trimmedDir });
         log.info('flow', 'Marketplace plugin installed', { directory: trimmedDir });
       } catch (err) {
         log.warn('flow', 'Failed to install marketplace plugin', { directory: trimmedDir, error: String(err) });
@@ -115,7 +115,7 @@ export class SessionAddFlow {
 
     if (trimmedInput === 'new' || trimmedInput === '+' || trimmedInput === '新建') {
       // Install plugin and create new session
-      this.installPluginSafely(directory);
+      await this.installPluginSafely(directory);
       this.sessionStore.set(chatId, {
         flow: 'none',
         mode: 'directory',
@@ -133,7 +133,7 @@ export class SessionAddFlow {
 
     if (!isNaN(selectedIndex) && selectedIndex >= 0 && selectedIndex < sessions.length) {
       const selectedSession = sessions[selectedIndex];
-      this.installPluginSafely(directory);
+      await this.installPluginSafely(directory);
       this.sessionStore.set(chatId, {
         flow: 'none',
         mode: 'directory',
@@ -147,7 +147,7 @@ export class SessionAddFlow {
     // Try matching by session ID prefix
     const matched = sessions.find(s => s.id.startsWith(trimmedInput));
     if (matched) {
-      this.installPluginSafely(directory);
+      await this.installPluginSafely(directory);
       this.sessionStore.set(chatId, {
         flow: 'none',
         mode: 'directory',
@@ -162,9 +162,9 @@ export class SessionAddFlow {
     return { done: false };
   }
 
-  private installPluginSafely(directory: string): void {
+  private async installPluginSafely(directory: string): Promise<void> {
     try {
-      install({ targetDir: directory });
+      await install({ targetDir: directory });
       log.info('flow', 'Marketplace plugin installed', { directory });
     } catch (err) {
       log.warn('flow', 'Failed to install marketplace plugin', { directory, error: String(err) });

@@ -1,9 +1,10 @@
 /**
  * Plugin Installer
  * Installs plugin into target directory's .claude/settings.json
+ * and copies skill files to .claude/skills/
  */
 
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, cpSync } from 'fs';
 import { resolve, join } from 'path';
 import { log } from '../utils/logger.js';
 
@@ -19,6 +20,7 @@ export interface InstallOptions {
   pluginName: string;
   pluginVersion: string;
   skills: string[];
+  skillsSourceDir?: string;
 }
 
 export function installPlugin(opts: InstallOptions): void {
@@ -29,6 +31,19 @@ export function installPlugin(opts: InstallOptions): void {
   if (!existsSync(claudeDir)) {
     mkdirSync(claudeDir, { recursive: true });
     log.info('marketplace', 'Created .claude directory', { dir: claudeDir });
+  }
+
+  // Copy skill files if source directory provided
+  if (opts.skillsSourceDir) {
+    const targetSkillsDir = join(claudeDir, 'skills');
+    for (const skillName of opts.skills) {
+      const sourceSkillDir = join(opts.skillsSourceDir, skillName);
+      const targetSkillDir = join(targetSkillsDir, skillName);
+      if (existsSync(sourceSkillDir)) {
+        cpSync(sourceSkillDir, targetSkillDir, { recursive: true });
+        log.info('marketplace', 'Copied skill', { skill: skillName, to: targetSkillDir });
+      }
+    }
   }
 
   // Load existing settings or create new
