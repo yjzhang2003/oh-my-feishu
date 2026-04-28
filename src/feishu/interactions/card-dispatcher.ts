@@ -21,6 +21,7 @@ export interface CardActionPayload {
     value?: Record<string, unknown>;
     tag?: string;
     name?: string;
+    form_value?: Record<string, unknown>;
   };
   context?: {
     open_message_id?: string;
@@ -61,11 +62,17 @@ export class CardDispatcher {
 
     try {
       // Handle form submission (from input card with form_submit button)
+      // form_submit callback: action.tag === 'form', data in action.form_value
       if (action?.tag === 'form') {
-        const formValue = action.value as Record<string, unknown>;
-        const submitAction = formValue.action as string || '';
-        if (submitAction.startsWith('menu:')) {
-          return await this.handleMenuAction(submitAction, chatId, operatorOpenId, formValue);
+        const formValue = (action as unknown as { form_value?: Record<string, unknown> }).form_value || {};
+        // Check if dir_path was submitted (directory input form)
+        if (formValue.dir_path !== undefined) {
+          const dirPath = formValue.dir_path as string;
+          const result = await this.sessionAddFlow.handleDirectorySubmit(chatId, dirPath);
+          if (result.error) {
+            return { toast: { type: 'error', content: result.error } };
+          }
+          return { toast: { type: 'success', content: '目录会话已创建' } };
         }
         return { toast: { type: 'error', content: '未知表单操作' } };
       }
@@ -97,7 +104,7 @@ export class CardDispatcher {
     }
   }
 
-  private async handleMenuAction(actionValue: string, chatId: string, operatorOpenId: string, formValues?: Record<string, unknown>): Promise<CardActionResponse> {
+  private async handleMenuAction(actionValue: string, chatId: string, operatorOpenId: string): Promise<CardActionResponse> {
     const parts = actionValue.split(':');
     const subAction = parts[1];
     const param = parts[2];
@@ -112,16 +119,6 @@ export class CardDispatcher {
 
       case 'new-directory':
         return this.updateMenuCard({ card: createDirectoryInputCard(), elementIds: [] }, { type: 'info', content: '' });
-
-      case 'submit-directory': {
-        // Form submitted with directory path from formValues
-        const dirPath = (formValues?.dir_path as string) || '';
-        const result = await this.sessionAddFlow.handleDirectorySubmit(chatId, dirPath);
-        if (result.error) {
-          return { toast: { type: 'error', content: result.error } };
-        }
-        return {};
-      }
 
       case 'history': {
         const entries = this.sessionHistoryStore.listHistory(chatId);
