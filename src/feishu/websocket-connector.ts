@@ -1,5 +1,7 @@
 import * as lark from '@larksuiteoapi/node-sdk';
+import { resolve } from 'path';
 import { log } from '../utils/logger.js';
+import { env } from '../config/env.js';
 import { MessageRouter, type MessageData, type SendMessageFn } from './message-router.js';
 import { CardDispatcher, type CardActionPayload, type CardActionResponse } from './interactions/card-dispatcher.js';
 import { SessionHistoryStore } from './interactions/session-history-store.js';
@@ -15,6 +17,7 @@ import { SessionManager } from '../gateway/session-manager.js';
 import { CardKitManager } from './card-kit.js';
 import { createMainMenuCard } from './card-builder/menu-cards.js';
 import { createNavigationCard } from './card-builder.js';
+import { install as installPlugin } from '../marketplace/index.js';
 
 // SDK 事件类型是扁平的，直接在 data 里
 export interface P2PChatEnteredData {
@@ -120,6 +123,12 @@ export class FeishuWebSocket {
 
     // Start SessionManager IPC server
     await this.sessionManager.start();
+
+    // Install plugin into workspace for direct chat mode (skills needed by /lark-chat-guide)
+    const workspaceDir = resolve(env.REPO_ROOT, 'workspace');
+    installPlugin({ targetDir: workspaceDir }).catch((err) => {
+      log.warn('feishu', 'Failed to install plugin into workspace', { error: String(err) });
+    });
 
     this.connected = true;
     log.info('feishu', 'WebSocket connected');
