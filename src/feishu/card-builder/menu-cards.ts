@@ -147,10 +147,6 @@ export function createNewSessionCard(): CardBuildResult {
 
 /** Directory input card with form + input for inline path entry */
 export function createDirectoryInputCard(): object {
-  const formId = 'form_dir_input';
-  const inputId = 'input_dir_path';
-  const submitBtnId = 'btn_submit_dir';
-
   return {
     schema: '2.0',
     header: {
@@ -160,21 +156,15 @@ export function createDirectoryInputCard(): object {
     config: { update_multi: true },
     body: {
       elements: [
-        {
-          tag: 'markdown',
-          content: '**请输入要打开的目录路径**',
-        },
-        {
-          tag: 'markdown',
-          content: '`/home/user/my-project` · `./my-project` · `../parent`',
-        },
+        { tag: 'markdown', content: '**请输入要打开的目录路径**' },
+        { tag: 'markdown', content: '`/home/user/my-project` · `./my-project` · `../parent`' },
         {
           tag: 'form',
-          name: formId,
+          name: 'dir_form',
           elements: [
             {
               tag: 'input',
-              element_id: inputId,
+              element_id: 'input_dir_path',
               name: 'dir_path',
               placeholder: { tag: 'plain_text', content: '输入目录路径...' },
               max_length: 500,
@@ -190,7 +180,7 @@ export function createDirectoryInputCard(): object {
                   elements: [
                     {
                       tag: 'button',
-                      element_id: submitBtnId,
+                      element_id: 'btn_submit_dir',
                       text: { tag: 'plain_text', content: '✅ 创建会话' },
                       type: 'primary',
                       action_type: 'form_submit',
@@ -203,6 +193,7 @@ export function createDirectoryInputCard(): object {
                   elements: [
                     {
                       tag: 'button',
+                      element_id: 'btn_back_dir',
                       text: { tag: 'plain_text', content: '◀️ 返回' },
                       type: 'default',
                       action_type: 'callback',
