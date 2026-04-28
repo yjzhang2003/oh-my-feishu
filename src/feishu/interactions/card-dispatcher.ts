@@ -8,7 +8,7 @@ import { SessionHistoryStore } from './session-history-store.js';
 import { ServiceAddFlow, type SendCardFn } from './flows/service-add-flow.js';
 import { SessionAddFlow } from './flows/session-add-flow.js';
 import { log } from '../../utils/logger.js';
-import { createMainMenuCard, createNewSessionCard, createSessionHistoryCard, createSessionDetailCard } from '../card-builder/menu-cards.js';
+import { createMainMenuCard, createNewSessionCard, createSessionHistoryCard, createSessionDetailCard, createDirectoryInputCard } from '../card-builder/menu-cards.js';
 import { CardKitManager } from '../card-kit.js';
 
 export interface CardActionPayload {
@@ -60,6 +60,16 @@ export class CardDispatcher {
     log.info('dispatcher', 'Card action received', { chatId, action: actionValue });
 
     try {
+      // Handle form submission (from input card with form_submit button)
+      if (action?.tag === 'form') {
+        const formValue = action.value as Record<string, unknown>;
+        const submitAction = formValue.action as string || '';
+        if (submitAction.startsWith('menu:')) {
+          return await this.handleMenuAction(submitAction, chatId, operatorOpenId, formValue);
+        }
+        return { toast: { type: 'error', content: '未知表单操作' } };
+      }
+
       if (actionValue.startsWith('menu:')) {
         return await this.handleMenuAction(actionValue, chatId, operatorOpenId);
       }
@@ -87,7 +97,7 @@ export class CardDispatcher {
     }
   }
 
-  private async handleMenuAction(actionValue: string, chatId: string, operatorOpenId: string): Promise<CardActionResponse> {
+  private async handleMenuAction(actionValue: string, chatId: string, operatorOpenId: string, formValues?: Record<string, unknown>): Promise<CardActionResponse> {
     const parts = actionValue.split(':');
     const subAction = parts[1];
     const param = parts[2];
@@ -101,8 +111,17 @@ export class CardDispatcher {
         return this.updateMenuCard(createMainMenuCard(), { type: 'success', content: '已切换到直接对话模式' });
 
       case 'new-directory':
-        this.sessionAddFlow.start(chatId, operatorOpenId);
+        return this.updateMenuCard({ card: createDirectoryInputCard(), elementIds: [] }, { type: 'info', content: '' });
+
+      case 'submit-directory': {
+        // Form submitted with directory path from formValues
+        const dirPath = (formValues?.dir_path as string) || '';
+        const result = await this.sessionAddFlow.handleDirectorySubmit(chatId, dirPath);
+        if (result.error) {
+          return { toast: { type: 'error', content: result.error } };
+        }
         return {};
+      }
 
       case 'history': {
         const entries = this.sessionHistoryStore.listHistory(chatId);

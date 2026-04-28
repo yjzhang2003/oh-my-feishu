@@ -145,6 +145,80 @@ export function createNewSessionCard(): CardBuildResult {
   });
 }
 
+/** Directory input card with form + input for inline path entry */
+export function createDirectoryInputCard(): object {
+  const formId = 'form_dir_input';
+  const inputId = 'input_dir_path';
+  const submitBtnId = 'btn_submit_dir';
+
+  return {
+    schema: '2.0',
+    header: {
+      title: { content: '📁 创建目录会话', tag: 'plain_text' },
+      template: 'purple',
+    },
+    config: { update_multi: true },
+    body: {
+      elements: [
+        {
+          tag: 'markdown',
+          content: '**请输入要打开的目录路径**',
+        },
+        {
+          tag: 'markdown',
+          content: '`/home/user/my-project` · `./my-project` · `../parent`',
+        },
+        {
+          tag: 'form',
+          name: formId,
+          elements: [
+            {
+              tag: 'input',
+              element_id: inputId,
+              name: 'dir_path',
+              placeholder: { tag: 'plain_text', content: '输入目录路径...' },
+              max_length: 500,
+            },
+            {
+              tag: 'column_set',
+              flex_mode: 'none',
+              horizontal_spacing: 'default',
+              columns: [
+                {
+                  tag: 'column',
+                  width: 'auto',
+                  elements: [
+                    {
+                      tag: 'button',
+                      element_id: submitBtnId,
+                      text: { tag: 'plain_text', content: '✅ 创建会话' },
+                      type: 'primary',
+                      action_type: 'form_submit',
+                    },
+                  ],
+                },
+                {
+                  tag: 'column',
+                  width: 'auto',
+                  elements: [
+                    {
+                      tag: 'button',
+                      text: { tag: 'plain_text', content: '◀️ 返回' },
+                      type: 'default',
+                      action_type: 'callback',
+                      value: { action: 'menu:back' },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  };
+}
+
 /** Level 2b: Session History submenu */
 export function createSessionHistoryCard(entries: HistoryEntry[]): CardBuildResult {
   if (entries.length === 0) {

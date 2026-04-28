@@ -28,7 +28,7 @@ export class SessionAddFlow {
       flow: 'session-add-step1',
       data: { addedBy: senderOpenId },
     });
-    await this.sendCard(chatId, this.createDirectoryInputCard());
+    // Card is sent by card-dispatcher via createDirectoryInputCard (2.0 with form)
   }
 
   async handleInput(chatId: string, text: string): Promise<{ done: boolean; error?: string }> {
@@ -50,22 +50,22 @@ export class SessionAddFlow {
     this.sessionStore.set(chatId, { flow: 'none', mode: 'direct' });
   }
 
-  private async handleDirectoryInput(chatId: string, text: string): Promise<{ done: boolean; error?: string }> {
-    const trimmedDir = text.trim();
+  /**
+   * Handle directory path submitted from input card form
+   */
+  async handleDirectorySubmit(chatId: string, dirPath: string): Promise<{ error?: string }> {
+    const trimmedDir = dirPath.trim();
 
     if (!trimmedDir) {
-      await this.sendCard(chatId, this.createErrorCard('目录路径不能为空'));
-      return { done: false };
+      return { error: '目录路径不能为空' };
     }
 
     if (!trimmedDir.startsWith('/') && !trimmedDir.startsWith('./') && !trimmedDir.startsWith('../')) {
-      await this.sendCard(chatId, this.createErrorCard('请输入有效的目录路径（如 /home/user/project 或 ./my-project）'));
-      return { done: false };
+      return { error: '请输入有效的目录路径（如 /home/user/project 或 ./my-project）' };
     }
 
     if (!existsSync(trimmedDir) || !statSync(trimmedDir).isDirectory()) {
-      await this.sendCard(chatId, this.createErrorCard(`目录不存在: \`${trimmedDir}\`\n\n请输入一个有效的目录路径`));
-      return { done: false };
+      return { error: `目录不存在: \`${trimmedDir}\`` };
     }
 
     // Store directory and list sessions
@@ -96,6 +96,15 @@ export class SessionAddFlow {
       await this.sendCard(chatId, this.createNoSessionCard(trimmedDir));
     }
 
+    return {};
+  }
+
+  private async handleDirectoryInput(chatId: string, text: string): Promise<{ done: boolean; error?: string }> {
+    const result = await this.handleDirectorySubmit(chatId, text);
+    if (result.error) {
+      await this.sendCard(chatId, this.createErrorCard(result.error));
+      return { done: false };
+    }
     return { done: true };
   }
 
