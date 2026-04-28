@@ -34,6 +34,9 @@ coverage/
 # Claude Code internals
 .claude/
 
+# Docs (keep local, don't track)
+docs/
+
 # Workspace runtime data
 workspace/.claude/
 
