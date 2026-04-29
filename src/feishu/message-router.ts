@@ -170,12 +170,20 @@ export class MessageRouter {
     let cardId: string | null = null;
     let sequence = 1;
 
+    // Build card subtitle from mode / directory
+    const subtitleText = directory
+      ? `📁 ${directory}`
+      : '💬 直接对话';
+
     // Try to create a streaming card entity
     if (this.cardKitManager) {
       try {
         const cardJson = {
           schema: '2.0',
-          header: { title: { content: 'Claude', tag: 'plain_text' } },
+          header: {
+            title: { content: 'Claude', tag: 'plain_text' },
+            subtitle: { content: subtitleText, tag: 'plain_text' },
+          },
           config: {
             streaming_mode: true,
             summary: { content: '[生成中...]' },
@@ -183,6 +191,13 @@ export class MessageRouter {
           body: {
             elements: [
               { tag: 'markdown', content: '', element_id: 'reply_md' },
+              {
+                tag: 'plain_text',
+                content: 'Claude Code 回复中...',
+                text_size: 'small',
+                text_color: 'grey',
+                element_id: 'status_text',
+              },
             ],
           },
         };
@@ -199,10 +214,12 @@ export class MessageRouter {
     let accumulatedText = '';
     let pendingText = '';
     let debounceTimer: NodeJS.Timeout | null = null;
+    let lastFlushLength = 0;
 
     const flushUpdate = async () => {
       if (cardId && pendingText) {
         await this.cardKitManager?.updateCardContent(cardId, 'reply_md', pendingText, sequence++);
+        lastFlushLength = pendingText.length;
         pendingText = '';
       }
     };
@@ -213,7 +230,15 @@ export class MessageRouter {
         debounceTimer = setTimeout(() => {
           debounceTimer = null;
           flushUpdate();
-        }, 300);
+        }, 150);
+      }
+      // Force flush every 80 chars to avoid long waits
+      if (pendingText.length - lastFlushLength > 80) {
+        if (debounceTimer) {
+          clearTimeout(debounceTimer);
+          debounceTimer = null;
+        }
+        flushUpdate();
       }
     };
 
@@ -240,6 +265,14 @@ export class MessageRouter {
           }
           await flushUpdate();
           if (cardId) {
+            // Update status to done
+            await this.cardKitManager?.updateCardContent(
+              cardId,
+              'status_text',
+              '✅ Claude Code',
+              sequence++
+            );
+            // Close streaming mode
             await this.cardKitManager?.updateCardSettings(
               cardId,
               { config: { streaming_mode: false } },
