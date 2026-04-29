@@ -195,7 +195,7 @@ export class MessageRouter {
                 tag: 'plain_text',
                 content: 'Claude Code 回复中...',
                 text_size: 'small',
-                text_color: 'grey',
+                text_color: 'secondary',
                 element_id: 'status_text',
               },
             ],
