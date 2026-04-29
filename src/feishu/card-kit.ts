@@ -126,6 +126,56 @@ export class CardKitManager {
   }
 
   /**
+   * Update element properties via PATCH
+   * Used to set expanded: false on collapsible_panel after streaming completes
+   * PATCH /open-apis/cardkit/v1/cards/:card_id/elements/:element_id
+   */
+  async updateCardProps(
+    cardId: string,
+    elementId: string,
+    props: object,
+    sequence: number
+  ): Promise<boolean> {
+    try {
+      const headers = await this.getHeaders();
+      const body = {
+        partial_element: JSON.stringify(props),
+        uuid: crypto.randomUUID(),
+        sequence,
+      };
+      const url = `${this.domain}/open-apis/cardkit/v1/cards/${cardId}/elements/${elementId}`;
+      log.info('cardkit', 'updateCardProps request', { url, body });
+      const response = await this.client.httpInstance.patch(url, body, { headers });
+
+      log.info('cardkit', 'updateCardProps response', {
+        status: response.status,
+        data: response.data,
+      });
+
+      if (response.data && typeof response.data.code === 'number' && response.data.code !== 0) {
+        log.warn('cardkit', 'updateCardProps failed', {
+          cardId,
+          elementId,
+          code: response.data.code,
+          msg: response.data.msg,
+        });
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      const err = error as any;
+      log.error('cardkit', 'Error updating card props', {
+        cardId,
+        elementId,
+        error: err.message,
+        responseData: err.response?.data,
+      });
+      return false;
+    }
+  }
+
+  /**
    * Full update card entity (e.g., close streaming mode)
    * PUT /open-apis/cardkit/v1/cards/:card_id
    */

@@ -173,16 +173,16 @@ export class MessageRouter {
 
     // Build card subtitle from mode / directory
     const subtitleText = directory
-      ? `📁 ${directory}`
-      : '💬 直接对话';
+      ? `${directory}`
+      : '直接对话';
 
-    // Try to create a streaming card entity
+    // Try to create a streaming card entity with both reply_md and collapsible_panel
     if (this.cardKitManager) {
       try {
         cardJson = {
           schema: '2.0',
           header: {
-            title: { content: 'Claude', tag: 'plain_text' },
+            title: { content: 'Claude Code', tag: 'plain_text' },
             subtitle: { content: subtitleText, tag: 'plain_text' },
             template: 'wathet',
           },
@@ -194,6 +194,20 @@ export class MessageRouter {
           body: {
             elements: [
               { tag: 'markdown', content: '', element_id: 'reply_md' },
+              {
+                tag: 'collapsible_panel',
+                expanded: true,
+                element_id: 'extra_panel',
+                header: {
+                  title: { tag: 'markdown', content: '**详情**' },
+                  icon: { tag: 'standard_icon', token: 'down-small-ccm_outlined', size: '16px 16px' },
+                  icon_position: 'right',
+                  icon_expanded_angle: -180,
+                },
+                elements: [
+                  { tag: 'markdown', content: '', element_id: 'thinking_md' },
+                ],
+              },
             ],
           },
         };
@@ -209,14 +223,22 @@ export class MessageRouter {
 
     let accumulatedText = '';
     let pendingText = '';
+    let pendingThinking = '';
     let debounceTimer: NodeJS.Timeout | null = null;
+    let debounceThinkingTimer: NodeJS.Timeout | null = null;
     let lastFlushLength = 0;
+    let lastFlushThinkingLength = 0;
 
     const flushUpdate = async () => {
       if (cardId && pendingText) {
         await this.cardKitManager?.updateCardContent(cardId, 'reply_md', pendingText, sequence++);
         lastFlushLength = pendingText.length;
         pendingText = '';
+      }
+      if (cardId && pendingThinking) {
+        await this.cardKitManager?.updateCardContent(cardId, 'thinking_md', pendingThinking, sequence++);
+        lastFlushThinkingLength = pendingThinking.length;
+        pendingThinking = '';
       }
     };
 
@@ -238,6 +260,28 @@ export class MessageRouter {
       }
     };
 
+    // Track thinking and tool content
+    let thinkingContent = '';
+    const toolEvents: string[] = [];
+
+    const scheduleThinkingUpdate = (content: string) => {
+      pendingThinking = content;
+      if (!debounceThinkingTimer && cardId) {
+        debounceThinkingTimer = setTimeout(() => {
+          debounceThinkingTimer = null;
+          flushUpdate();
+        }, 200);
+      }
+      // Force flush every 100 chars to avoid long waits
+      if (pendingThinking.length - lastFlushThinkingLength > 100) {
+        if (debounceThinkingTimer) {
+          clearTimeout(debounceThinkingTimer);
+          debounceThinkingTimer = null;
+        }
+        flushUpdate();
+      }
+    };
+
     const invokePromise = invokeClaudeChat(
       {
         message: text,
@@ -254,11 +298,30 @@ export class MessageRouter {
           accumulatedText += deltaText;
           scheduleUpdate(accumulatedText);
         },
+        onThinkingDelta: (deltaText) => {
+          thinkingContent += deltaText;
+          scheduleThinkingUpdate(thinkingContent);
+        },
+        onToolUse: (toolName, input) => {
+          try {
+            const inputObj = JSON.parse(input);
+            const inputSummary = JSON.stringify(inputObj, null, 2).slice(0, 500);
+            toolEvents.push(`**${toolName}**\n\`\`\`\n${inputSummary}\n\`\`\``);
+          } catch {
+            toolEvents.push(`**${toolName}**`);
+          }
+          // Update thinking panel with tool events
+          scheduleThinkingUpdate(thinkingContent + '\n\n' + toolEvents.join('\n\n'));
+        },
         onDone: async () => {
-          // Clear debounce timer and flush remaining text
+          // Clear debounce timers and flush remaining
           if (debounceTimer) {
             clearTimeout(debounceTimer);
             debounceTimer = null;
+          }
+          if (debounceThinkingTimer) {
+            clearTimeout(debounceThinkingTimer);
+            debounceThinkingTimer = null;
           }
           await flushUpdate();
         },
@@ -269,7 +332,27 @@ export class MessageRouter {
         // If streaming card was not created, fall back to text message
         if (!cardId) {
           await this.parseAndSendResponse(result, chatId);
+          return;
         }
+
+        // Update card: close streaming mode, update summary, and collapse the panel
+        // 1. Update summary via full card update (config is at card level)
+        const finalCardJson = {
+          ...cardJson,
+          config: {
+            ...(cardJson?.config as Record<string, unknown>),
+            streaming_mode: false,
+            summary: { content: 'Claude Code' },
+          },
+        };
+        await this.cardKitManager?.updateCardFull(cardId, finalCardJson as object, sequence++);
+
+        // 2. Collapse the panel via PATCH (only expanded property)
+        const toolCount = toolEvents.length;
+        const panelTitle = toolCount > 0
+          ? `**详情 (${toolCount}次工具调用)**`
+          : '**详情**';
+        await this.cardKitManager?.updateCardProps(cardId, 'extra_panel', { expanded: false, header: { title: { tag: 'markdown', content: panelTitle } } }, sequence++);
       })
       .catch(async (err: unknown) => {
         log.error('chat', 'Chat failed', { error: String(err) });
