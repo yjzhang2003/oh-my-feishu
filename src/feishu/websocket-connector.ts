@@ -81,10 +81,11 @@ export class FeishuWebSocket {
       sendMenuCard: (chatId: string) => this.sendMenuCard(chatId),
       sendAckReaction: (messageId: string) => this.sendAckReaction(messageId),
       sendCompletionReaction: (messageId: string) => this.sendCompletionReaction(messageId),
+      sendCardById: (chatId: string, cardId: string) => this.sendCardById(chatId, cardId),
       isConnected: () => this.connected,
     };
 
-    this.messageRouter = new MessageRouter(this.commandRegistry, this.sessionStore, sendMessage);
+    this.messageRouter = new MessageRouter(this.commandRegistry, this.sessionStore, sendMessage, this.cardKitManager);
 
     // CardDispatcher needs sendCard to send cards and cardKitManager for updates
     const sendCard = (chatId: string, card: object) => this.sendCardMessageRaw(chatId, card);
@@ -400,6 +401,27 @@ export class FeishuWebSocket {
       log.messageOut(chatId, '[Interactive Card]', 'interactive');
     } catch (error) {
       log.error('feishu', 'Error sending raw card message', { chatId, error: String(error) });
+    }
+  }
+
+  /**
+   * Send a card entity by its card_id (for streaming cards)
+   */
+  private async sendCardById(chatId: string, cardId: string): Promise<void> {
+    try {
+      await this.client.im.v1.message.create({
+        params: {
+          receive_id_type: 'chat_id',
+        },
+        data: {
+          receive_id: chatId,
+          content: JSON.stringify({ type: 'card', data: { card_id: cardId } }),
+          msg_type: 'interactive',
+        },
+      });
+      log.messageOut(chatId, `[Card Entity] ${cardId}`, 'interactive');
+    } catch (error) {
+      log.error('feishu', 'Error sending card by id', { chatId, cardId, error: String(error) });
     }
   }
 

@@ -73,4 +73,89 @@ export class CardKitManager {
     }
   }
 
+  /**
+   * Update card element content via cardkit API
+   * Used for streaming text updates
+   */
+  async updateCardContent(
+    cardId: string,
+    elementId: string,
+    content: string,
+    sequence: number
+  ): Promise<boolean> {
+    try {
+      const headers = await this.getHeaders();
+      const response = await this.client.httpInstance.put(
+        `${this.domain}/open-apis/cardkit/v1/cards/${cardId}/elements/${elementId}/content`,
+        {
+          content,
+          uuid: crypto.randomUUID(),
+          sequence,
+        },
+        { headers }
+      );
+
+      if (response.data?.code !== 0) {
+        log.warn('cardkit', 'updateCardContent failed', {
+          cardId,
+          elementId,
+          code: response.data?.code,
+          msg: response.data?.msg,
+        });
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      const err = error as any;
+      log.error('cardkit', 'Error updating card content', {
+        cardId,
+        elementId,
+        error: err.message,
+        responseData: err.response?.data,
+      });
+      return false;
+    }
+  }
+
+  /**
+   * Update card settings (e.g., close streaming mode)
+   */
+  async updateCardSettings(
+    cardId: string,
+    settings: object,
+    sequence: number
+  ): Promise<boolean> {
+    try {
+      const headers = await this.getHeaders();
+      const response = await this.client.httpInstance.put(
+        `${this.domain}/open-apis/cardkit/v1/cards/${cardId}/settings`,
+        {
+          settings: JSON.stringify(settings),
+          uuid: crypto.randomUUID(),
+          sequence,
+        },
+        { headers }
+      );
+
+      if (response.data?.code !== 0) {
+        log.warn('cardkit', 'updateCardSettings failed', {
+          cardId,
+          code: response.data?.code,
+          msg: response.data?.msg,
+        });
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      const err = error as any;
+      log.error('cardkit', 'Error updating card settings', {
+        cardId,
+        error: err.message,
+        responseData: err.response?.data,
+      });
+      return false;
+    }
+  }
 }

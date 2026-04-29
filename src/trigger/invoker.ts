@@ -28,6 +28,11 @@ export interface ChatContext {
   sessionId?: string;
 }
 
+export interface StreamCallbacks {
+  onTextDelta?: (text: string) => void;
+  onDone?: () => void;
+}
+
 // Read .env from workspace/.claude/.env and return as env vars object
 function loadWorkspaceEnv(): Record<string, string> {
   const envPath = resolve(env.REPO_ROOT, 'workspace', '.claude', '.env');
@@ -124,7 +129,11 @@ export async function invokeClaudeSkill(options: InvokeOptions): Promise<InvokeR
  * Uses skills to teach Claude how to respond via lark-cli
  * Each chat ID gets its own session for context continuity
  */
-export async function invokeClaudeChat(context: ChatContext, timeout: number = 300000): Promise<InvokeResult> {
+export async function invokeClaudeChat(
+  context: ChatContext,
+  timeout: number = 300000,
+  callbacks?: StreamCallbacks
+): Promise<InvokeResult> {
   const cwd = context.directory
     ? resolve(context.directory)
     : resolve(env.REPO_ROOT, 'workspace');
@@ -151,30 +160,93 @@ export async function invokeClaudeChat(context: ChatContext, timeout: number = 3
     claudeArgs.push('--output-format', 'stream-json', '--include-partial-messages', '--verbose');
     claudeArgs.push('--resume', sessionId, prompt);
 
-    const result = await execa('claude', claudeArgs, {
+    const proc = execa('claude', claudeArgs, {
       cwd,
       timeout,
       reject: false,
       stdin: 'ignore',
+      stdout: 'pipe',
       env: { ...process.env, ...workspaceEnv, ...contextEnv },
     });
 
-    // If session not found, retry without --resume (session may have been lost after re-auth)
+    let fullStdout = '';
+    let buffer = '';
+
+    proc.stdout?.on('data', (chunk: Buffer) => {
+      const data = chunk.toString();
+      fullStdout += data;
+      buffer += data;
+
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (parsed.type === 'system') continue;
+          const actualEvent = parsed.type === 'stream_event' ? parsed.event : parsed;
+          if (actualEvent?.type === 'content_block_delta' && actualEvent.delta?.type === 'text_delta') {
+            callbacks?.onTextDelta?.(actualEvent.delta.text);
+          }
+        } catch {
+          // Not JSON or not a stream event
+        }
+      }
+    });
+
+    const result = await proc;
+    await callbacks?.onDone?.();
+
+    // If session not found, retry without --resume
     if (result.stderr?.includes('No conversation found with session ID')) {
       const retryArgs: string[] = ['-p', '--dangerously-skip-permissions'];
       retryArgs.push('--output-format', 'stream-json', '--include-partial-messages', '--verbose');
       retryArgs.push(prompt);
 
-      const retryResult = await execa('claude', retryArgs, {
+      const retryProc = execa('claude', retryArgs, {
         cwd,
         timeout,
         reject: false,
         stdin: 'ignore',
+        stdout: 'pipe',
         env: { ...process.env, ...workspaceEnv, ...contextEnv },
       });
+
+      let retryStdout = '';
+      let retryBuffer = '';
+
+      retryProc.stdout?.on('data', (chunk: Buffer) => {
+        const data = chunk.toString();
+        retryStdout += data;
+        retryBuffer += data;
+
+        const lines = retryBuffer.split('\n');
+        retryBuffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+          try {
+            const parsed = JSON.parse(trimmed);
+            if (parsed.type === 'system') continue;
+            const actualEvent = parsed.type === 'stream_event' ? parsed.event : parsed;
+            if (actualEvent?.type === 'content_block_delta' && actualEvent.delta?.type === 'text_delta') {
+              callbacks?.onTextDelta?.(actualEvent.delta.text);
+            }
+          } catch {
+            // Not JSON or not a stream event
+          }
+        }
+      });
+
+      const retryResult = await retryProc;
+      await callbacks?.onDone?.();
+
       return {
         success: retryResult.exitCode === 0,
-        stdout: retryResult.stdout,
+        stdout: retryStdout,
         stderr: retryResult.stderr,
         exitCode: retryResult.exitCode ?? 1,
       };
@@ -182,7 +254,7 @@ export async function invokeClaudeChat(context: ChatContext, timeout: number = 3
 
     return {
       success: result.exitCode === 0,
-      stdout: result.stdout,
+      stdout: fullStdout,
       stderr: result.stderr,
       exitCode: result.exitCode ?? 1,
     };

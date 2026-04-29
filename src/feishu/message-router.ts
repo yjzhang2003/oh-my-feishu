@@ -9,6 +9,7 @@ import { SessionStore } from './interactions/session-store.js';
 import { invokeClaudeChat, type InvokeResult } from '../trigger/invoker.js';
 import { log } from '../utils/logger.js';
 import type { SessionManager } from '../gateway/session-manager.js';
+import type { CardKitManager } from './card-kit.js';
 
 export interface MessageData {
   sender: { sender_id?: { open_id?: string }; sender_type: string };
@@ -21,6 +22,7 @@ export interface SendMessageFn {
   sendMenuCard(chatId: string): Promise<void>;
   sendAckReaction(messageId: string): Promise<void>;
   sendCompletionReaction(messageId: string): Promise<void>;
+  sendCardById?(chatId: string, cardId: string): Promise<void>;
   isConnected(): boolean;
 }
 
@@ -31,7 +33,8 @@ export class MessageRouter {
   constructor(
     private commandRegistry: CommandRegistry,
     private sessionStore: SessionStore,
-    private sendMessage: SendMessageFn
+    private sendMessage: SendMessageFn,
+    private cardKitManager?: CardKitManager
   ) {}
 
   setSessionManager(manager: SessionManager): void {
@@ -144,17 +147,78 @@ export class MessageRouter {
 
     log.info('chat', 'Processing message', { chatId, text: text.slice(0, 50) });
 
-    // Check session mode from SessionStore
     const session = this.sessionStore.get(chatId);
+    const directory = session.mode === 'directory' ? (session.data.directory as string | undefined) : undefined;
+    const sessionId = session.mode === 'directory' ? (session.data.sessionId as string | undefined) : undefined;
 
-    // Route based on session mode
     if (session.mode === 'directory') {
-      log.info('chat', 'Routing to directory session', { chatId, directory: session.data.directory });
-      // Directory mode - invoke Claude with directory and optional sessionId
-      const directory = session.data.directory as string | undefined;
-      const sessionId = session.data.sessionId as string | undefined;
+      log.info('chat', 'Routing to directory session', { chatId, directory });
+    }
 
-      const invokePromise = invokeClaudeChat({
+    await this.runStreamingChat(chatId, chatType, text, senderOpenId, messageId, directory, sessionId);
+  }
+
+  private async runStreamingChat(
+    chatId: string,
+    chatType: string,
+    text: string,
+    senderOpenId: string,
+    messageId: string,
+    directory?: string,
+    sessionId?: string
+  ): Promise<void> {
+    let cardId: string | null = null;
+    let sequence = 1;
+
+    // Try to create a streaming card entity
+    if (this.cardKitManager) {
+      try {
+        const cardJson = {
+          schema: '2.0',
+          header: { title: { content: 'Claude', tag: 'plain_text' } },
+          config: {
+            streaming_mode: true,
+            summary: { content: '[生成中...]' },
+          },
+          body: {
+            elements: [
+              { tag: 'markdown', content: '', element_id: 'reply_md' },
+            ],
+          },
+        };
+        cardId = await this.cardKitManager.createCard(cardJson);
+        if (cardId && this.sendMessage.sendCardById) {
+          await this.sendMessage.sendCardById(chatId, cardId);
+        }
+      } catch (err) {
+        log.error('chat', 'Failed to create streaming card', { error: String(err) });
+        cardId = null;
+      }
+    }
+
+    let accumulatedText = '';
+    let pendingText = '';
+    let debounceTimer: NodeJS.Timeout | null = null;
+
+    const flushUpdate = async () => {
+      if (cardId && pendingText) {
+        await this.cardKitManager?.updateCardContent(cardId, 'reply_md', pendingText, sequence++);
+        pendingText = '';
+      }
+    };
+
+    const scheduleUpdate = (text: string) => {
+      pendingText = text;
+      if (!debounceTimer && cardId) {
+        debounceTimer = setTimeout(() => {
+          debounceTimer = null;
+          flushUpdate();
+        }, 300);
+      }
+    };
+
+    const invokePromise = invokeClaudeChat(
+      {
         message: text,
         chatId,
         chatType,
@@ -162,36 +226,35 @@ export class MessageRouter {
         messageId,
         directory,
         sessionId,
-      })
-        .then(async (result: InvokeResult) => {
-          log.claudeLog(chatId, result.stdout);
-          await this.parseAndSendResponse(result, chatId);
-        })
-        .catch(async (err: unknown) => {
-          log.error('chat', 'Chat failed', { error: String(err) });
-          await this.sendMessage.sendTextMessage(chatId, `❌ 处理失败: ${String(err).slice(0, 200)}`);
-        })
-        .finally(() => {
-          this.inFlightChats.delete(chatId);
-          this.sendMessage.sendCompletionReaction(messageId).catch(() => {});
-        });
-
-      this.inFlightChats.set(chatId, invokePromise);
-      invokePromise.catch(() => {});
-      return;
-    }
-
-    // Direct mode - invoke main Gateway agent
-    const invokePromise = invokeClaudeChat({
-      message: text,
-      chatId,
-      chatType,
-      senderOpenId,
-      messageId,
-    })
+      },
+      300000,
+      {
+        onTextDelta: (deltaText) => {
+          accumulatedText += deltaText;
+          scheduleUpdate(accumulatedText);
+        },
+        onDone: async () => {
+          if (debounceTimer) {
+            clearTimeout(debounceTimer);
+            debounceTimer = null;
+          }
+          await flushUpdate();
+          if (cardId) {
+            await this.cardKitManager?.updateCardSettings(
+              cardId,
+              { config: { streaming_mode: false } },
+              sequence++
+            );
+          }
+        },
+      }
+    )
       .then(async (result: InvokeResult) => {
         log.claudeLog(chatId, result.stdout);
-        await this.parseAndSendResponse(result, chatId);
+        // If streaming card was not created, fall back to text message
+        if (!cardId) {
+          await this.parseAndSendResponse(result, chatId);
+        }
       })
       .catch(async (err: unknown) => {
         log.error('chat', 'Chat failed', { error: String(err) });
