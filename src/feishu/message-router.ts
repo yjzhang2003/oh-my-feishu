@@ -277,9 +277,13 @@ export class MessageRouter {
       if (!trimmed) continue;
 
       try {
-        const event = JSON.parse(trimmed);
-        if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
-          replyText += event.delta.text;
+        const parsed = JSON.parse(trimmed);
+        // 过滤系统事件（hooks、notifications 等），这些不展示给用户
+        if (parsed.type === 'system') continue;
+        // 兼容 --verbose 模式的 stream_event 包装和普通模式
+        const actualEvent = parsed.type === 'stream_event' ? parsed.event : parsed;
+        if (actualEvent?.type === 'content_block_delta' && actualEvent.delta?.type === 'text_delta') {
+          replyText += actualEvent.delta.text;
         }
       } catch {
         // Not JSON — ignore (could be lark-cli output or other logs)
