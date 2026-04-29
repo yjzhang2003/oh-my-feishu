@@ -126,6 +126,57 @@ export class CardKitManager {
   }
 
   /**
+   * Add new elements to an existing card via POST
+   * Used to dynamically insert new collapsible_panels during streaming
+   * POST /open-apis/cardkit/v1/cards/:card_id/elements
+   */
+  async addCardElements(
+    cardId: string,
+    elements: object[],
+    type: 'insert_after' | 'insert_before' | 'append',
+    targetElementId?: string,
+    sequence?: number
+  ): Promise<boolean> {
+    try {
+      const headers = await this.getHeaders();
+      const body = {
+        type,
+        ...(targetElementId ? { target_element_id: targetElementId } : {}),
+        elements: JSON.stringify(elements),
+        uuid: crypto.randomUUID(),
+        sequence: sequence ?? 1,
+      };
+      const url = `${this.domain}/open-apis/cardkit/v1/cards/${cardId}/elements`;
+      log.info('cardkit', 'addCardElements request', { url, body });
+      const response = await this.client.httpInstance.post(url, body, { headers });
+
+      log.info('cardkit', 'addCardElements response', {
+        status: response.status,
+        data: response.data,
+      });
+
+      if (response.data && typeof response.data.code === 'number' && response.data.code !== 0) {
+        log.warn('cardkit', 'addCardElements failed', {
+          cardId,
+          code: response.data.code,
+          msg: response.data.msg,
+        });
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      const err = error as any;
+      log.error('cardkit', 'Error adding card elements', {
+        cardId,
+        error: err.message,
+        responseData: err.response?.data,
+      });
+      return false;
+    }
+  }
+
+  /**
    * Update element properties via PATCH
    * Used to set expanded: false on collapsible_panel after streaming completes
    * PATCH /open-apis/cardkit/v1/cards/:card_id/elements/:element_id
