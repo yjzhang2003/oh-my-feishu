@@ -191,17 +191,18 @@ export async function invokeClaudeChat(
           const parsed = JSON.parse(trimmed);
           if (parsed.type === 'system') continue;
           const actualEvent = parsed.type === 'stream_event' ? parsed.event : parsed;
-          if (actualEvent?.type === 'content_block_delta') {
-            if (actualEvent.delta?.type === 'text_delta') {
-              callbacks?.onTextDelta?.(actualEvent.delta.text);
-            } else if (actualEvent.delta?.type === 'thinking_delta') {
-              callbacks?.onThinkingDelta?.(actualEvent.delta.thinking);
-            }
-          } else if (actualEvent?.type === 'content_block_start') {
+          if (actualEvent?.type === 'content_block_start') {
+            console.log('[invoker] content_block_start:', JSON.stringify(actualEvent.content_block?.type));
             if (actualEvent.content_block?.type === 'thinking') {
               callbacks?.onThinkingStart?.();
             } else if (actualEvent.content_block?.type === 'text') {
               callbacks?.onTextStart?.();
+            }
+          } else if (actualEvent?.type === 'content_block_delta') {
+            if (actualEvent.delta?.type === 'text_delta') {
+              callbacks?.onTextDelta?.(actualEvent.delta.text);
+            } else if (actualEvent.delta?.type === 'thinking_delta') {
+              callbacks?.onThinkingDelta?.(actualEvent.delta.thinking);
             }
           } else if (actualEvent?.type === 'tool_use') {
             callbacks?.onToolUse?.(actualEvent.name || 'unknown', JSON.stringify(actualEvent.input || {}));

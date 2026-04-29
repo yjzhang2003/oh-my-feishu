@@ -125,6 +125,10 @@ export class MessageRouter {
       sendCard: (card: object) =>
         this.sendMessage.sendCardMessage(chatId, card),
       sendMenuCard: () => this.sendMessage.sendMenuCard(chatId),
+      cardKitManager: this.cardKitManager ?? undefined,
+      sendCardById: this.sendMessage.sendCardById
+        ? (cardId: string) => this.sendMessage.sendCardById!(chatId, cardId)
+        : undefined,
     };
 
     log.command(chatId, command, args.join(' '));
@@ -206,16 +210,74 @@ export class MessageRouter {
 
     // Track the element currently receiving stream
     let currentMdId: string | null = null;
-    let pendingDeltas: string[] = [];
+    let currentMode: 'thinking' | 'text' | null = null;
+    let pendingTextDeltas: string[] = [];
+    let pendingThinkingDeltas: string[] = [];
     let mdCounter = 0;
+    let panelCounter = 0;
+    // Accumulated full text per element — updateCardContent sends FULL text (not delta)
+    const accumulated = new Map<string, string>();
+    // Throttle: max ~8 updates/sec to stay under Feishu's 10 ops/sec limit
+    let textFlushTimer: ReturnType<typeof setTimeout> | null = null;
+    let thinkingFlushTimer: ReturnType<typeof setTimeout> | null = null;
 
     const nextMdId = () => `m${++mdCounter}`;
+    const nextPanelId = () => `p${++panelCounter}`;
 
-    const flushPending = () => {
-      if (!cardId || !currentMdId || pendingDeltas.length === 0) return;
-      const text = pendingDeltas.join('');
-      pendingDeltas = [];
-      this.cardKitManager?.updateCardContent(cardId, currentMdId, text, sequence++);
+    const doFlushText = async () => {
+      if (!cardId || !currentMdId || currentMode !== 'text' || pendingTextDeltas.length === 0) return;
+      const delta = pendingTextDeltas.join('');
+      pendingTextDeltas = [];
+      const prev = accumulated.get(currentMdId) || '';
+      const full = prev + delta;
+      accumulated.set(currentMdId, full);
+      log.info('chat', 'doFlushText', { elementId: currentMdId, contentLen: full.length, deltaLen: delta.length });
+      await this.cardKitManager?.updateCardContent(cardId, currentMdId, full, sequence++);
+    };
+
+    const doFlushThinking = async () => {
+      if (!cardId || !currentMdId || currentMode !== 'thinking' || pendingThinkingDeltas.length === 0) return;
+      const delta = pendingThinkingDeltas.join('');
+      pendingThinkingDeltas = [];
+      const prev = accumulated.get(currentMdId) || '';
+      const full = prev + delta;
+      accumulated.set(currentMdId, full);
+      log.info('chat', 'doFlushThinking', { elementId: currentMdId, contentLen: full.length, deltaLen: delta.length });
+      await this.cardKitManager?.updateCardContent(cardId, currentMdId, full, sequence++);
+    };
+
+    const scheduleTextFlush = () => {
+      if (textFlushTimer) return;
+      textFlushTimer = setTimeout(async () => {
+        textFlushTimer = null;
+        await doFlushText().catch(() => {});
+        if (pendingTextDeltas.length > 0) scheduleTextFlush();
+      }, 120);
+    };
+
+    const scheduleThinkingFlush = () => {
+      if (thinkingFlushTimer) return;
+      thinkingFlushTimer = setTimeout(async () => {
+        thinkingFlushTimer = null;
+        await doFlushThinking().catch(() => {});
+        if (pendingThinkingDeltas.length > 0) scheduleThinkingFlush();
+      }, 120);
+    };
+
+    const flushTextImmediate = async () => {
+      if (textFlushTimer) {
+        clearTimeout(textFlushTimer);
+        textFlushTimer = null;
+      }
+      await doFlushText().catch(() => {});
+    };
+
+    const flushThinkingImmediate = async () => {
+      if (thinkingFlushTimer) {
+        clearTimeout(thinkingFlushTimer);
+        thinkingFlushTimer = null;
+      }
+      await doFlushThinking().catch(() => {});
     };
 
     const invokePromise = invokeClaudeChat(
@@ -232,58 +294,70 @@ export class MessageRouter {
       {
         onTextStart: async () => {
           if (!cardId || !this.cardKitManager) return;
+          log.info('chat', 'onTextStart', { pendingTextDeltas: pendingTextDeltas.length, currentMdId, currentMode });
+          // Flush any pending thinking content first
+          await flushThinkingImmediate();
+          // Switch to text mode
+          currentMode = 'text';
+          currentMdId = null;
           const mdId = nextMdId();
+          log.info('chat', 'onTextStart addCardElements', { mdId, pendingTextDeltas: pendingTextDeltas.length });
           const ok = await this.cardKitManager.addCardElements(cardId, [{ tag: 'markdown', content: '', element_id: mdId }], 'append', undefined, sequence++);
           if (!ok) return;
           currentMdId = mdId;
-          flushPending();
+          log.info('chat', 'onTextStart post-addCard flush', { mdId, pendingTextDeltas: pendingTextDeltas.length });
+          await flushTextImmediate();
         },
         onThinkingStart: async () => {
           if (!cardId || !this.cardKitManager) return;
+          log.info('chat', 'onThinkingStart — creating collapsible_panel');
+          // Flush any pending text content first
+          await flushTextImmediate();
+          // Switch to thinking mode
+          currentMode = 'thinking';
+          currentMdId = null;
+          const panelId = nextPanelId();
           const mdId = nextMdId();
-          const ok = await this.cardKitManager.addCardElements(cardId, [{ tag: 'markdown', content: '', element_id: mdId }], 'append', undefined, sequence++);
+          const ok = await this.cardKitManager.addCardElements(cardId, [{
+            tag: 'collapsible_panel',
+            element_id: panelId,
+            expanded: false,
+            header: {
+              title: { tag: 'plain_text', content: '思考过程' },
+              vertical_align: 'center',
+            },
+            background_color: 'grey',
+            elements: [
+              { tag: 'markdown', content: '', element_id: mdId },
+            ],
+          }], 'append', undefined, sequence++);
           if (!ok) return;
           currentMdId = mdId;
-          flushPending();
+          await flushThinkingImmediate();
         },
         onTextDelta: (deltaText) => {
-          if (!cardId || !currentMdId) {
-            pendingDeltas.push(deltaText);
-            return;
-          }
-          pendingDeltas.push(deltaText);
-          flushPending();
+          pendingTextDeltas.push(deltaText);
+          scheduleTextFlush();
         },
         onThinkingDelta: (deltaText) => {
-          if (!cardId || !currentMdId) {
-            pendingDeltas.push(deltaText);
-            return;
-          }
-          pendingDeltas.push(deltaText);
-          flushPending();
+          pendingThinkingDeltas.push(deltaText);
+          scheduleThinkingFlush();
         },
         onToolUse: (toolName, input) => {
           if (!cardId || !currentMdId) return;
           try {
             const inputObj = JSON.parse(input);
             const inputSummary = JSON.stringify(inputObj, null, 2).slice(0, 500);
-            pendingDeltas.push(`\n\n**${toolName}**\n\`\`\`\n${inputSummary}\n\`\`\``);
+            // Tool use goes to thinking buffer (inside collapsible panel)
+            pendingThinkingDeltas.push(`\n\n**${toolName}**\n\`\`\`\n${inputSummary}\n\`\`\``);
           } catch {
-            pendingDeltas.push(`\n\n**${toolName}**`);
+            pendingThinkingDeltas.push(`\n\n**${toolName}**`);
           }
-          flushPending();
+          scheduleThinkingFlush();
         },
         onDone: async () => {
-          if (!cardId) return;
-          const finalCardJson = {
-            ...cardJson,
-            config: {
-              ...(cardJson?.config as Record<string, unknown>),
-              streaming_mode: false,
-              summary: { content: 'Claude Code' },
-            },
-          };
-          await this.cardKitManager?.updateCardFull(cardId, finalCardJson as object, sequence++);
+          await flushTextImmediate();
+          await flushThinkingImmediate();
         },
       }
     )

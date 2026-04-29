@@ -12,6 +12,8 @@ export interface CommandContext {
   sendText: (text: string) => Promise<void>;
   sendCard: (card: object) => Promise<void>;
   sendMenuCard: () => Promise<void>;
+  cardKitManager?: import('../card-kit.js').CardKitManager;
+  sendCardById?: (cardId: string) => Promise<void>;
 }
 
 export interface CommandHandler {
