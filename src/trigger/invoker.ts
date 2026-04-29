@@ -148,6 +148,7 @@ export async function invokeClaudeChat(context: ChatContext, timeout: number = 3
 
     // Build claude arguments
     const claudeArgs: string[] = ['-p', '--dangerously-skip-permissions'];
+    claudeArgs.push('--output-format', 'stream-json', '--include-partial-messages');
     claudeArgs.push('--resume', sessionId, prompt);
 
     const result = await execa('claude', claudeArgs, {
@@ -161,6 +162,7 @@ export async function invokeClaudeChat(context: ChatContext, timeout: number = 3
     // If session not found, retry without --resume (session may have been lost after re-auth)
     if (result.stderr?.includes('No conversation found with session ID')) {
       const retryArgs: string[] = ['-p', '--dangerously-skip-permissions'];
+      retryArgs.push('--output-format', 'stream-json', '--include-partial-messages');
       retryArgs.push(prompt);
 
       const retryResult = await execa('claude', retryArgs, {

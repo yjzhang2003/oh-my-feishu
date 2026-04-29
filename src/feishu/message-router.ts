@@ -165,35 +165,7 @@ export class MessageRouter {
       })
         .then(async (result: InvokeResult) => {
           log.claudeLog(chatId, result.stdout);
-
-          if (!result.success) {
-            log.error('chat', 'Claude failed', {
-              exitCode: result.exitCode,
-              stderr: result.stderr,
-              stdout: result.stdout.slice(0, 200),
-            });
-            await this.sendMessage.sendTextMessage(
-              chatId,
-              `❌ Claude 调用失败 (exit ${result.exitCode}): ${(result.stderr || result.stdout).slice(0, 200)}`
-            );
-            return;
-          }
-
-          // Parse structured result from stdout
-          const lines = result.stdout.trim().split('\n');
-          const lastLine = lines[lines.length - 1];
-          try {
-            const parsed = JSON.parse(lastLine);
-            if (!parsed.success) {
-              await this.sendMessage.sendTextMessage(
-                chatId,
-                `❌ ${parsed.error || '操作失败'}`
-              );
-            }
-            // If success=true, message was sent via lark-cli — no action needed
-          } catch {
-            // Not structured JSON — ignore
-          }
+          await this.parseAndSendResponse(result, chatId);
         })
         .catch(async (err: unknown) => {
           log.error('chat', 'Chat failed', { error: String(err) });
@@ -219,35 +191,7 @@ export class MessageRouter {
     })
       .then(async (result: InvokeResult) => {
         log.claudeLog(chatId, result.stdout);
-
-        if (!result.success) {
-          log.error('chat', 'Claude failed', {
-            exitCode: result.exitCode,
-            stderr: result.stderr,
-            stdout: result.stdout.slice(0, 200),
-          });
-          await this.sendMessage.sendTextMessage(
-            chatId,
-            `❌ Claude 调用失败 (exit ${result.exitCode}): ${(result.stderr || result.stdout).slice(0, 200)}`
-          );
-          return;
-        }
-
-        // Parse structured result from stdout
-        const lines = result.stdout.trim().split('\n');
-        const lastLine = lines[lines.length - 1];
-        try {
-          const parsed = JSON.parse(lastLine);
-          if (!parsed.success) {
-            await this.sendMessage.sendTextMessage(
-              chatId,
-              `❌ ${parsed.error || '操作失败'}`
-            );
-          }
-          // If success=true, message was sent via lark-cli — no action needed
-        } catch {
-          // Not structured JSON — ignore
-        }
+        await this.parseAndSendResponse(result, chatId);
       })
       .catch(async (err: unknown) => {
         log.error('chat', 'Chat failed', { error: String(err) });
@@ -309,5 +253,57 @@ export class MessageRouter {
     await this.sendMessage.sendTextMessage(chatId, `✅ 目录会话已创建\n\n📁 目录: ${trimmedDir}\n\nClaude 进程将在该目录中启动。\n\n💡 发送消息开始对话`);
 
     log.info('flow', 'Directory session created from Feishu', { chatId, directory: trimmedDir });
+  }
+
+  private async parseAndSendResponse(result: InvokeResult, chatId: string): Promise<void> {
+    if (!result.success) {
+      log.error('chat', 'Claude failed', {
+        exitCode: result.exitCode,
+        stderr: result.stderr,
+        stdout: result.stdout.slice(0, 200),
+      });
+      await this.sendMessage.sendTextMessage(
+        chatId,
+        `❌ Claude 调用失败 (exit ${result.exitCode}): ${(result.stderr || result.stdout).slice(0, 200)}`
+      );
+      return;
+    }
+
+    const lines = result.stdout.trim().split('\n');
+    let replyText = '';
+    let structuredResult: { success: boolean; error?: string } | null = null;
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+
+      try {
+        const event = JSON.parse(trimmed);
+        if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
+          replyText += event.delta.text;
+        }
+        if (typeof event.success === 'boolean') {
+          structuredResult = event as { success: boolean; error?: string };
+        }
+      } catch {
+        // Not JSON — ignore (could be lark-cli output or other logs)
+      }
+    }
+
+    if (structuredResult) {
+      if (!structuredResult.success) {
+        await this.sendMessage.sendTextMessage(
+          chatId,
+          `❌ ${structuredResult.error || '操作失败'}`
+        );
+      }
+      // success=true means lark-cli already sent the message — nothing to do
+      return;
+    }
+
+    const trimmedReply = replyText.trim();
+    if (trimmedReply) {
+      await this.sendMessage.sendTextMessage(chatId, trimmedReply);
+    }
   }
 }
