@@ -206,8 +206,10 @@ export class MessageRouter {
 
     // Track the element currently receiving stream
     let currentMdId: string | null = null;
-    let currentIsPanel = false;
     let pendingDeltas: string[] = [];
+    let mdCounter = 0;
+
+    const nextMdId = () => `m${++mdCounter}`;
 
     const flushPending = () => {
       if (!cardId || !currentMdId || pendingDeltas.length === 0) return;
@@ -230,40 +232,22 @@ export class MessageRouter {
       {
         onTextStart: async () => {
           if (!cardId || !this.cardKitManager) return;
-          const mdId = `md_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+          const mdId = nextMdId();
           const ok = await this.cardKitManager.addCardElements(cardId, [{ tag: 'markdown', content: '', element_id: mdId }], 'append', undefined, sequence++);
           if (!ok) return;
           currentMdId = mdId;
-          currentIsPanel = false;
           flushPending();
         },
         onThinkingStart: async () => {
           if (!cardId || !this.cardKitManager) return;
-          const panelId = `panel_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-          const mdId = `md_${panelId}`;
-          const panel = {
-            tag: 'collapsible_panel',
-            expanded: true,
-            element_id: panelId,
-            header: {
-              title: { tag: 'markdown', content: '**详情**' },
-              icon: { tag: 'standard_icon', token: 'down-small-ccm_outlined', size: '16px 16px' },
-              icon_position: 'right',
-              icon_expanded_angle: -180,
-            },
-            elements: [
-              { tag: 'markdown', content: '', element_id: mdId },
-            ],
-          };
-          const ok = await this.cardKitManager.addCardElements(cardId, [panel], 'append', undefined, sequence++);
+          const mdId = nextMdId();
+          const ok = await this.cardKitManager.addCardElements(cardId, [{ tag: 'markdown', content: '', element_id: mdId }], 'append', undefined, sequence++);
           if (!ok) return;
           currentMdId = mdId;
-          currentIsPanel = true;
           flushPending();
         },
         onTextDelta: (deltaText) => {
-          if (!cardId) return;
-          if (!currentMdId || currentIsPanel) {
+          if (!cardId || !currentMdId) {
             pendingDeltas.push(deltaText);
             return;
           }
@@ -271,8 +255,7 @@ export class MessageRouter {
           flushPending();
         },
         onThinkingDelta: (deltaText) => {
-          if (!cardId) return;
-          if (!currentMdId || !currentIsPanel) {
+          if (!cardId || !currentMdId) {
             pendingDeltas.push(deltaText);
             return;
           }
@@ -280,7 +263,7 @@ export class MessageRouter {
           flushPending();
         },
         onToolUse: (toolName, input) => {
-          if (!cardId) return;
+          if (!cardId || !currentMdId) return;
           try {
             const inputObj = JSON.parse(input);
             const inputSummary = JSON.stringify(inputObj, null, 2).slice(0, 500);
