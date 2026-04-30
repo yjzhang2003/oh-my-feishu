@@ -11,6 +11,7 @@ import type { SendCardFn } from '../types.js';
 import { log } from '../../utils/logger.js';
 import { createMainMenuCard, createNewSessionCard, createSessionHistoryCard, createSessionDetailCard, createDirectoryInputCard } from '../card-builder/menu-cards.js';
 import { CardKitManager } from '../card-kit.js';
+import type { GatewayFeatureRunner } from '../../gateway/features/index.js';
 
 export interface CardActionPayload {
   schema?: string;
@@ -47,9 +48,10 @@ export class CardDispatcher {
     private sessionStore: SessionStore,
     private sessionHistoryStore: SessionHistoryStore,
     private cardKitManager: CardKitManager,
-    sendCard: SendCardFn
+    sendCard: SendCardFn,
+    gatewayFeatureRunner?: GatewayFeatureRunner
   ) {
-    this.serviceAddFlow = new ServiceAddFlow(sessionStore, sendCard);
+    this.serviceAddFlow = new ServiceAddFlow(sessionStore, sendCard, gatewayFeatureRunner);
     this.sessionAddFlow = new SessionAddFlow(sessionStore, sessionHistoryStore, sendCard);
   }
 

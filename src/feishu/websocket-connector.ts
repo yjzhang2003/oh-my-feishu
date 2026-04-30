@@ -93,7 +93,13 @@ export class FeishuWebSocket {
 
     // CardDispatcher needs sendCard to send cards and cardKitManager for updates
     const sendCard = (chatId: string, card: object) => this.sendCardMessageRaw(chatId, card);
-    this.cardDispatcher = new CardDispatcher(this.sessionStore, this.sessionHistoryStore, this.cardKitManager, sendCard);
+    this.cardDispatcher = new CardDispatcher(
+      this.sessionStore,
+      this.sessionHistoryStore,
+      this.cardKitManager,
+      sendCard,
+      this.gatewayFeatureRunner
+    );
 
     // SessionManager for directory sessions
     this.sessionManager = new SessionManager(this.sessionStore, sendMessage);
