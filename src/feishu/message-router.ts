@@ -10,6 +10,7 @@ import { invokeClaudeChat, type InvokeResult } from '../trigger/invoker.js';
 import { log } from '../utils/logger.js';
 import type { SessionManager } from '../gateway/session-manager.js';
 import type { CardKitManager } from './card-kit.js';
+import type { GatewayFeatureRunner } from '../gateway/features/index.js';
 
 export interface MessageData {
   sender: { sender_id?: { open_id?: string }; sender_type: string };
@@ -29,6 +30,7 @@ export interface SendMessageFn {
 export class MessageRouter {
   private inFlightChats = new Map<string, Promise<void>>();
   private sessionManager: SessionManager | null = null;
+  private gatewayFeatureRunner: GatewayFeatureRunner | null = null;
 
   constructor(
     private commandRegistry: CommandRegistry,
@@ -39,6 +41,10 @@ export class MessageRouter {
 
   setSessionManager(manager: SessionManager): void {
     this.sessionManager = manager;
+  }
+
+  setGatewayFeatureRunner(runner: GatewayFeatureRunner): void {
+    this.gatewayFeatureRunner = runner;
   }
 
   async handleMessage(data: MessageData): Promise<void> {
@@ -115,6 +121,7 @@ export class MessageRouter {
       messageId,
       args,
       connected: this.sendMessage.isConnected(),
+      gatewayFeatureRunner: this.gatewayFeatureRunner ?? undefined,
       sendText: (text: string) => this.sendMessage.sendTextMessage(chatId, text),
       sendCard: (card: object) =>
         this.sendMessage.sendCardMessage(chatId, card),

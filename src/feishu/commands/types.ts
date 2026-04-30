@@ -9,6 +9,7 @@ export interface CommandContext {
   messageId: string;
   args: string[];
   connected?: boolean;
+  gatewayFeatureRunner?: import('../../gateway/features/index.js').GatewayFeatureRunner;
   sendText: (text: string) => Promise<void>;
   sendCard: (card: object) => Promise<void>;
   sendMenuCard: () => Promise<void>;

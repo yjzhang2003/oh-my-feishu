@@ -1,6 +1,7 @@
 import type { CommandHandler, CommandContext } from './types.js';
 import { addService, removeService, listServices, updateService } from '../../service/registry.js';
 import { log } from '../../utils/logger.js';
+import { createGatewayEvent } from '../../gateway/features/index.js';
 
 export class ServiceCommand implements CommandHandler {
   name = '/service';
@@ -8,6 +9,38 @@ export class ServiceCommand implements CommandHandler {
 
   async execute(ctx: CommandContext): Promise<void> {
     const subCommand = ctx.args[0]?.toLowerCase();
+
+    if (ctx.gatewayFeatureRunner) {
+      const payload = {
+        action: (subCommand as 'add' | 'remove' | 'list' | 'enable' | 'disable') || 'help',
+        name: ctx.args[1],
+        repo: ctx.args[2],
+        tracebackUrl: ctx.args[3],
+        notifyChatId: ctx.chatId,
+        addedBy: ctx.senderOpenId,
+      };
+
+      const result = await ctx.gatewayFeatureRunner.run(createGatewayEvent({
+        feature: 'service-admin',
+        type: 'service.command',
+        source: 'feishu',
+        chatId: ctx.chatId,
+        senderOpenId: ctx.senderOpenId,
+        messageId: ctx.messageId,
+        payload,
+      }));
+
+      const title = String(result.data?.title || (result.success ? 'Service Command Complete' : 'Service Command Failed'));
+      const elements = Array.isArray(result.data?.elements)
+        ? result.data.elements.map(String)
+        : [result.message || 'Unknown result'];
+
+      await ctx.sendCard({
+        title: `${result.success ? '✅' : '❌'} ${title}`,
+        elements,
+      });
+      return;
+    }
 
     switch (subCommand) {
       case 'add': {
