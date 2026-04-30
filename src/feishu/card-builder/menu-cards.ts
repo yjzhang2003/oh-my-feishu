@@ -265,7 +265,7 @@ export function createMainMenuCard(): CardBuildResult {
       { text: 'interactive', color: 'blue' },
     ],
     elements: [
-      md('把飞书对话直接连接到 Claude Code。发送普通消息即可开始对话，需要导航时发送 `/menu`。'),
+      md('这里是菜单！发送 `/menu`即可调出菜单。'),
       columnSet([
         [
           interactiveCard({
