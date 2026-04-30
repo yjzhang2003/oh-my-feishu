@@ -73,6 +73,7 @@ ${chalk.bold('Commands:')}
   session attach <chatId> <directory>  Attach to an existing session
   session destroy <chatId>  Destroy a session
   gateway list              List Gateway features
+  gateway status            Show Gateway status
   gateway trigger <feature> <eventType> [jsonPayload]
   help                      Show this help message
 
@@ -81,6 +82,7 @@ ${chalk.bold('Examples:')}
   oh-my-feishu session new ./my-project  # Create session for my-project
   oh-my-feishu session list      # List active sessions
   oh-my-feishu gateway list      # List Gateway features
+  oh-my-feishu gateway status    # Show Gateway status
 `);
 }
 

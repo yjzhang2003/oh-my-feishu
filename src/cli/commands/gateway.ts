@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import { GatewaySocketClient } from '../socket-client.js';
 
 export interface GatewayCommandOptions {
-  action: 'list' | 'trigger';
+  action: 'list' | 'trigger' | 'status';
   feature?: string;
   eventType?: string;
   payloadJson?: string;
@@ -15,6 +15,14 @@ export async function handleGatewayCommand(opts: GatewayCommandOptions): Promise
       return;
     case 'trigger':
       await handleTrigger(opts);
+      return;
+    case 'status':
+      await handleTrigger({
+        action: 'trigger',
+        feature: 'status',
+        eventType: 'status.query',
+        payloadJson: '{"connected":true}',
+      });
       return;
     default:
       printGatewayHelp();
@@ -110,10 +118,12 @@ ${chalk.bold('Gateway commands')}
 
 ${chalk.bold('Usage:')}
   oh-my-feishu gateway list
+  oh-my-feishu gateway status
   oh-my-feishu gateway trigger <feature> <eventType> [jsonPayload]
 
 ${chalk.bold('Examples:')}
   oh-my-feishu gateway list
+  oh-my-feishu gateway status
   oh-my-feishu gateway trigger status status.query '{"connected":true}'
 `);
 }

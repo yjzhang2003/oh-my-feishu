@@ -12,6 +12,12 @@ describe('repairFeature', () => {
         exitCode: 0,
       })),
       sendFeishuMessage: vi.fn(async () => {}),
+      log: {
+        debug: vi.fn(),
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+      },
     };
 
     const result = await repairFeature.handle({

@@ -40,9 +40,17 @@ export interface FeishuSendInput {
   content: string;
 }
 
+export interface GatewayLogger {
+  debug(category: string, message: string, data?: Record<string, unknown>): void;
+  info(category: string, message: string, data?: Record<string, unknown>): void;
+  warn(category: string, message: string, data?: Record<string, unknown>): void;
+  error(category: string, message: string, data?: Record<string, unknown>): void;
+}
+
 export interface GatewayRuntime {
   invokeMainClaude(input: ClaudeTaskInput): Promise<InvokeResult>;
   sendFeishuMessage(input: FeishuSendInput): Promise<void>;
+  log: GatewayLogger;
 }
 
 export interface GatewayFeature {

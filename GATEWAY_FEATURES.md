@@ -73,6 +73,7 @@ Gateway features are available through the local CLI when the Gateway service is
 
 ```bash
 oh-my-feishu gateway list
+oh-my-feishu gateway status
 oh-my-feishu gateway trigger <feature> <eventType> '<jsonPayload>'
 ```
 

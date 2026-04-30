@@ -23,6 +23,7 @@ metadata:
 
 ```bash
 oh-my-feishu gateway list
+oh-my-feishu gateway status
 oh-my-feishu gateway trigger <feature> <eventType> '<jsonPayload>'
 ```
 
@@ -31,7 +32,7 @@ oh-my-feishu gateway trigger <feature> <eventType> '<jsonPayload>'
 ### 查询 Gateway 状态
 
 ```bash
-oh-my-feishu gateway trigger status status.query '{"connected":true}'
+oh-my-feishu gateway status
 ```
 
 ### 触发服务管理
