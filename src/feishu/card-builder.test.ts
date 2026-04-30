@@ -83,7 +83,7 @@ describe('CardBuilder', () => {
     expect(gateway.header.title.content).toBe('Gateway');
     expect(JSON.stringify(gateway.body.elements)).toContain('Web 服务监控');
     expect(JSON.stringify(gateway.body.elements)).toContain('menu:gateway-web-monitor');
-    expect(JSON.stringify(gateway.body.elements)).toContain('menu:commands');
+    expect(JSON.stringify(gateway)).not.toContain('menu:commands');
     expect(commands.header.title.content).toBe('指令菜单');
     expect(commands.body.elements.some((element: any) => element.tag === 'table')).toBe(true);
   });
@@ -95,5 +95,6 @@ describe('CardBuilder', () => {
     expect(webMonitor.header.title.content).toBe('Web 服务监控');
     expect(cardJson).toContain('menu:web-monitor-new');
     expect(cardJson).toContain('menu:gateway');
+    expect(cardJson).not.toContain('menu:commands');
   });
 });

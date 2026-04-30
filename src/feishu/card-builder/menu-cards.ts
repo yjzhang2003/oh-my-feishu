@@ -337,7 +337,6 @@ export function createGatewayMenuCard(): CardBuildResult {
     ],
     buttons: [
       { text: '新建服务', action: 'menu:gateway-new-service' },
-      { text: '指令菜单', action: 'menu:commands' },
       { text: '返回', action: 'menu:back' },
     ],
   });
@@ -369,7 +368,6 @@ export function createWebMonitorMenuCard(): CardBuildResult {
     ],
     buttons: [
       { text: '新建监控', action: 'menu:web-monitor-new' },
-      { text: '指令菜单', action: 'menu:commands' },
       { text: '返回 Gateway', action: 'menu:gateway' },
       { text: '返回', action: 'menu:back' },
     ],
