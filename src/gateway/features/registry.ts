@@ -21,7 +21,9 @@ export class GatewayFeatureRegistry {
 
   match(event: GatewayEvent): GatewayFeature | undefined {
     if (event.feature) {
-      return this.features.get(event.feature);
+      const feature = this.features.get(event.feature);
+      if (!feature) return undefined;
+      return feature.triggers.some((trigger) => trigger.type === event.type) ? feature : undefined;
     }
 
     return this.list().find((feature) =>

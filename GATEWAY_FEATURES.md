@@ -53,13 +53,13 @@ Features should not depend on Feishu command parsing details. Commands are only 
 
 - `status`
   - input: `status.query`
-  - source: Feishu
+  - source: Feishu, CLI
   - behavior: collect runtime status and return a final text block
 
 - `repair`
   - input: `repair.requested`
   - source: Feishu
-  - behavior: write trigger context, then invoke main Claude silently with the `auto-repair` protocol
+  - behavior: capture repair context and invoke main Claude silently with the `auto-repair` protocol
 
 ## Integration Points
 
@@ -91,4 +91,4 @@ When adding a new Gateway capability:
 4. keep UI concerns in the adapter layer
 5. keep the feature focused on business logic and final result generation
 
-If a feature still relies on legacy trigger files or old skills, preserve that compatibility first, then remove it in a later migration.
+Features may wrap legacy storage or protocol files internally during migration, but trigger sources should not call those legacy paths directly.
