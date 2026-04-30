@@ -1,7 +1,7 @@
 {
   "name": "oh-my-feishu-marketplace",
   "owner": {
-    "name": "Feishu Agent"
+    "name": "oh-my-feishu"
   },
   "plugins": [
     {

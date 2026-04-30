@@ -10,6 +10,8 @@ import { checkClaudeCli } from './trigger/invoker.js';
 import { env } from './config/env.js';
 import { loadRegistry } from './service/registry.js';
 import { TracebackMonitor } from './monitor/traceback-monitor.js';
+import { install as installMarketplace } from './marketplace/index.js';
+import { resolve } from 'path';
 
 function keepAlive(): void {
   // Keep the process alive with a no-op interval
@@ -25,7 +27,7 @@ async function main() {
     console.error('❌ Claude CLI not available. Please install it first:');
     console.error('   npm install -g @anthropic-ai/claude-code\n');
     console.error('Waiting for configuration... (service will auto-connect when ready)');
-    console.error('Run "npm run cli" to configure, then restart this service.\n');
+    console.error('Run "oh-my-feishu" to configure, then restart this service.\n');
     keepAlive();
     return;
   }
@@ -37,11 +39,21 @@ async function main() {
     console.error('❌ lark-cli not configured. Please run:');
     console.error('   lark-cli config init --new\n');
     console.error('Waiting for configuration... (service will auto-connect when ready)');
-    console.error('Run "npm run cli" to configure, then restart this service.\n');
+    console.error('Run "oh-my-feishu" to configure, then restart this service.\n');
     keepAlive();
     return;
   }
   console.log(`✅ Lark CLI: ${larkStatus.appId?.slice(0, 8)}... (${larkStatus.brand})`);
+
+  // Direct Feishu chats run Claude Code from the repository workspace.
+  // Fresh clones do not track workspace/.claude, so initialize the plugin at boot.
+  const workspaceDir = resolve(env.REPO_ROOT, 'workspace');
+  try {
+    await installMarketplace({ targetDir: workspaceDir });
+    console.log(`✅ Workspace plugin: ${workspaceDir}`);
+  } catch (error) {
+    console.error('⚠️  Workspace plugin initialization failed:', error);
+  }
 
   // Check GitHub token (optional)
   if (env.GITHUB_TOKEN) {
@@ -57,7 +69,7 @@ async function main() {
   if (!config) {
     console.error('❌ Failed to load lark-cli config');
     console.error('Waiting for configuration... (service will auto-connect when ready)');
-    console.error('Run "npm run cli" to configure, then restart this service.\n');
+    console.error('Run "oh-my-feishu" to configure, then restart this service.\n');
     keepAlive();
     return;
   }

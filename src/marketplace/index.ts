@@ -4,8 +4,9 @@
  * Uses official Claude Code plugin marketplace system
  */
 
-import { resolve, dirname } from 'path';
+import { resolve, dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+import { existsSync, mkdirSync, cpSync, readFileSync, writeFileSync, readdirSync } from 'fs';
 import { execa } from 'execa';
 import { log } from '../utils/logger.js';
 
@@ -20,6 +21,7 @@ export interface MarketplaceOptions {
 
 const MARKETPLACE_NAME = 'oh-my-feishu-marketplace';
 const PLUGIN_NAME = 'oh-my-feishu';
+const PLUGIN_VERSION = '0.5.0';
 
 /**
  * Install the oh-my-feishu plugin into a target directory
@@ -27,6 +29,7 @@ const PLUGIN_NAME = 'oh-my-feishu';
  */
 export async function install(options: MarketplaceOptions): Promise<void> {
   const marketplaceSource = REPO_ROOT;
+  mkdirSync(options.targetDir, { recursive: true });
 
   try {
     // Add marketplace from local repo path (project scope)
@@ -70,9 +73,6 @@ export async function install(options: MarketplaceOptions): Promise<void> {
  * Fallback: directly copy skill files to target directory
  */
 function installDirect(options: MarketplaceOptions): void {
-  const { existsSync, mkdirSync, cpSync, readFileSync, writeFileSync } = require('fs') as typeof import('fs');
-  const { join } = require('path') as typeof import('path');
-
   const claudeDir = join(options.targetDir, '.claude');
   const settingsPath = join(claudeDir, 'settings.json');
   const skillsSourceDir = resolve(REPO_ROOT, 'oh-my-feishu-plugin', 'skills');
@@ -89,7 +89,6 @@ function installDirect(options: MarketplaceOptions): void {
   }
 
   // Update settings.json
-  const { readdirSync } = require('fs') as typeof import('fs');
   const skills = existsSync(skillsSourceDir)
     ? readdirSync(skillsSourceDir, { withFileTypes: true })
         .filter((d: { isDirectory: () => boolean }) => d.isDirectory())
@@ -104,7 +103,7 @@ function installDirect(options: MarketplaceOptions): void {
   }
 
   const plugins = (settings.plugins || {}) as Record<string, unknown>;
-  plugins[PLUGIN_NAME] = { version: '1.0.0', skills };
+  plugins[PLUGIN_NAME] = { version: PLUGIN_VERSION, skills };
   settings.plugins = plugins;
 
   writeFileSync(settingsPath, JSON.stringify(settings, null, 2));

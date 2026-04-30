@@ -23,45 +23,69 @@
 
 ## 快速开始
 
+当前版本暂不发布到 npm 包托管。安装方式是克隆仓库、本地构建，然后用 `npm link` 把 `oh-my-feishu` 安装成系统级命令。
+
 ```bash
 # 克隆
 git clone https://github.com/yjzhang2003/oh-my-feishu.git
 cd oh-my-feishu
 
-# 安装
+# 安装依赖并构建
 npm install
 npm run build
 
-# 配置（交互式 CLI）
-npm run cli
+# 安装全局 CLI
+npm link
 
-# 启动
-npm start
+# 配置飞书、Claude Code 和后台服务
+oh-my-feishu
 ```
 
-用飞书扫码，即开即用。
+进入交互式 CLI 后，按界面完成 Claude Code、飞书扫码授权，并在 Service 页面启动后台服务。飞书扫码完成后即可在飞书里直接对话。
 
 ## CLI 命令
 
 安装为全局命令后，可以在任意目录启动：
 
 ```bash
-# 安装 CLI
-npm link
+# 打开交互式设置
+oh-my-feishu
 
 # 在指定目录创建飞书会话
-ohmyfeishu session new ./my-project
+oh-my-feishu session new ./my-project
 
 # 查看帮助
-ohmyfeishu help
+oh-my-feishu help
 ```
 
 创建会话后，oh-my-feishu 会自动：
-1. 将所有 skills 作为 plugin 安装到 `./my-project/.claude/settings.json`
+1. 将飞书能力插件安装到 `./my-project/.claude/settings.json`
 2. 在该目录下启动 Claude Code 子进程
 3. 通过 Gateway 将飞书消息转发给 Claude Code
 
-这样你可以在任意 Claude Code 项目中，通过飞书与它对话！
+这样你可以在任意 Claude Code 项目中，通过飞书与它对话。
+
+## Direct Chat Workspace
+
+没有绑定目录的普通飞书对话会运行在仓库内的 `workspace/` 目录。服务启动时会自动创建并初始化 `workspace/.claude/settings.json`，把 `oh-my-feishu` 插件安装进去，因此 fresh clone 后不需要手动提交或复制 `workspace/.claude`。
+
+如果需要给 direct chat 提供飞书凭证，可参考 `workspace/.claude/.env.example` 创建本地 `workspace/.claude/.env`。该目录属于运行时数据，不会提交到 git。
+
+## Claude Marketplace
+
+本仓库本身就是 Claude Code plugin marketplace。其他项目可以添加这个 marketplace 后安装插件：
+
+```bash
+claude plugin marketplace add https://github.com/yjzhang2003/oh-my-feishu
+claude plugin install oh-my-feishu@oh-my-feishu-marketplace --scope project
+```
+
+本地开发时也可以用仓库路径：
+
+```bash
+claude plugin marketplace add /path/to/oh-my-feishu --scope project
+claude plugin install oh-my-feishu@oh-my-feishu-marketplace --scope project
+```
 
 ## 工作原理
 

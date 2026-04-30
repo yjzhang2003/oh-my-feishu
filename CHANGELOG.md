@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.5.0] - 2026-04-30
+
+### Added
+
+- **Claude Code plugin marketplace**：仓库根目录提供 `.claude-plugin/marketplace.json`，支持通过 `claude plugin marketplace add` 添加并安装 `oh-my-feishu` 插件。
+- **飞书菜单卡片**：重做 `/menu` 主菜单、目录输入、历史会话与详情页，使用卡片 2.0 的图标、分栏、表格和表单组件。
+- **流式回复卡片**：新增等待提示，模型首个 thinking/text block 返回前不再显示空白正文。
+- **Direct chat workspace 初始化**：服务启动时自动初始化仓库内 `workspace/` 的 Claude 插件配置，fresh clone 后无需提交运行时 `.claude` 数据。
+
+### Changed
+
+- **全局 CLI 入口统一为 `oh-my-feishu`**：`npm link` 后可在任意目录运行交互式配置，也可执行 `oh-my-feishu session new <directory>`。
+- **飞书能力提示瘦身**：主 prompt 只保留飞书对话身份和按需读取 `lark-chat-guide` 的能力提示，减少常规问答 token 消耗。
+- **流式卡片信息架构**：移除冗余副标题、状态 tag 和正文模式说明，降低卡片噪音。
+- **品牌命名统一**：将旧的 `feishu-agent` 展示名收敛为 `oh-my-feishu`，PM2 服务仅保留 `oh-my-feishu`。
+
+### Fixed
+
+- 修复 streaming 完成后状态更新时机导致回复内容丢失的问题。
+- 修复 marketplace 直接复制 fallback 在 ESM 运行时不可用的问题。
+- 修复目录会话 CLI 未等待插件安装完成的问题。
+
 ## [0.4.0] - 2026-04-27
 
 ### Added

@@ -20,7 +20,7 @@ export async function handleSessionCommand(opts: SessionCommandOptions): Promise
     case 'new':
       if (!opts.directory) {
         console.log(chalk.red('Error: directory required for new session'));
-        console.log('Usage: ohmyfeishu session new <directory>');
+        console.log('Usage: oh-my-feishu session new <directory>');
         return;
       }
       await handleNewSession(client, opts.directory);
@@ -33,7 +33,7 @@ export async function handleSessionCommand(opts: SessionCommandOptions): Promise
     case 'attach':
       if (!opts.chatId || !opts.directory) {
         console.log(chalk.red('Error: chatId and directory required for attach'));
-        console.log('Usage: ohmyfeishu session attach <chatId> <directory>');
+        console.log('Usage: oh-my-feishu session attach <chatId> <directory>');
         return;
       }
       await handleAttachSession(client, opts.chatId, opts.directory);
@@ -42,7 +42,7 @@ export async function handleSessionCommand(opts: SessionCommandOptions): Promise
     case 'destroy':
       if (!opts.chatId) {
         console.log(chalk.red('Error: chatId required for destroy'));
-        console.log('Usage: ohmyfeishu session destroy <chatId>');
+        console.log('Usage: oh-my-feishu session destroy <chatId>');
         return;
       }
       await handleDestroySession(client, opts.chatId);
@@ -54,7 +54,7 @@ async function handleNewSession(client: GatewaySocketClient, directory: string):
   console.log(chalk.cyan(`Installing oh-my-feishu plugin to ${directory}...`));
 
   try {
-    install({ targetDir: directory });
+    await install({ targetDir: directory });
     console.log(chalk.green(`✓ Plugin installed to ${directory}`));
   } catch (err) {
     console.log(chalk.red(`✗ Failed to install plugin: ${err}`));

@@ -12,16 +12,7 @@ async function main() {
   const command = args[0];
 
   if (!command) {
-    // Interactive mode - launch the TUI
-    // For now, just show help and tell user to use npm run cli
-    console.log(chalk.bold('ohmyfeishu - oh-my-feishu CLI'));
-    console.log('');
-    console.log('For interactive setup, run:');
-    console.log(chalk.cyan('  npm run cli'));
-    console.log('');
-    console.log('Or link the CLI globally:');
-    console.log(chalk.cyan('  npm link'));
-    console.log('Then run: ohmyfeishu');
+    await import('./index.js');
     return;
   }
 
@@ -58,10 +49,10 @@ async function main() {
 
 function printHelp() {
   console.log(`
-${chalk.bold('ohmyfeishu')} - oh-my-feishu CLI
+${chalk.bold('oh-my-feishu')} - Claude Code on Feishu
 
 ${chalk.bold('Usage:')}
-  ohmyfeishu [command] [options]
+  oh-my-feishu [command] [options]
 
 ${chalk.bold('Commands:')}
   (interactive)  Launch interactive TUI setup tool
@@ -72,9 +63,9 @@ ${chalk.bold('Commands:')}
   help                      Show this help message
 
 ${chalk.bold('Examples:')}
-  ohmyfeishu                    # Launch interactive TUI
-  ohmyfeishu session new ./my-project  # Create session for my-project
-  ohmyfeishu session list      # List active sessions
+  oh-my-feishu                    # Launch interactive TUI
+  oh-my-feishu session new ./my-project  # Create session for my-project
+  oh-my-feishu session list      # List active sessions
 `);
 }
 

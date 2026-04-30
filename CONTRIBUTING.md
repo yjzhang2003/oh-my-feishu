@@ -81,12 +81,13 @@ service:add-start → Starts service registration flow
 ```bash
 npm install
 npm run build
+npm link
 ```
 
 ### Commands
 
 ```bash
-npm run cli          # Interactive CLI (configure, manage services)
+oh-my-feishu        # Interactive CLI (configure, manage services)
 npm start            # Start Gateway
 npm run build        # TypeScript build
 npm test             # Run tests
