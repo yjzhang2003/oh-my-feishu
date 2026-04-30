@@ -1,12 +1,48 @@
-import { afterEach, describe, expect, it } from 'vitest';
-import { removeService } from '../../../service/registry.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { serviceAdminFeature } from './feature.js';
 
-describe('serviceAdminFeature', () => {
-  afterEach(() => {
-    removeService('test-gateway-service');
-  });
+const registry = vi.hoisted(() => ({
+  services: [] as Array<{
+    name: string;
+    githubOwner: string;
+    githubRepo: string;
+    tracebackUrl: string;
+    notifyChatId: string;
+    tracebackUrlType: 'json';
+    enabled: boolean;
+    addedAt: string;
+    addedBy: string;
+    lastCheckedAt?: string;
+  }>,
+}));
 
+vi.mock('../../../service/registry.js', () => ({
+  addService: vi.fn((entry) => {
+    if (registry.services.some((service) => service.name === entry.name)) {
+      throw new Error(`Service "${entry.name}" already exists`);
+    }
+    registry.services.push(entry);
+    return entry;
+  }),
+  listServices: vi.fn(() => registry.services),
+  removeService: vi.fn((name: string) => {
+    const index = registry.services.findIndex((service) => service.name === name);
+    if (index === -1) return false;
+    registry.services.splice(index, 1);
+    return true;
+  }),
+  updateService: vi.fn((name: string, updates: Record<string, unknown>) => {
+    const service = registry.services.find((service) => service.name === name);
+    if (!service) return null;
+    Object.assign(service, updates);
+    return service;
+  }),
+}));
+
+describe('serviceAdminFeature', () => {
+  beforeEach(() => {
+    registry.services.length = 0;
+  });
   it('returns help output by default', async () => {
     const result = await serviceAdminFeature.handle({
       id: 'evt_1',

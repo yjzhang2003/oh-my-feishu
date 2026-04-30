@@ -36,6 +36,7 @@ metadata:
 | `lark-workflow-standup-report` | 工作流：日报 | 自动生成日报/周报 |
 | `lark-openapi-explorer` | OpenAPI 探索：发现 API 能力 | 探索不熟悉的 API |
 | `lark-skill-maker` | 技能制作：自定义 Lark Skill | 创建或修改 Lark Skill |
+| `gateway-guide` | oh-my-feishu Gateway：后台自动化与功能触发 | 查询或触发 Gateway feature、服务监控、修复任务 |
 
 ## 认证与共享规则
 
@@ -118,6 +119,7 @@ lark-cli im +messages-reply --message-id <message_id> --text "回复内容"
 
 - 用户问"什么是 XXX"、"帮我写代码"、"分析一下" → **方式一：直接 stdout 输出**
 - 用户说"给 XXX 发消息"、"查我的日程"、"创建一个文档" → **方式二：使用 lark-cli**
+- 用户要求 oh-my-feishu Gateway、后台自动化、服务监控或触发 feature → 读取 `gateway-guide`
 
 ## 用户消息
 
