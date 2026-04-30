@@ -24,6 +24,8 @@ The implementation lives under `src/gateway/features/`.
 - `GatewayRuntime`: runtime capabilities exposed to features, including:
   - `invokeMainClaude()`
   - `sendFeishuMessage()`
+  - `updateCard()`
+  - `log`
 - `GatewayFeatureRegistry`: feature lookup and trigger matching
 - `GatewayFeatureRunner`: executes one matched feature and normalizes failures
 

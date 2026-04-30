@@ -1,6 +1,4 @@
 import type { CommandHandler, CommandContext } from './types.js';
-import { writeTrigger } from '../../trigger/trigger.js';
-import { invokeClaudeSkill } from '../../trigger/invoker.js';
 import { log } from '../../utils/logger.js';
 import { createGatewayEvent } from '../../gateway/features/index.js';
 
@@ -13,44 +11,14 @@ export class RepairCommand implements CommandHandler {
     const context = ctx.args.join(' ').trim() || 'Repair requested';
     log.command(ctx.chatId, '/repair', context);
 
-    if (ctx.gatewayFeatureRunner) {
+    if (!ctx.gatewayFeatureRunner) {
       await ctx.sendCard({
-        title: '🔄 Auto Repair Started',
-        elements: [
-          `**Context:** ${context}`,
-          'Analyzing the issue...',
-        ],
+        title: 'Gateway Unavailable',
+        elements: ['Gateway feature runner is not configured.'],
       });
-
-      const result = await ctx.gatewayFeatureRunner.run(createGatewayEvent({
-        feature: 'repair',
-        type: 'repair.requested',
-        source: 'feishu',
-        chatId: ctx.chatId,
-        senderOpenId: ctx.senderOpenId,
-        messageId: ctx.messageId,
-        payload: {
-          context,
-          chatId: ctx.chatId,
-          senderOpenId: ctx.senderOpenId,
-        },
-      }));
-
-      if (result.success) {
-        await ctx.sendCard({
-          title: '✅ Repair Complete',
-          elements: [result.message || 'The repair has been completed successfully.'],
-        });
-      } else {
-        await ctx.sendCard({
-          title: '❌ Repair Failed',
-          elements: [`\`\`\`\n${result.message || 'Unknown error'}\n\`\`\``],
-        });
-      }
       return;
     }
 
-    // Send acknowledgment
     await ctx.sendCard({
       title: '🔄 Auto Repair Started',
       elements: [
@@ -59,37 +27,30 @@ export class RepairCommand implements CommandHandler {
       ],
     });
 
-    // Write trigger
-    writeTrigger({
-      context,
+    const result = await ctx.gatewayFeatureRunner.run(createGatewayEvent({
+      feature: 'repair',
+      type: 'repair.requested',
       source: 'feishu',
-      timestamp: new Date().toISOString(),
-      metadata: {
-        chat_id: ctx.chatId,
-        sender_open_id: ctx.senderOpenId,
+      chatId: ctx.chatId,
+      senderOpenId: ctx.senderOpenId,
+      messageId: ctx.messageId,
+      payload: {
+        context,
+        chatId: ctx.chatId,
+        senderOpenId: ctx.senderOpenId,
       },
-    });
+    }));
 
-    // Invoke skill asynchronously
-    log.skill('auto-repair', 'start', { chatId: ctx.chatId, context });
-    invokeClaudeSkill({ skill: 'auto-repair' })
-      .then(async (result) => {
-        if (result.success) {
-          log.skill('auto-repair', 'success', { chatId: ctx.chatId });
-          await ctx.sendCard({
-            title: '✅ Repair Complete',
-            elements: ['The repair has been completed successfully.'],
-          });
-        } else {
-          log.skill('auto-repair', 'error', { chatId: ctx.chatId, error: result.stderr });
-          await ctx.sendCard({
-            title: '❌ Repair Failed',
-            elements: [`\`\`\`\n${result.stderr || 'Unknown error'}\n\`\`\``],
-          });
-        }
-      })
-      .catch((error) => {
-        log.error('feishu', 'Repair command failed', { error: String(error) });
+    if (result.success) {
+      await ctx.sendCard({
+        title: '✅ Repair Complete',
+        elements: [result.message || 'The repair has been completed successfully.'],
       });
+    } else {
+      await ctx.sendCard({
+        title: '❌ Repair Failed',
+        elements: [`\`\`\`\n${result.message || 'Unknown error'}\n\`\`\``],
+      });
+    }
   }
 }

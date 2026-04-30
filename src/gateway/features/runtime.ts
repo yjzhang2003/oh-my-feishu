@@ -1,9 +1,10 @@
 import { invokeClaudeTask } from '../../trigger/invoker.js';
-import type { ClaudeTaskInput, FeishuSendInput, GatewayRuntime } from './types.js';
+import type { ClaudeTaskInput, FeishuCardUpdateInput, FeishuSendInput, GatewayRuntime } from './types.js';
 import { log } from '../../utils/logger.js';
 
 export interface GatewayRuntimeOptions {
   sendTextMessage?: (chatId: string, text: string) => Promise<void>;
+  updateCard?: (input: FeishuCardUpdateInput) => Promise<boolean>;
 }
 
 export function createGatewayRuntime(options: GatewayRuntimeOptions = {}): GatewayRuntime {
@@ -18,6 +19,8 @@ export function createGatewayRuntime(options: GatewayRuntimeOptions = {}): Gatew
       }
       await options.sendTextMessage(input.chatId, input.content);
     },
+
+    updateCard: options.updateCard,
 
     log,
   };
