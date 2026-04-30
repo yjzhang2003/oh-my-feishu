@@ -1,7 +1,6 @@
 import { describe, test, expect } from 'vitest';
 import {
   createCallbackCard,
-  createNavigationCard,
   createServiceAddStep1Card,
   createServiceAddStep2Card,
   createServiceAddStep3Card,
@@ -31,12 +30,6 @@ describe('CardBuilder', () => {
     const actionEl = card.elements[2] as { tag: string; actions: unknown[] };
     expect(actionEl.tag).toBe('action');
     expect(actionEl.actions).toHaveLength(1);
-  });
-
-  test('createNavigationCard has correct structure', () => {
-    const card = createNavigationCard();
-    expect(card.header?.title.content).toBe('🤖 欢迎使用 Feishu Agent');
-    expect(card.elements.length).toBeGreaterThan(0);
   });
 
   test('createServiceAddStep1Card contains correct guidance', () => {

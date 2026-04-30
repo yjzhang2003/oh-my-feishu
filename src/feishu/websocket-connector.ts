@@ -15,16 +15,7 @@ import { MenuCommand } from './commands/menu-command.js';
 import { SessionManager } from '../gateway/session-manager.js';
 import { CardKitManager } from './card-kit.js';
 import { createMainMenuCard } from './card-builder/menu-cards.js';
-import { createNavigationCard } from './card-builder.js';
 import { install as installPlugin } from '../marketplace/index.js';
-
-// SDK 事件类型是扁平的，直接在 data 里
-export interface P2PChatEnteredData {
-  chat_id?: string;
-  operator_id?: {
-    open_id?: string;
-  };
-}
 
 export interface FeishuWebSocketConfig {
   appId: string;
@@ -103,9 +94,6 @@ export class FeishuWebSocket {
       },
       'card.action.trigger': async (data: CardActionPayload) => {
         return await this.handleCardAction(data);
-      },
-      'im.chat.access_event.bot_p2p_chat_entered_v1': async (data: P2PChatEnteredData) => {
-        await this.handleP2PChatEntered(data);
       },
     });
 
@@ -241,31 +229,6 @@ export class FeishuWebSocket {
     } catch (error) {
       log.error('feishu', 'Error handling card action', { error: String(error) });
       return { toast: { type: 'error', content: '操作失败' } };
-    }
-  }
-
-  private async handleP2PChatEntered(data: P2PChatEnteredData): Promise<void> {
-    try {
-      const { chat_id: chatId } = data;
-
-      if (!chatId) {
-        log.warn('feishu', 'P2P chat entered event without chat_id');
-        return;
-      }
-
-      // Check if already received nav card for this chat
-      const session = this.sessionStore.get(chatId);
-      if (session.hasReceivedNav) {
-        return;
-      }
-
-      // Send navigation card via cardkit
-      await this.sendMenuCard(chatId);
-      this.sessionStore.set(chatId, { hasReceivedNav: true });
-
-      log.info('feishu', 'Sent navigation card on P2P chat enter', { chatId });
-    } catch (error) {
-      log.error('feishu', 'Error handling P2P chat entered', { error: String(error) });
     }
   }
 
@@ -434,8 +397,8 @@ export class FeishuWebSocket {
       const cardId = await this.cardKitManager.createCard(card);
 
       if (!cardId) {
-        log.warn('feishu', 'cardkit createCard returned null, falling back to v1.0 card', { chatId });
-        await this.sendCardMessageRaw(chatId, createNavigationCard());
+        log.warn('feishu', 'cardkit createCard returned null, falling back to raw menu card', { chatId });
+        await this.sendCardMessageRaw(chatId, card);
         return;
       }
 

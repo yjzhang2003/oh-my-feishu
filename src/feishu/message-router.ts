@@ -90,12 +90,6 @@ export class MessageRouter {
       return;
     }
 
-    // Check if user has received navigation card (send if first time)
-    if (!session.hasReceivedNav) {
-      await this.sendMessage.sendMenuCard(chatId);
-      this.sessionStore.set(chatId, { hasReceivedNav: true });
-    }
-
     // Regular chat message
     await this.handleChat(chatId, chatType, text, senderOpenId, messageId);
   }

@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, test, expect, beforeEach, afterEach } from 'vitest';
 import { SessionStore } from './session-store.js';
 
 describe('SessionStore', () => {
@@ -17,7 +17,6 @@ describe('SessionStore', () => {
     expect(state.chatId).toBe('unknown-chat');
     expect(state.flow).toBe('none');
     expect(state.data).toEqual({});
-    expect(state.hasReceivedNav).toBe(false);
   });
 
   test('set updates session state', () => {
@@ -31,7 +30,6 @@ describe('SessionStore', () => {
     const state = store.get('chat-1');
     expect(state.flow).toBe('service-add-step1');
     expect(state.data).toEqual({ name: 'test' });
-    expect(state.hasReceivedNav).toBe(false);
   });
 
   test('clear removes session', () => {
@@ -41,9 +39,4 @@ describe('SessionStore', () => {
     expect(state.flow).toBe('none');
   });
 
-  test('hasReceivedNav can be set and retrieved', () => {
-    store.set('chat-1', { hasReceivedNav: true });
-    const state = store.get('chat-1');
-    expect(state.hasReceivedNav).toBe(true);
-  });
 });

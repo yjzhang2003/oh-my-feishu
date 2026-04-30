@@ -72,24 +72,6 @@ export function md(content: string): CardElement {
   return { tag: 'markdown', content };
 }
 
-// Navigation card - shown when user first enters chat (legacy 1.0 fallback)
-export function createNavigationCard(): FeishuCard {
-  return createCallbackCard({
-    title: '🤖 欢迎使用 Feishu Agent',
-    elements: [
-      md('**👋 欢迎使用 Feishu Agent！**'),
-      md(''),
-      md('我可以帮你分析错误日志、自动修复问题、管理监控服务。'),
-      md(''),
-      md('💡 发送消息即可对话，发送 `/菜单` 可随时调出此菜单'),
-    ],
-    buttons: [
-      { text: '🆕 新建会话', action: 'menu:new', type: 'primary' },
-      { text: '📋 历史会话', action: 'menu:history', type: 'default' },
-    ],
-  });
-}
-
 // Service add step 1: name input
 export function createServiceAddStep1Card(): FeishuCard {
   return createCallbackCard({

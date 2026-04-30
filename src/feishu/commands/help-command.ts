@@ -5,7 +5,7 @@ export class HelpCommand implements CommandHandler {
   description = 'Show this help message';
 
   async execute(ctx: CommandContext): Promise<void> {
-    const helpText = `🤖 Feishu Agent Commands
+    const helpText = `oh-my-feishu Commands
 
 /repair [context] - Start auto-repair with optional context
 /service add <name> <owner/repo> <traceback_url> - Register a service

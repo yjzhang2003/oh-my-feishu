@@ -18,7 +18,6 @@ export interface SessionState {
   chatId: string;
   flow: InteractionFlow;
   data: Record<string, unknown>;
-  hasReceivedNav: boolean;
   mode: SessionMode;
   updatedAt: Date;
   /** CardKit card_id for in-place card updates */
@@ -32,7 +31,6 @@ export interface SessionState {
 const DEFAULT_STATE: Omit<SessionState, 'chatId'> = {
   flow: 'none',
   data: {},
-  hasReceivedNav: false,
   mode: 'direct',
   updatedAt: new Date(),
 };

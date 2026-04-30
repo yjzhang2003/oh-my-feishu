@@ -14,7 +14,7 @@ async function main() {
   if (!command) {
     // Interactive mode - launch the TUI
     // For now, just show help and tell user to use npm run cli
-    console.log(chalk.bold('ohmyfeishu - Feishu Agent CLI'));
+    console.log(chalk.bold('ohmyfeishu - oh-my-feishu CLI'));
     console.log('');
     console.log('For interactive setup, run:');
     console.log(chalk.cyan('  npm run cli'));
@@ -58,7 +58,7 @@ async function main() {
 
 function printHelp() {
   console.log(`
-${chalk.bold('ohmyfeishu')} - Feishu Agent CLI
+${chalk.bold('ohmyfeishu')} - oh-my-feishu CLI
 
 ${chalk.bold('Usage:')}
   ohmyfeishu [command] [options]

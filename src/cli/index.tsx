@@ -154,7 +154,7 @@ function App() {
 
     return (
       <Box flexDirection="column" padding={1}>
-        <Header title="Feishu Agent Setup" />
+        <Header title="oh-my-feishu Setup" />
         <Box marginTop={1}>
           <SelectList items={items} selectedIndex={selectedIndex} />
         </Box>

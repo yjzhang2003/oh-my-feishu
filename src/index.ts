@@ -1,4 +1,4 @@
-// Feishu Agent - TypeScript Version
+// oh-my-feishu - TypeScript Version
 // WebSocket-based agent for Claude Code auto-repair with Feishu integration
 
 export * from './config/env.js';

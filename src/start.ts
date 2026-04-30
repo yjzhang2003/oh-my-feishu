@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /**
- * Feishu Agent - Main entry point
+ * oh-my-feishu - Main entry point
  * Starts WebSocket connection for direct Feishu ↔ Claude Code chat
  */
 
@@ -17,7 +17,7 @@ function keepAlive(): void {
 }
 
 async function main() {
-  console.log('🚀 Starting Feishu Agent...\n');
+  console.log('🚀 Starting oh-my-feishu...\n');
 
   // Check Claude CLI
   const claudeStatus = await checkClaudeCli();
