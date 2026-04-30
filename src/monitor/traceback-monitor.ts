@@ -1,6 +1,4 @@
 import { setTimeout as sleep } from 'timers/promises';
-import { writeTrigger } from '../trigger/trigger.js';
-import { invokeClaudeSkill } from '../trigger/invoker.js';
 import { log } from '../utils/logger.js';
 import type { GatewayFeatureRunner } from '../gateway/features/index.js';
 import {
@@ -142,34 +140,18 @@ export class TracebackMonitor {
   ): Promise<void> {
     log.info('monitor', `Triggering auto-repair for ${service.name}`);
 
-    if (this.gatewayRunner) {
-      await dispatchTracebackDetected(this.gatewayRunner, {
-        service,
-        tracebackContent,
-        previousHash,
-        currentHash,
+    if (!this.gatewayRunner) {
+      log.error('monitor', 'Gateway feature runner is not configured; traceback event skipped', {
+        service: service.name,
       });
       return;
     }
 
-    writeTrigger({
-      context: `TracebackMonitor: ${service.name} (${service.githubOwner}/${service.githubRepo})`,
-      error_log: tracebackContent.slice(0, 4000), // Limit to 4KB for trigger
-      service_name: service.name,
-      traceback_url: service.tracebackUrl,
-      source: 'traceback-monitor',
-      timestamp: new Date().toISOString(),
-      metadata: {
-        github_owner: service.githubOwner,
-        github_repo: service.githubRepo,
-        notify_chat_id: service.notifyChatId,
-      },
-    });
-
-    invokeClaudeSkill({ skill: 'auto-repair' }).catch((err) => {
-      log.error('monitor', `Auto-repair invocation failed for ${service.name}`, {
-        error: String(err),
-      });
+    await dispatchTracebackDetected(this.gatewayRunner, {
+      service,
+      tracebackContent,
+      previousHash,
+      currentHash,
     });
   }
 }

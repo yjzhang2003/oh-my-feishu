@@ -120,40 +120,28 @@ export class ServiceAddFlow {
     const repo = session.data.repo as string;
 
     try {
-      if (this.gatewayFeatureRunner) {
-        const result = await this.gatewayFeatureRunner.run(createGatewayEvent({
-          feature: 'service-admin',
-          type: 'service.command',
-          source: 'feishu',
-          chatId,
-          senderOpenId,
-          payload: {
-            action: 'add',
-            name,
-            repo,
-            tracebackUrl: trimmedUrl,
-            notifyChatId: chatId,
-            addedBy: senderOpenId,
-          },
-        }));
+      if (!this.gatewayFeatureRunner) {
+        throw new Error('Gateway feature runner is not configured');
+      }
 
-        if (!result.success) {
-          throw new Error(result.message || String(result.data?.elements || 'Gateway feature failed'));
-        }
-      } else {
-        const { addService } = await import('../../../service/registry.js');
-        const [githubOwner, githubRepo] = repo.split('/');
-        addService({
+      const result = await this.gatewayFeatureRunner.run(createGatewayEvent({
+        feature: 'service-admin',
+        type: 'service.command',
+        source: 'feishu',
+        chatId,
+        senderOpenId,
+        payload: {
+          action: 'add',
           name,
-          githubOwner,
-          githubRepo,
+          repo,
           tracebackUrl: trimmedUrl,
           notifyChatId: chatId,
-          tracebackUrlType: 'json',
-          enabled: true,
-          addedAt: new Date().toISOString(),
           addedBy: senderOpenId,
-        });
+        },
+      }));
+
+      if (!result.success) {
+        throw new Error(result.message || String(result.data?.elements || 'Gateway feature failed'));
       }
 
       log.info('flow', 'ServiceAddFlow completed', { chatId, name, repo });
