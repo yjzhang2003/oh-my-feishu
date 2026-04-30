@@ -11,6 +11,7 @@ import {
   createCommandMenuCard,
   createGatewayMenuCard,
   createMainMenuCard,
+  createWebMonitorInputCard,
   createWebMonitorMenuCard,
 } from './card-builder/menu-cards.js';
 
@@ -96,5 +97,17 @@ describe('CardBuilder', () => {
     expect(cardJson).toContain('menu:web-monitor-new');
     expect(cardJson).toContain('menu:gateway');
     expect(cardJson).not.toContain('menu:commands');
+  });
+
+  test('web monitor input card contains required form fields', () => {
+    const card = createWebMonitorInputCard() as any;
+    const cardJson = JSON.stringify(card);
+
+    expect(card.header.title.content).toBe('新建监控');
+    expect(cardJson).toContain('"name":"wm_form"');
+    expect(cardJson).toContain('"name":"wm_name"');
+    expect(cardJson).toContain('"name":"wm_repo"');
+    expect(cardJson).toContain('"name":"wm_url"');
+    expect(cardJson).toContain('"form_action_type":"submit"');
   });
 });

@@ -374,6 +374,122 @@ export function createWebMonitorMenuCard(): CardBuildResult {
   });
 }
 
+/** Level 4: Web monitor creation form */
+export function createWebMonitorInputCard(): object {
+  return {
+    schema: '2.0',
+    header: {
+      title: { tag: 'plain_text', content: '新建监控' },
+      subtitle: { tag: 'plain_text', content: 'Web 服务监控' },
+      template: 'green',
+      icon: {
+        tag: 'standard_icon',
+        token: 'search_outlined',
+        color: 'green',
+      },
+      padding: '12px',
+    },
+    config: {
+      update_multi: true,
+      summary: { content: '新建 Web 服务监控' },
+    },
+    body: {
+      elements: [
+        iconMd('**填写监控信息**\n提交后会注册一个 Web 服务监控，首次轮询只记录基线 hash。', 'search_outlined', 'green'),
+        {
+          tag: 'form',
+          direction: 'vertical',
+          vertical_spacing: '12px',
+          padding: '4px 0px 0px 0px',
+          margin: '8px 0px 0px 0px',
+          name: 'wm_form',
+          elements: [
+            {
+              tag: 'input',
+              element_id: 'wm_name',
+              name: 'wm_name',
+              required: true,
+              width: 'fill',
+              max_length: 80,
+              label: { tag: 'plain_text', content: '服务名称' },
+              placeholder: { tag: 'plain_text', content: '例如 my-api' },
+            },
+            {
+              tag: 'input',
+              element_id: 'wm_repo',
+              name: 'wm_repo',
+              required: true,
+              width: 'fill',
+              max_length: 160,
+              label: { tag: 'plain_text', content: 'GitHub 仓库' },
+              placeholder: { tag: 'plain_text', content: 'owner/repo' },
+            },
+            {
+              tag: 'input',
+              element_id: 'wm_url',
+              name: 'wm_url',
+              required: true,
+              width: 'fill',
+              max_length: 500,
+              label: { tag: 'plain_text', content: 'Traceback URL' },
+              placeholder: { tag: 'plain_text', content: 'https://example.com/traceback' },
+            },
+            {
+              tag: 'column_set',
+              flex_mode: 'none',
+              horizontal_spacing: '8px',
+              horizontal_align: 'right',
+              columns: [
+                {
+                  tag: 'column',
+                  width: 'auto',
+                  elements: [
+                    {
+                      tag: 'button',
+                      text: { tag: 'plain_text', content: '创建监控' },
+                      type: 'primary',
+                      width: 'default',
+                      icon: { tag: 'standard_icon', token: 'add_outlined' },
+                      form_action_type: 'submit',
+                      name: 'wm_submit',
+                    },
+                  ],
+                },
+                {
+                  tag: 'column',
+                  width: 'auto',
+                  elements: [
+                    {
+                      tag: 'button',
+                      text: { tag: 'plain_text', content: '清空' },
+                      type: 'default',
+                      width: 'default',
+                      form_action_type: 'reset',
+                      name: 'wm_reset',
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          tag: 'button',
+          text: { tag: 'plain_text', content: '返回 Web 服务监控' },
+          type: 'default',
+          width: 'default',
+          behaviors: [
+            {
+              type: 'callback',
+              value: { action: 'menu:gateway-web-monitor' },
+            },
+          ],
+        },
+      ],
+    },
+  };
+}
+
 /** Level 2: Command reference */
 export function createCommandMenuCard(): CardBuildResult {
   return createCardV2({

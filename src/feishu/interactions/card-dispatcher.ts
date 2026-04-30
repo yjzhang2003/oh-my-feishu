@@ -17,10 +17,11 @@ import {
   createNewSessionCard,
   createSessionDetailCard,
   createSessionHistoryCard,
+  createWebMonitorInputCard,
   createWebMonitorMenuCard,
 } from '../card-builder/menu-cards.js';
 import { CardKitManager } from '../card-kit.js';
-import type { GatewayFeatureRunner } from '../../gateway/features/index.js';
+import { createGatewayEvent, type GatewayFeatureRunner } from '../../gateway/features/index.js';
 
 export interface CardActionPayload {
   schema?: string;
@@ -58,7 +59,7 @@ export class CardDispatcher {
     private sessionHistoryStore: SessionHistoryStore,
     private cardKitManager: CardKitManager,
     sendCard: SendCardFn,
-    gatewayFeatureRunner?: GatewayFeatureRunner
+    private gatewayFeatureRunner?: GatewayFeatureRunner
   ) {
     this.serviceAddFlow = new ServiceAddFlow(sessionStore, sendCard, gatewayFeatureRunner);
     this.sessionAddFlow = new SessionAddFlow(sessionStore, sessionHistoryStore, sendCard);
@@ -78,6 +79,10 @@ export class CardDispatcher {
       // The submit button has no behaviors/value, so actionValue will be empty
       // The back button inside the form uses behaviors callback, actionValue will be 'menu:back'
       const formValue = (action as unknown as { form_value?: Record<string, unknown> }).form_value;
+      if (formValue?.wm_name !== undefined || formValue?.wm_repo !== undefined || formValue?.wm_url !== undefined) {
+        return await this.handleWebMonitorSubmit(chatId, operatorOpenId, formValue);
+      }
+
       if (formValue?.dir_path !== undefined) {
         const dirPath = formValue.dir_path as string;
         const result = await this.sessionAddFlow.handleDirectorySubmit(chatId, dirPath);
@@ -145,7 +150,7 @@ export class CardDispatcher {
         return { toast: { type: 'info', content: '新建 Gateway 服务暂未实现' } };
 
       case 'web-monitor-new':
-        return { toast: { type: 'info', content: '新建监控暂未实现，请先使用 /service add' } };
+        return this.updateMenuCard({ card: createWebMonitorInputCard(), elementIds: [] }, { type: 'info', content: '' });
 
       case 'commands':
         return this.updateMenuCard(createCommandMenuCard(), { type: 'info', content: '' });
@@ -212,6 +217,52 @@ export class CardDispatcher {
     };
 
     return response;
+  }
+
+  private async handleWebMonitorSubmit(
+    chatId: string,
+    senderOpenId: string,
+    formValue: Record<string, unknown>
+  ): Promise<CardActionResponse> {
+    if (!this.gatewayFeatureRunner) {
+      return { toast: { type: 'error', content: 'Gateway feature runner is not configured.' } };
+    }
+
+    const name = String(formValue.wm_name || '').trim();
+    const repo = String(formValue.wm_repo || '').trim();
+    const tracebackUrl = String(formValue.wm_url || '').trim();
+
+    if (!name || !repo || !tracebackUrl) {
+      return { toast: { type: 'error', content: '请填写服务名称、仓库和 Traceback URL' } };
+    }
+
+    const result = await this.gatewayFeatureRunner.run(createGatewayEvent({
+      feature: 'service-admin',
+      type: 'service.command',
+      source: 'feishu',
+      chatId,
+      senderOpenId,
+      payload: {
+        action: 'add',
+        name,
+        repo,
+        tracebackUrl,
+        notifyChatId: chatId,
+        addedBy: senderOpenId,
+      },
+    }));
+
+    if (!result.success) {
+      const elements = Array.isArray(result.data?.elements)
+        ? result.data.elements.join('\n')
+        : result.message || '注册失败';
+      return { toast: { type: 'error', content: elements } };
+    }
+
+    return this.updateMenuCard(createWebMonitorMenuCard(), {
+      type: 'success',
+      content: `已创建监控：${name}`,
+    });
   }
 
   private handleNavAction(action: string, chatId: string): CardActionResponse {
