@@ -9,7 +9,15 @@ import { ServiceAddFlow } from './flows/service-add-flow.js';
 import { SessionAddFlow } from './flows/session-add-flow.js';
 import type { SendCardFn } from '../types.js';
 import { log } from '../../utils/logger.js';
-import { createMainMenuCard, createNewSessionCard, createSessionHistoryCard, createSessionDetailCard, createDirectoryInputCard } from '../card-builder/menu-cards.js';
+import {
+  createCommandMenuCard,
+  createDirectoryInputCard,
+  createGatewayMenuCard,
+  createMainMenuCard,
+  createNewSessionCard,
+  createSessionDetailCard,
+  createSessionHistoryCard,
+} from '../card-builder/menu-cards.js';
 import { CardKitManager } from '../card-kit.js';
 import type { GatewayFeatureRunner } from '../../gateway/features/index.js';
 
@@ -125,6 +133,12 @@ export class CardDispatcher {
         const entries = this.sessionHistoryStore.listHistory(chatId);
         return this.updateMenuCard(createSessionHistoryCard(entries), { type: 'info', content: '' });
       }
+
+      case 'gateway':
+        return this.updateMenuCard(createGatewayMenuCard(), { type: 'info', content: '' });
+
+      case 'commands':
+        return this.updateMenuCard(createCommandMenuCard(), { type: 'info', content: '' });
 
       case 'detail': {
         const index = parseInt(param, 10);

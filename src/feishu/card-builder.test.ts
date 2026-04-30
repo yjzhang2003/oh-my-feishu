@@ -7,6 +7,11 @@ import {
   createServiceAddSuccessCard,
   createServiceAddCancelledCard,
 } from './card-builder.js';
+import {
+  createCommandMenuCard,
+  createGatewayMenuCard,
+  createMainMenuCard,
+} from './card-builder/menu-cards.js';
 
 describe('CardBuilder', () => {
   test('createCallbackCard builds card with header and elements', () => {
@@ -59,5 +64,24 @@ describe('CardBuilder', () => {
     const card = createServiceAddCancelledCard();
     expect(card.header?.title.content).toBe('❌ 注册已取消');
     expect(card.header?.template).toBe('red');
+  });
+
+  test('main menu keeps commands behind a second-level page', () => {
+    const { card } = createMainMenuCard();
+    const elements = ((card as any).body.elements ?? []) as any[];
+
+    expect(elements.some((element) => element.tag === 'table')).toBe(false);
+    expect(JSON.stringify(elements)).toContain('menu:gateway');
+    expect(JSON.stringify(elements)).toContain('menu:commands');
+  });
+
+  test('gateway and command menu cards expose second-level content', () => {
+    const gateway = createGatewayMenuCard().card as any;
+    const commands = createCommandMenuCard().card as any;
+
+    expect(gateway.header.title.content).toBe('Gateway');
+    expect(JSON.stringify(gateway.body.elements)).toContain('menu:commands');
+    expect(commands.header.title.content).toBe('指令菜单');
+    expect(commands.body.elements.some((element: any) => element.tag === 'table')).toBe(true);
   });
 });

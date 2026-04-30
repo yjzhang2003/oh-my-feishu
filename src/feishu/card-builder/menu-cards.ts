@@ -84,7 +84,7 @@ function columnSet(columns: CardV2Element[][]): CardV2Element {
 function commandTable(): CardV2Element {
   return {
     tag: 'table',
-    page_size: 4,
+    page_size: 7,
     row_height: 'low',
     margin: '4px 0px 0px 0px',
     header_style: {
@@ -102,8 +102,11 @@ function commandTable(): CardV2Element {
     rows: [
       { command: '`/menu`', usage: '打开菜单' },
       { command: '`/status`', usage: '查看运行状态' },
-      { command: '`/service`', usage: '管理监控服务' },
-      { command: '`/repair`', usage: '触发修复流程' },
+      { command: '`/service list`', usage: '查看监控服务' },
+      { command: '`/service add <name> <owner/repo> <url>`', usage: '注册监控服务' },
+      { command: '`/service enable <name>`', usage: '启用监控服务' },
+      { command: '`/service disable <name>`', usage: '停用监控服务' },
+      { command: '`/repair <context>`', usage: '触发后台修复流程' },
     ],
   };
 }
@@ -262,7 +265,7 @@ export function createMainMenuCard(): CardBuildResult {
       { text: 'interactive', color: 'blue' },
     ],
     elements: [
-      md('把飞书对话直接连接到 Claude Code。发送普通消息即可开始对话，需要菜单时发送 `/menu`。'),
+      md('把飞书对话直接连接到 Claude Code。发送普通消息即可开始对话，需要导航时发送 `/menu`。'),
       columnSet([
         [
           interactiveCard({
@@ -283,7 +286,85 @@ export function createMainMenuCard(): CardBuildResult {
           }),
         ],
       ]),
+      columnSet([
+        [
+          interactiveCard({
+            title: 'Gateway',
+            description: '查看后台自动化能力：状态、服务监控和修复任务。',
+            icon: 'robot_outlined',
+            color: 'green',
+            action: 'menu:gateway',
+          }),
+        ],
+        [
+          interactiveCard({
+            title: '指令菜单',
+            description: '查看可用 slash commands 和参数格式。',
+            icon: 'command_outlined',
+            color: 'orange',
+            action: 'menu:commands',
+          }),
+        ],
+      ]),
+    ],
+  });
+}
+
+/** Level 2: Gateway feature overview */
+export function createGatewayMenuCard(): CardBuildResult {
+  return createCardV2({
+    title: 'Gateway',
+    subtitle: '后台自动化功能',
+    template: 'green',
+    icon: { token: 'robot_outlined', color: 'green' },
+    tags: [
+      { text: 'gateway', color: 'green' },
+      { text: 'non-stream', color: 'neutral' },
+    ],
+    elements: [
+      md('Gateway 用于处理后台任务：触发条件进入 feature，调用 Claude Code 静默执行，只把最终结果发回飞书。'),
+      columnSet([
+        [
+          iconMd('**状态检查**\n检查 Claude CLI、WebSocket、GitHub 和服务注册状态。', 'status-meeting_outlined', 'green'),
+          iconMd('**服务监控**\n轮询服务 traceback URL，发现新错误后生成 Gateway 事件。', 'search_outlined', 'green'),
+        ],
+        [
+          iconMd('**自动修复**\n后台调用 Claude Code 处理错误上下文，不展示中间流式输出。', 'robot_outlined', 'green'),
+          iconMd('**CLI Gateway**\n本机可用 `oh-my-feishu gateway ...` 查看或触发 feature。', 'command_outlined', 'green'),
+        ],
+      ]),
+      interactiveCard({
+        title: '指令菜单',
+        description: '查看 Gateway 相关 slash commands 和 CLI 命令。',
+        icon: 'command_outlined',
+        color: 'orange',
+        action: 'menu:commands',
+      }),
+    ],
+    buttons: [
+      { text: '返回', action: 'menu:back' },
+    ],
+  });
+}
+
+/** Level 2: Command reference */
+export function createCommandMenuCard(): CardBuildResult {
+  return createCardV2({
+    title: '指令菜单',
+    subtitle: 'Slash commands',
+    template: 'orange',
+    icon: { token: 'command_outlined', color: 'orange' },
+    tags: [
+      { text: 'commands', color: 'orange' },
+    ],
+    elements: [
+      iconMd('**对话与会话**\n普通消息会直接进入 Claude Code；需要切换上下文时使用菜单入口。', 'chatbox_outlined', 'orange'),
       commandTable(),
+      md('CLI 侧 Gateway：`oh-my-feishu gateway list`、`oh-my-feishu gateway status`、`oh-my-feishu gateway trigger <feature> <eventType> <jsonPayload>`'),
+    ],
+    buttons: [
+      { text: 'Gateway', action: 'menu:gateway' },
+      { text: '返回', action: 'menu:back' },
     ],
   });
 }
