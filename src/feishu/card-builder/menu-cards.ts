@@ -310,38 +310,67 @@ export function createMainMenuCard(): CardBuildResult {
   });
 }
 
-/** Level 2: Gateway feature overview */
+/** Level 2: Gateway service list */
 export function createGatewayMenuCard(): CardBuildResult {
   return createCardV2({
     title: 'Gateway',
-    subtitle: '后台自动化功能',
+    subtitle: '功能服务',
     template: 'green',
     icon: { token: 'robot_outlined', color: 'green' },
     tags: [
       { text: 'gateway', color: 'green' },
-      { text: 'non-stream', color: 'neutral' },
+      { text: '1 service', color: 'neutral' },
     ],
     elements: [
-      md('Gateway 用于处理后台任务：触发条件进入 feature，调用 Claude Code 静默执行，只把最终结果发回飞书。'),
+      md('Gateway 服务用于承载后台自动化能力。每个服务都有自己的触发条件、配置页面和最终结果通知。'),
       columnSet([
         [
-          iconMd('**状态检查**\n检查 Claude CLI、WebSocket、GitHub 和服务注册状态。', 'status-meeting_outlined', 'green'),
-          iconMd('**服务监控**\n轮询服务 traceback URL，发现新错误后生成 Gateway 事件。', 'search_outlined', 'green'),
-        ],
-        [
-          iconMd('**自动修复**\n后台调用 Claude Code 处理错误上下文，不展示中间流式输出。', 'robot_outlined', 'green'),
-          iconMd('**CLI Gateway**\n本机可用 `oh-my-feishu gateway ...` 查看或触发 feature。', 'command_outlined', 'green'),
+          interactiveCard({
+            title: 'Web 服务监控',
+            description: '监控服务 traceback URL，发现新错误后触发后台修复。',
+            icon: 'search_outlined',
+            color: 'green',
+            action: 'menu:gateway-web-monitor',
+          }),
         ],
       ]),
-      interactiveCard({
-        title: '指令菜单',
-        description: '查看 Gateway 相关 slash commands 和 CLI 命令。',
-        icon: 'command_outlined',
-        color: 'orange',
-        action: 'menu:commands',
-      }),
     ],
     buttons: [
+      { text: '新建服务', action: 'menu:gateway-new-service' },
+      { text: '指令菜单', action: 'menu:commands' },
+      { text: '返回', action: 'menu:back' },
+    ],
+  });
+}
+
+/** Level 3: Web monitor Gateway service */
+export function createWebMonitorMenuCard(): CardBuildResult {
+  return createCardV2({
+    title: 'Web 服务监控',
+    subtitle: 'Gateway service',
+    template: 'green',
+    icon: { token: 'search_outlined', color: 'green' },
+    tags: [
+      { text: 'web-monitor', color: 'green' },
+      { text: 'traceback', color: 'neutral' },
+    ],
+    elements: [
+      md('轮询已注册服务的 traceback URL。首次读取只记录基线 hash，后续内容变化会触发 Gateway 后台任务。'),
+      columnSet([
+        [
+          iconMd('**触发条件**\ntraceback 内容 hash 发生变化。', 'status-meeting_outlined', 'green'),
+          iconMd('**处理方式**\n调用 Claude Code 静默分析，只发布最终结果。', 'robot_outlined', 'green'),
+        ],
+        [
+          iconMd('**服务配置**\n当前通过 `/service ...` 管理监控服务。', 'command_outlined', 'green'),
+          iconMd('**结果通知**\n发送到服务注册时绑定的飞书会话。', 'chatbox_outlined', 'green'),
+        ],
+      ]),
+    ],
+    buttons: [
+      { text: '新建监控', action: 'menu:web-monitor-new' },
+      { text: '指令菜单', action: 'menu:commands' },
+      { text: '返回 Gateway', action: 'menu:gateway' },
       { text: '返回', action: 'menu:back' },
     ],
   });

@@ -11,6 +11,7 @@ import {
   createCommandMenuCard,
   createGatewayMenuCard,
   createMainMenuCard,
+  createWebMonitorMenuCard,
 } from './card-builder/menu-cards.js';
 
 describe('CardBuilder', () => {
@@ -80,8 +81,19 @@ describe('CardBuilder', () => {
     const commands = createCommandMenuCard().card as any;
 
     expect(gateway.header.title.content).toBe('Gateway');
+    expect(JSON.stringify(gateway.body.elements)).toContain('Web 服务监控');
+    expect(JSON.stringify(gateway.body.elements)).toContain('menu:gateway-web-monitor');
     expect(JSON.stringify(gateway.body.elements)).toContain('menu:commands');
     expect(commands.header.title.content).toBe('指令菜单');
     expect(commands.body.elements.some((element: any) => element.tag === 'table')).toBe(true);
+  });
+
+  test('web monitor menu card exposes monitor actions', () => {
+    const webMonitor = createWebMonitorMenuCard().card as any;
+    const cardJson = JSON.stringify(webMonitor);
+
+    expect(webMonitor.header.title.content).toBe('Web 服务监控');
+    expect(cardJson).toContain('menu:web-monitor-new');
+    expect(cardJson).toContain('menu:gateway');
   });
 });

@@ -17,6 +17,7 @@ import {
   createNewSessionCard,
   createSessionDetailCard,
   createSessionHistoryCard,
+  createWebMonitorMenuCard,
 } from '../card-builder/menu-cards.js';
 import { CardKitManager } from '../card-kit.js';
 import type { GatewayFeatureRunner } from '../../gateway/features/index.js';
@@ -136,6 +137,15 @@ export class CardDispatcher {
 
       case 'gateway':
         return this.updateMenuCard(createGatewayMenuCard(), { type: 'info', content: '' });
+
+      case 'gateway-web-monitor':
+        return this.updateMenuCard(createWebMonitorMenuCard(), { type: 'info', content: '' });
+
+      case 'gateway-new-service':
+        return { toast: { type: 'info', content: '新建 Gateway 服务暂未实现' } };
+
+      case 'web-monitor-new':
+        return { toast: { type: 'info', content: '新建监控暂未实现，请先使用 /service add' } };
 
       case 'commands':
         return this.updateMenuCard(createCommandMenuCard(), { type: 'info', content: '' });
