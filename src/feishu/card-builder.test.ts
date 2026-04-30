@@ -87,6 +87,8 @@ describe('CardBuilder', () => {
     expect(JSON.stringify(gateway)).not.toContain('menu:commands');
     expect(commands.header.title.content).toBe('指令菜单');
     expect(commands.body.elements.some((element: any) => element.tag === 'table')).toBe(true);
+    expect(JSON.stringify(commands)).not.toContain('oh-my-feishu gateway');
+    expect(JSON.stringify(commands)).not.toContain('menu:gateway');
   });
 
   test('web monitor menu card exposes monitor actions', () => {

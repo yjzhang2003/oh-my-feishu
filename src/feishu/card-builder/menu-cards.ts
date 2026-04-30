@@ -96,8 +96,8 @@ function commandTable(): CardV2Element {
       lines: 1,
     },
     columns: [
-      { name: 'command', display_name: '命令', data_type: 'lark_md', width: '28%' },
-      { name: 'usage', display_name: '用途', data_type: 'text', width: '72%' },
+      { name: 'command', display_name: '命令', data_type: 'lark_md', width: '56%' },
+      { name: 'usage', display_name: '用途', data_type: 'text', width: '44%' },
     ],
     rows: [
       { command: '`/menu`', usage: '打开菜单' },
@@ -503,10 +503,8 @@ export function createCommandMenuCard(): CardBuildResult {
     elements: [
       iconMd('**对话与会话**\n普通消息会直接进入 Claude Code；需要切换上下文时使用菜单入口。', 'chatbox_outlined', 'orange'),
       commandTable(),
-      md('CLI 侧 Gateway：`oh-my-feishu gateway list`、`oh-my-feishu gateway status`、`oh-my-feishu gateway trigger <feature> <eventType> <jsonPayload>`'),
     ],
     buttons: [
-      { text: 'Gateway', action: 'menu:gateway' },
       { text: '返回', action: 'menu:back' },
     ],
   });
