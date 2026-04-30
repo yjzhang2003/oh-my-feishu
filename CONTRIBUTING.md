@@ -94,6 +94,8 @@ npm test             # Run tests
 npm run typecheck   # Type check
 ```
 
+Gateway feature architecture is documented in [GATEWAY_FEATURES.md](GATEWAY_FEATURES.md).
+
 ### Adding a New Command
 
 1. Create `src/feishu/commands/<name>-command.ts`:
