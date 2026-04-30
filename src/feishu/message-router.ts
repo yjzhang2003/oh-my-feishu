@@ -172,8 +172,9 @@ export class MessageRouter {
     const subtitleText = directory
       ? `${directory}`
       : '直接对话';
+    const contextLabel = directory ? '目录会话' : '直接对话';
 
-    // Create streaming card with empty body — elements are appended as content arrives
+    // Create streaming card; streamed markdown blocks are appended as content arrives.
     if (this.cardKitManager) {
       try {
         cardJson = {
@@ -181,7 +182,12 @@ export class MessageRouter {
           header: {
             title: { content: 'Claude Code', tag: 'plain_text' },
             subtitle: { content: subtitleText, tag: 'plain_text' },
-            template: 'wathet',
+            template: directory ? 'indigo' : 'turquoise',
+            icon: {
+              tag: 'standard_icon',
+              token: directory ? 'folder_outlined' : 'chatbox_outlined',
+              color: directory ? 'indigo' : 'turquoise',
+            },
             text_tag_list: [
               {
                 tag: 'text_tag',
@@ -189,15 +195,40 @@ export class MessageRouter {
                 text: { tag: 'plain_text', content: '处理中...' },
                 color: 'orange',
               },
+              {
+                tag: 'text_tag',
+                text: { tag: 'plain_text', content: contextLabel },
+                color: directory ? 'indigo' : 'turquoise',
+              },
             ],
+            padding: '12px',
           },
           config: {
             streaming_mode: true,
             update_multi: true,
             summary: { content: '[生成中...]' },
+            streaming_config: {
+              print_frequency_ms: { default: 70 },
+              print_step: { default: 2 },
+              print_strategy: 'fast',
+            },
           },
           body: {
-            elements: [],
+            elements: [
+              {
+                tag: 'markdown',
+                element_id: 'intro',
+                content: directory
+                  ? `**工作目录**\n\`${directory}\``
+                  : '**对话模式**\n使用默认 workspace 处理普通问答和轻量任务。',
+                icon: {
+                  tag: 'standard_icon',
+                  token: directory ? 'folder_outlined' : 'chatbox_outlined',
+                  color: directory ? 'indigo' : 'turquoise',
+                },
+              },
+              { tag: 'hr', element_id: 'intro_hr' },
+            ],
           },
         };
         cardId = await this.cardKitManager.createCard(cardJson);
@@ -305,7 +336,12 @@ export class MessageRouter {
           currentMdId = null;
           const mdId = nextMdId();
           log.info('chat', 'onTextStart addCardElements', { mdId, pendingTextDeltas: pendingTextDeltas.length });
-          const ok = await this.cardKitManager.addCardElements(cardId, [{ tag: 'markdown', content: '', element_id: mdId }], 'append', undefined, sequence++);
+          const ok = await this.cardKitManager.addCardElements(cardId, [{
+            tag: 'markdown',
+            content: '',
+            element_id: mdId,
+            text_size: 'normal',
+          }], 'append', undefined, sequence++);
           if (!ok) return;
           currentMdId = mdId;
           log.info('chat', 'onTextStart post-addCard flush', { mdId, pendingTextDeltas: pendingTextDeltas.length });
@@ -313,7 +349,7 @@ export class MessageRouter {
         },
         onThinkingStart: async () => {
           if (!cardId || !this.cardKitManager) return;
-          log.info('chat', 'onThinkingStart — creating collapsible_panel');
+          log.info('chat', 'onThinkingStart — creating thinking panel');
           // Flush any pending text content first
           await flushTextImmediate();
           // Switch to thinking mode
@@ -325,13 +361,32 @@ export class MessageRouter {
             tag: 'collapsible_panel',
             element_id: panelId,
             expanded: false,
+            direction: 'vertical',
+            vertical_spacing: '8px',
+            padding: '8px 10px 8px 10px',
             header: {
               title: { tag: 'plain_text', content: '思考过程' },
               vertical_align: 'center',
+              icon: {
+                tag: 'standard_icon',
+                token: 'details_outlined',
+                color: 'grey',
+                size: '16px 16px',
+              },
+              icon_position: 'right',
             },
             background_color: 'grey',
+            border: {
+              color: 'grey',
+              corner_radius: '8px',
+            },
             elements: [
-              { tag: 'markdown', content: '', element_id: mdId },
+              {
+                tag: 'markdown',
+                content: '',
+                element_id: mdId,
+                text_size: 'notation',
+              },
             ],
           }], 'append', undefined, sequence++);
           if (!ok) return;
