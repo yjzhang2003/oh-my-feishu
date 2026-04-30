@@ -20,76 +20,93 @@
 </p>
 
 <p align="center">
-  <a href="#效果">效果</a> ·
   <a href="#开始使用">开始使用</a> ·
   <a href="#你可以做什么">你可以做什么</a> ·
   <a href="#roadmap">Roadmap</a>
 </p>
 
-## 效果
-
-<p align="center">
-  <img src="pics/talk-demo.gif" alt="Ask Claude Code from Feishu" width="520">
-</p>
-
-<p align="center">
-  <em>在飞书里提问，Claude Code 以流式卡片完整回复。</em>
-</p>
-
-<p align="center">
-  <img src="pics/cli-demo.png" alt="CLI onboarding with QR code" width="600">
-</p>
-
-<p align="center">
-  <em>第一次启动时，CLI 会引导配置并直接展示 QR 码扫码。</em>
-</p>
-
-<p align="center">
-  <img src="pics/menu-demo.png" alt="Feishu menu card" width="600">
-</p>
-
-<p align="center">
-  <em>发送 <code>/menu</code> 打开飞书交互菜单，开始使用会话和 Gateway 功能。</em>
-</p>
-
 ## 开始使用
 
-第一次打开 `oh-my-feishu`，CLI 会带你完成配置。你不需要记住复杂步骤，只需要跟随界面完成检查、扫码和启动。
+开始之前，请先安装并配置好：
+
+- Claude Code：确保终端里可以运行 `claude --version`
+- lark-cli：确保终端里可以运行 `lark-cli --version`
+
+Claude Code 负责对话和执行任务，lark-cli 负责让 Claude Code 调用飞书能力。
+
+当然，我们的cli也会帮助你进行下载和配置。
+
+先拉取仓库并本地安装：
+
+```bash
+git clone https://github.com/yjzhang2003/oh-my-feishu.git
+cd oh-my-feishu
+
+npm install
+npm run build
+npm link
+```
+
+然后启动交互式配置：
+
+```bash
+oh-my-feishu
+```
+
+CLI 会带你完成检查、扫码和服务启动。你不需要记住复杂步骤，只需要跟随界面操作。
 
 完成后，在飞书里发送 `/menu`，就可以从菜单开始使用。
 
 ## 你可以做什么
 
+### 开始使用？
+
+无需繁琐的配置，只需安装好后在终端输入`oh-my-feishu`，接下来cli会指导你怎么做。
+
+<p align="center">
+  <img src="pics/cli-demo.png" alt="CLI onboarding with QR code" width="600">
+</p>
+
 ### 在飞书里和 Claude Code 对话
 
 不用切回终端，直接在飞书里问问题、讨论代码、查看 Claude Code 的完整回复。
+
+<p align="center">
+  <img src="pics/talk-demo.gif" alt="Ask Claude Code from Feishu" width="520">
+</p>
 
 ### 用菜单管理工作上下文
 
 通过 `/menu` 切换直接对话、目录会话和历史会话。普通问答可以直接聊；需要处理某个项目时，绑定到对应本地目录。
 
-### 让飞书成为团队入口
+<p align="center">
+  <img src="pics/menu-demo.png" alt="Feishu menu card" width="600">
+</p>
 
-团队成员可以在熟悉的飞书会话里触发 Claude Code，而不是每个人都重新理解本地命令和项目上下文。
+### 让 Claude Code 帮你使用飞书
+
+`oh-my-feishu`集成了完整的 lark-cli 技能， Claude Code 知道自己正在通过飞书与用户对话。普通问答直接回答；如果用户请求飞书操作，它会按需读取飞书技能。
+
+<p align="center">
+  <img src="pics/auto-feishu.png" alt="Auto generate docs" width="600">
+</p>
 
 ### 使用 Gateway 后台自动化
 
 Gateway 是后台能力入口。当前已经支持 Web 服务监控：注册 traceback 地址后，内容变化会触发 Claude Code 后台处理，并把最终结果发回飞书。
 
-### 让 Claude Code 按需使用飞书能力
+<p align="center">
+  <img src="pics/web-monitor.png" alt="Web monitor" width="600">
+</p>
 
-Claude Code 知道自己正在通过飞书与用户对话。普通问答直接回答；如果用户请求飞书操作，它会按需读取飞书技能。
+## 只给 Claude Code 加上飞书能力
 
-## 菜单入口
+如果你只是想让你的 Claude Code 项目获得飞书操作能力，可以直接安装我们的 oh-my-feishu plugin：
 
-- `新建会话`：开始直接对话或目录会话
-- `历史会话`：恢复最近使用过的项目上下文
-- `Gateway`：进入后台自动化服务
-- `指令菜单`：查看可用指令
-
-Web 服务监控入口：`/menu` -> `Gateway` -> `Web 服务监控` -> `新建监控`
-
-填写服务名称、GitHub 仓库和 Traceback URL 后即可创建监控。
+```bash
+claude plugin marketplace add https://github.com/yjzhang2003/oh-my-feishu
+claude plugin install oh-my-feishu@oh-my-feishu-marketplace --scope project
+```
 
 ## Roadmap
 
