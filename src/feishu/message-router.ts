@@ -188,6 +188,14 @@ export class MessageRouter {
             title: { content: 'Claude Code', tag: 'plain_text' },
             subtitle: { content: subtitleText, tag: 'plain_text' },
             template: 'wathet',
+            text_tag_list: [
+              {
+                tag: 'text_tag',
+                element_id: 'status_tag',
+                text: { tag: 'plain_text', content: '处理中...' },
+                color: 'orange',
+              },
+            ],
           },
           config: {
             streaming_mode: true,
@@ -358,6 +366,20 @@ export class MessageRouter {
         onDone: async () => {
           await flushTextImmediate();
           await flushThinkingImmediate();
+          // Update status tag and summary when done
+          if (cardId && this.cardKitManager) {
+            // Clear status tag (update text to empty)
+            await this.cardKitManager.updateCardProps(cardId, 'status_tag', {
+              text: { tag: 'plain_text', content: '' },
+            }, sequence++).catch(() => {});
+            // Update summary with first 100 chars of text content
+            const textContent = accumulated.get('m1') || '';
+            const summaryText = textContent.slice(0, 100).trim() || '回复完成';
+            await this.cardKitManager.updateCardSettings(cardId, {
+              streaming_mode: false,
+              summary: { content: summaryText + (textContent.length > 100 ? '...' : '') },
+            }, sequence++).catch(() => {});
+          }
         },
       }
     )

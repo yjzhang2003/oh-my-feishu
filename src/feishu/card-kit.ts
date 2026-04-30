@@ -246,6 +246,63 @@ export class CardKitManager {
   }
 
   /**
+   * Update card settings (streaming_mode, summary, etc.)
+   * Uses batch_update API with partial_update_setting action
+   */
+  async updateCardSettings(
+    cardId: string,
+    settings: {
+      streaming_mode?: boolean;
+      summary?: { content: string };
+    },
+    sequence: number
+  ): Promise<boolean> {
+    try {
+      const headers = await this.getHeaders();
+      const actions = [
+        {
+          action: 'partial_update_setting',
+          params: {
+            settings: { config: settings },
+          },
+        },
+      ];
+      const body = {
+        uuid: crypto.randomUUID(),
+        sequence,
+        actions: JSON.stringify(actions),
+      };
+      const url = `${this.domain}/open-apis/cardkit/v1/cards/${cardId}/batch_update`;
+      log.info('cardkit', 'updateCardSettings request', { url, body });
+      const response = await this.client.httpInstance.post(url, body, { headers });
+
+      log.info('cardkit', 'updateCardSettings response', {
+        status: response.status,
+        data: response.data,
+      });
+
+      if (response.data && typeof response.data.code === 'number' && response.data.code !== 0) {
+        log.warn('cardkit', 'updateCardSettings failed', {
+          cardId,
+          code: response.data.code,
+          msg: response.data.msg,
+        });
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      const err = error as any;
+      log.error('cardkit', 'Error updating card settings', {
+        cardId,
+        error: err.message,
+        responseData: err.response?.data,
+      });
+      return false;
+    }
+  }
+
+  /**
    * Full update card entity (e.g., close streaming mode)
    * PUT /open-apis/cardkit/v1/cards/:card_id
    */
