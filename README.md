@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  在飞书里直接使用 Claude Code：扫码配置、发送消息、打开菜单、绑定项目、触发后台自动化。
+  在飞书里使用 Claude Code 的最佳方式
 </p>
 
 <p align="center">
@@ -23,6 +23,8 @@
   <a href="#开始使用">开始使用</a> ·
   <a href="#你可以做什么">你可以做什么</a> ·
   <a href="#roadmap">Roadmap</a>
+  <a href="#声明">声明</a>
+  <a href="#感谢">感谢</a>
 </p>
 
 ## 开始使用
@@ -115,6 +117,18 @@ claude plugin install oh-my-feishu@oh-my-feishu-marketplace --scope project
 - 增加更多 Gateway 服务
 - 完善 Web 服务监控的列表、编辑、删除体验
 - 让飞书能力在 Claude Code 中更自然地按需发现
+
+## 声明
+
+本项目仍处于开发阶段，已经可以使用，但功能和体验还没有完全完善。如果你有想法、问题或建议，欢迎提 issue，或者直接联系我：<zhangyj2003@foxmail.com>。
+
+另外请注意：本项目中 Claude Code 默认运行在 skip permission 的使用方式下。请确认你理解相关风险，并只在可信环境中使用。
+
+## 感谢
+
+感谢飞书官方的 [larksuite/cli](https://github.com/larksuite/cli)，`oh-my-feishu` 的飞书能力建立在 lark-cli 生态之上。
+
+感谢 [Ink](https://github.com/vadimdemedes/ink)，我们使用 Ink 构建了交互式 CLI。
 
 ## License
 
