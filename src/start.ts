@@ -12,6 +12,11 @@ import { loadRegistry } from './service/registry.js';
 import { TracebackMonitor } from './monitor/traceback-monitor.js';
 import { install as installMarketplace } from './marketplace/index.js';
 import { resolve } from 'path';
+import {
+  createDefaultGatewayFeatureRegistry,
+  createGatewayRuntime,
+  GatewayFeatureRunner,
+} from './gateway/features/index.js';
 
 function keepAlive(): void {
   // Keep the process alive with a no-op interval
@@ -75,19 +80,7 @@ async function main() {
   }
 
   const ws = new FeishuWebSocket(config);
-
-  // Start traceback monitor if services are registered
   let tracebackMonitor: TracebackMonitor | null = null;
-  const registry = loadRegistry();
-  const enabledServices = registry.services.filter(s => s.enabled);
-  if (enabledServices.length > 0) {
-    tracebackMonitor = new TracebackMonitor();
-    tracebackMonitor.start().catch((err) => {
-      console.error('⚠️  TracebackMonitor failed to start:', err);
-      tracebackMonitor = null;
-    });
-    console.log(`✅ TracebackMonitor: Monitoring ${enabledServices.length} service(s)`);
-  }
 
   // Handle graceful shutdown
   const shutdown = async () => {
@@ -105,6 +98,24 @@ async function main() {
   try {
     await ws.connect();
     console.log('✅ WebSocket connected successfully!');
+
+    // Start traceback monitor if services are registered.
+    const registry = loadRegistry();
+    const enabledServices = registry.services.filter(s => s.enabled);
+    if (enabledServices.length > 0) {
+      const gatewayFeatureRunner = new GatewayFeatureRunner({
+        registry: createDefaultGatewayFeatureRegistry(),
+        runtime: createGatewayRuntime({
+          sendTextMessage: (chatId, text) => ws.sendTextMessage(chatId, text),
+        }),
+      });
+      tracebackMonitor = new TracebackMonitor({ gatewayRunner: gatewayFeatureRunner });
+      tracebackMonitor.start().catch((err) => {
+        console.error('⚠️  TracebackMonitor failed to start:', err);
+        tracebackMonitor = null;
+      });
+      console.log(`✅ TracebackMonitor: Monitoring ${enabledServices.length} service(s) via Gateway features`);
+    }
 
     // Create bot menu
     try {

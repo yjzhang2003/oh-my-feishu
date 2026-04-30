@@ -264,7 +264,7 @@ export class FeishuWebSocket {
       await this.client.im.v1.messageReaction.create({
         data: {
           reaction_type: {
-            emoji_type: 'OK',
+            emoji_type: 'DONE',
           },
         },
         path: {
