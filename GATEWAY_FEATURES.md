@@ -65,6 +65,18 @@ Features should not depend on Feishu command parsing details. Commands are only 
 - `MessageRouter` injects the runner into `CommandContext`
 - `TracebackMonitor` reuses the same runner instead of calling repair logic directly
 - `invokeClaudeTask()` is the non-streaming Claude execution path for Gateway features
+- `oh-my-feishu gateway ...` exposes a CLI adapter over the Gateway IPC socket
+
+## CLI Access
+
+Gateway features are available through the local CLI when the Gateway service is running:
+
+```bash
+oh-my-feishu gateway list
+oh-my-feishu gateway trigger <feature> <eventType> '<jsonPayload>'
+```
+
+This is the intended bridge for Claude Code skills that need to inspect or trigger Gateway capabilities from the workspace.
 
 ## Migration Rule
 

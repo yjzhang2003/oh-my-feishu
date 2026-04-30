@@ -50,6 +50,23 @@ describe('GatewayFeatureRunner', () => {
     expect(rt.sendFeishuMessage).not.toHaveBeenCalled();
   });
 
+  it('lists registered features for IPC callers', () => {
+    const registry = new GatewayFeatureRegistry();
+    registry.register({
+      name: 'status',
+      triggers: [{ type: 'status.query', source: 'feishu' }],
+      async handle() {
+        return { success: true };
+      },
+    });
+
+    const runner = new GatewayFeatureRunner({ registry, runtime: runtime() });
+
+    expect(runner.listFeatures()).toEqual([
+      { name: 'status', triggers: ['status.query'] },
+    ]);
+  });
+
   it('returns failed result when no feature matches', async () => {
     const runner = new GatewayFeatureRunner({
       registry: new GatewayFeatureRegistry(),

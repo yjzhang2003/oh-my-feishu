@@ -102,7 +102,7 @@ export class FeishuWebSocket {
     );
 
     // SessionManager for directory sessions
-    this.sessionManager = new SessionManager(this.sessionStore, sendMessage);
+    this.sessionManager = new SessionManager(this.sessionStore, sendMessage, this.gatewayFeatureRunner);
     this.messageRouter.setSessionManager(this.sessionManager);
   }
 

@@ -11,6 +11,13 @@ export interface GatewayFeatureRunnerOptions {
 export class GatewayFeatureRunner {
   constructor(private options: GatewayFeatureRunnerOptions) {}
 
+  listFeatures(): Array<{ name: string; triggers: GatewayEvent['type'][] }> {
+    return this.options.registry.list().map((feature) => ({
+      name: feature.name,
+      triggers: feature.triggers.map((trigger) => trigger.type),
+    }));
+  }
+
   async run(event: GatewayEvent): Promise<GatewayResult> {
     const feature = this.options.registry.match(event);
     if (!feature) {

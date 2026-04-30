@@ -108,6 +108,24 @@ export class GatewaySocketClient {
     this.send({ type: 'list' });
   }
 
+  listGatewayFeatures(): void {
+    this.send({ type: 'gateway:list' });
+  }
+
+  triggerGatewayFeature(input: {
+    feature: string;
+    eventType: string;
+    payload?: unknown;
+  }): void {
+    this.send({
+      type: 'gateway:trigger',
+      feature: input.feature,
+      eventType: input.eventType,
+      source: 'cli',
+      payload: input.payload ?? {},
+    });
+  }
+
   disconnect(): void {
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout);
