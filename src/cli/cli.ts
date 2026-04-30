@@ -5,6 +5,7 @@
  */
 
 import { handleSessionCommand, type SessionCommandOptions } from './commands/session.js';
+import { handleGatewayCommand, type GatewayCommandOptions } from './commands/gateway.js';
 import chalk from 'chalk';
 
 async function main() {
@@ -38,6 +39,17 @@ async function main() {
     return;
   }
 
+  if (command === 'gateway') {
+    const action = args[1] as GatewayCommandOptions['action'];
+    await handleGatewayCommand({
+      action,
+      feature: args[2],
+      eventType: args[3],
+      payloadJson: args[4],
+    });
+    return;
+  }
+
   if (command === 'help' || command === '--help' || command === '-h') {
     printHelp();
     return;
@@ -60,12 +72,17 @@ ${chalk.bold('Commands:')}
   session list               List active sessions
   session attach <chatId> <directory>  Attach to an existing session
   session destroy <chatId>  Destroy a session
+  gateway list              List Gateway features
+  gateway status            Show Gateway status
+  gateway trigger <feature> <eventType> [jsonPayload]
   help                      Show this help message
 
 ${chalk.bold('Examples:')}
   oh-my-feishu                    # Launch interactive TUI
   oh-my-feishu session new ./my-project  # Create session for my-project
   oh-my-feishu session list      # List active sessions
+  oh-my-feishu gateway list      # List Gateway features
+  oh-my-feishu gateway status    # Show Gateway status
 `);
 }
 

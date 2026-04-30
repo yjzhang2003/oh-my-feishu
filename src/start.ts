@@ -75,19 +75,7 @@ async function main() {
   }
 
   const ws = new FeishuWebSocket(config);
-
-  // Start traceback monitor if services are registered
   let tracebackMonitor: TracebackMonitor | null = null;
-  const registry = loadRegistry();
-  const enabledServices = registry.services.filter(s => s.enabled);
-  if (enabledServices.length > 0) {
-    tracebackMonitor = new TracebackMonitor();
-    tracebackMonitor.start().catch((err) => {
-      console.error('⚠️  TracebackMonitor failed to start:', err);
-      tracebackMonitor = null;
-    });
-    console.log(`✅ TracebackMonitor: Monitoring ${enabledServices.length} service(s)`);
-  }
 
   // Handle graceful shutdown
   const shutdown = async () => {
@@ -105,6 +93,18 @@ async function main() {
   try {
     await ws.connect();
     console.log('✅ WebSocket connected successfully!');
+
+    // Start traceback monitor if services are registered.
+    const registry = loadRegistry();
+    const enabledServices = registry.services.filter(s => s.enabled);
+    if (enabledServices.length > 0) {
+      tracebackMonitor = new TracebackMonitor({ gatewayRunner: ws.getGatewayFeatureRunner() });
+      tracebackMonitor.start().catch((err) => {
+        console.error('⚠️  TracebackMonitor failed to start:', err);
+        tracebackMonitor = null;
+      });
+      console.log(`✅ TracebackMonitor: Monitoring ${enabledServices.length} service(s) via Gateway features`);
+    }
 
     // Create bot menu
     try {

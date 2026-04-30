@@ -13,13 +13,17 @@ export interface Session {
 }
 
 export interface SessionMessage {
-  type: 'message' | 'create' | 'destroy' | 'list';
+  type: 'message' | 'create' | 'destroy' | 'list' | 'gateway:list' | 'gateway:trigger';
   sessionId?: string;
   chatId?: string;
   directory?: string;
   content?: string;
   senderOpenId?: string;
   messageId?: string;
+  feature?: string;
+  eventType?: string;
+  source?: 'feishu' | 'timer' | 'webhook' | 'cli' | 'internal';
+  payload?: unknown;
 }
 
 export interface SessionInfo {

@@ -11,6 +11,7 @@ import type { Session, SessionMessage, SessionInfo } from './types.js';
 import type { Socket } from 'net';
 import type { SessionStore } from '../feishu/interactions/session-store.js';
 import type { SendMessageFn } from '../feishu/message-router.js';
+import { createGatewayEvent, type GatewayFeatureRunner } from './features/index.js';
 
 export class SessionManager {
   private sessions = new Map<string, Session>();
@@ -20,10 +21,12 @@ export class SessionManager {
   private messageHandlers: Map<string, (message: string) => void> = new Map();
   private sessionStore: SessionStore;
   private sendMessage: SendMessageFn;
+  private gatewayFeatureRunner?: GatewayFeatureRunner;
 
-  constructor(sessionStore: SessionStore, sendMessage: SendMessageFn) {
+  constructor(sessionStore: SessionStore, sendMessage: SendMessageFn, gatewayFeatureRunner?: GatewayFeatureRunner) {
     this.sessionStore = sessionStore;
     this.sendMessage = sendMessage;
+    this.gatewayFeatureRunner = gatewayFeatureRunner;
     this.processManager = new ClaudeProcessManager();
     this.socketBridge = new UnixSocketBridge();
   }
@@ -56,6 +59,12 @@ export class SessionManager {
         break;
       case 'list':
         this.handleListSessions(socket);
+        break;
+      case 'gateway:list':
+        this.handleGatewayList(socket);
+        break;
+      case 'gateway:trigger':
+        this.handleGatewayTrigger(message, socket);
         break;
     }
   }
@@ -158,6 +167,57 @@ export class SessionManager {
     this.socketBridge.send(socket, {
       type: 'list',
       content: JSON.stringify(sessions),
+    });
+  }
+
+  private handleGatewayList(socket: Socket): void {
+    if (!this.gatewayFeatureRunner) {
+      this.socketBridge.send(socket, {
+        type: 'gateway:list',
+        content: JSON.stringify({ success: false, error: 'Gateway feature runner is not configured' }),
+      });
+      return;
+    }
+
+    this.socketBridge.send(socket, {
+      type: 'gateway:list',
+      content: JSON.stringify({
+        success: true,
+        features: this.gatewayFeatureRunner.listFeatures(),
+      }),
+    });
+  }
+
+  private async handleGatewayTrigger(message: SessionMessage, socket: Socket): Promise<void> {
+    if (!this.gatewayFeatureRunner) {
+      this.socketBridge.send(socket, {
+        type: 'gateway:trigger',
+        content: JSON.stringify({ success: false, error: 'Gateway feature runner is not configured' }),
+      });
+      return;
+    }
+
+    if (!message.feature || !message.eventType) {
+      this.socketBridge.send(socket, {
+        type: 'gateway:trigger',
+        content: JSON.stringify({ success: false, error: 'feature and eventType are required' }),
+      });
+      return;
+    }
+
+    const result = await this.gatewayFeatureRunner.run(createGatewayEvent({
+      feature: message.feature,
+      type: message.eventType,
+      source: message.source || 'cli',
+      chatId: message.chatId,
+      senderOpenId: message.senderOpenId,
+      messageId: message.messageId,
+      payload: message.payload ?? {},
+    }));
+
+    this.socketBridge.send(socket, {
+      type: 'gateway:trigger',
+      content: JSON.stringify(result),
     });
   }
 

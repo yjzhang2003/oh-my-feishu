@@ -13,9 +13,11 @@ export class GatewaySocketClient {
   private messageHandler: ((message: SessionMessage) => void) | null = null;
   private reconnectTimeout: NodeJS.Timeout | null = null;
   private connected = false;
+  private manualDisconnect = false;
 
   async connect(onMessage: (message: SessionMessage) => void): Promise<void> {
     this.messageHandler = onMessage;
+    this.manualDisconnect = false;
 
     return new Promise((resolve, reject) => {
       this.socket = createConnection(SOCKET_PATH, () => {
@@ -38,7 +40,9 @@ export class GatewaySocketClient {
       this.socket.on('close', () => {
         log.info('socket-client', 'Disconnected from Gateway');
         this.connected = false;
-        this.scheduleReconnect();
+        if (!this.manualDisconnect) {
+          this.scheduleReconnect();
+        }
       });
 
       this.socket.on('error', (err) => {
@@ -108,7 +112,26 @@ export class GatewaySocketClient {
     this.send({ type: 'list' });
   }
 
+  listGatewayFeatures(): void {
+    this.send({ type: 'gateway:list' });
+  }
+
+  triggerGatewayFeature(input: {
+    feature: string;
+    eventType: string;
+    payload?: unknown;
+  }): void {
+    this.send({
+      type: 'gateway:trigger',
+      feature: input.feature,
+      eventType: input.eventType,
+      source: 'cli',
+      payload: input.payload ?? {},
+    });
+  }
+
   disconnect(): void {
+    this.manualDisconnect = true;
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout);
       this.reconnectTimeout = null;

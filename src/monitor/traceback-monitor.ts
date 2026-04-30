@@ -1,13 +1,13 @@
 import { setTimeout as sleep } from 'timers/promises';
-import { writeTrigger } from '../trigger/trigger.js';
-import { invokeClaudeSkill } from '../trigger/invoker.js';
-import {
-  type ServiceEntry,
-  listEnabledServices,
-  updateServiceErrorHash,
-  hashContent,
-} from '../service/registry.js';
 import { log } from '../utils/logger.js';
+import type { GatewayFeatureRunner } from '../gateway/features/index.js';
+import {
+  dispatchTracebackDetected,
+  hashTracebackContent,
+  listEnabledWebMonitorServices,
+  updateWebMonitorServiceHash,
+  type WebMonitorService,
+} from '../gateway/features/web-monitor/index.js';
 
 const DEFAULT_POLL_INTERVAL_SEC = 60;
 const FETCH_TIMEOUT_MS = 10000;
@@ -17,9 +17,11 @@ const DEFAULT_GLOBAL_INTERVAL_SEC = 60;
 export class TracebackMonitor {
   private running = false;
   private globalIntervalSec: number;
+  private gatewayRunner?: GatewayFeatureRunner;
 
-  constructor(options?: { globalIntervalSec?: number }) {
+  constructor(options?: { globalIntervalSec?: number; gatewayRunner?: GatewayFeatureRunner }) {
     this.globalIntervalSec = options?.globalIntervalSec ?? DEFAULT_GLOBAL_INTERVAL_SEC;
+    this.gatewayRunner = options?.gatewayRunner;
   }
 
   isRunning(): boolean {
@@ -47,7 +49,7 @@ export class TracebackMonitor {
   }
 
   private async pollAll(): Promise<void> {
-    const services = listEnabledServices();
+    const services = listEnabledWebMonitorServices();
     if (services.length === 0) {
       return;
     }
@@ -69,7 +71,7 @@ export class TracebackMonitor {
     }
   }
 
-  private async pollService(service: ServiceEntry): Promise<void> {
+  private async pollService(service: WebMonitorService): Promise<void> {
     const now = new Date().toISOString();
 
     try {
@@ -87,7 +89,7 @@ export class TracebackMonitor {
         log.warn('monitor', `Traceback fetch failed for ${service.name}`, {
           status: response.status,
         });
-        updateServiceErrorHash(service.name, service.lastErrorHash ?? '', now);
+        updateWebMonitorServiceHash(service.name, service.lastErrorHash ?? '', now);
         return;
       }
 
@@ -98,18 +100,18 @@ export class TracebackMonitor {
         content = content.slice(0, MAX_CONTENT_SIZE);
       }
 
-      const currentHash = hashContent(content);
+      const currentHash = hashTracebackContent(content);
 
       // Dedup: skip if same hash as last time
       if (currentHash === service.lastErrorHash) {
-        updateServiceErrorHash(service.name, currentHash, now);
+        updateWebMonitorServiceHash(service.name, currentHash, now);
         return;
       }
 
       // Skip on first check — just record the hash without triggering
       if (!service.lastErrorHash) {
         log.info('monitor', `Initial hash recorded for ${service.name}`);
-        updateServiceErrorHash(service.name, currentHash, now);
+        updateWebMonitorServiceHash(service.name, currentHash, now);
         return;
       }
 
@@ -119,37 +121,37 @@ export class TracebackMonitor {
         currentHash: currentHash.slice(0, 12),
       });
 
-      updateServiceErrorHash(service.name, currentHash, now);
+      const previousHash = service.lastErrorHash;
+      updateWebMonitorServiceHash(service.name, currentHash, now);
 
-      await this.triggerRepair(service, content);
+      await this.triggerRepair(service, content, previousHash, currentHash);
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unknown error';
       log.warn('monitor', `Traceback poll error for ${service.name}`, { error: msg });
-      updateServiceErrorHash(service.name, service.lastErrorHash ?? '', now);
+      updateWebMonitorServiceHash(service.name, service.lastErrorHash ?? '', now);
     }
   }
 
-  private async triggerRepair(service: ServiceEntry, tracebackContent: string): Promise<void> {
+  private async triggerRepair(
+    service: WebMonitorService,
+    tracebackContent: string,
+    previousHash?: string,
+    currentHash?: string
+  ): Promise<void> {
     log.info('monitor', `Triggering auto-repair for ${service.name}`);
 
-    writeTrigger({
-      context: `TracebackMonitor: ${service.name} (${service.githubOwner}/${service.githubRepo})`,
-      error_log: tracebackContent.slice(0, 4000), // Limit to 4KB for trigger
-      service_name: service.name,
-      traceback_url: service.tracebackUrl,
-      source: 'traceback-monitor',
-      timestamp: new Date().toISOString(),
-      metadata: {
-        github_owner: service.githubOwner,
-        github_repo: service.githubRepo,
-        notify_chat_id: service.notifyChatId,
-      },
-    });
-
-    invokeClaudeSkill({ skill: 'auto-repair' }).catch((err) => {
-      log.error('monitor', `Auto-repair invocation failed for ${service.name}`, {
-        error: String(err),
+    if (!this.gatewayRunner) {
+      log.error('monitor', 'Gateway feature runner is not configured; traceback event skipped', {
+        service: service.name,
       });
+      return;
+    }
+
+    await dispatchTracebackDetected(this.gatewayRunner, {
+      service,
+      tracebackContent,
+      previousHash,
+      currentHash,
     });
   }
 }

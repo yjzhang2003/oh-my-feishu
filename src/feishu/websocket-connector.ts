@@ -16,6 +16,11 @@ import { SessionManager } from '../gateway/session-manager.js';
 import { CardKitManager } from './card-kit.js';
 import { createMainMenuCard } from './card-builder/menu-cards.js';
 import { install as installPlugin } from '../marketplace/index.js';
+import {
+  createDefaultGatewayFeatureRegistry,
+  createGatewayRuntime,
+  GatewayFeatureRunner,
+} from '../gateway/features/index.js';
 
 export interface FeishuWebSocketConfig {
   appId: string;
@@ -41,6 +46,7 @@ export class FeishuWebSocket {
   private cardDispatcher: CardDispatcher;
   private sessionManager: SessionManager;
   private cardKitManager: CardKitManager;
+  private gatewayFeatureRunner: GatewayFeatureRunner;
 
   constructor(config: FeishuWebSocketConfig) {
     this.config = config;
@@ -64,6 +70,22 @@ export class FeishuWebSocket {
 
     // CardKit manager for in-place card updates
     this.cardKitManager = new CardKitManager(this.client, config.domain);
+    this.gatewayFeatureRunner = new GatewayFeatureRunner({
+      registry: createDefaultGatewayFeatureRegistry(),
+      runtime: createGatewayRuntime({
+        sendTextMessage: (chatId, text) => this.sendTextMessage(chatId, text),
+        updateCard: (input) => {
+          switch (input.kind) {
+            case 'content':
+              return this.cardKitManager.updateCardContent(input.cardId, input.elementId, input.content, input.sequence);
+            case 'props':
+              return this.cardKitManager.updateCardProps(input.cardId, input.elementId, input.props, input.sequence);
+            case 'settings':
+              return this.cardKitManager.updateCardSettings(input.cardId, input.settings, input.sequence);
+          }
+        },
+      }),
+    });
 
     // Create sendMessage interface for MessageRouter
     const sendMessage: SendMessageFn = {
@@ -77,13 +99,20 @@ export class FeishuWebSocket {
     };
 
     this.messageRouter = new MessageRouter(this.commandRegistry, this.sessionStore, sendMessage, this.cardKitManager);
+    this.messageRouter.setGatewayFeatureRunner(this.gatewayFeatureRunner);
 
     // CardDispatcher needs sendCard to send cards and cardKitManager for updates
     const sendCard = (chatId: string, card: object) => this.sendCardMessageRaw(chatId, card);
-    this.cardDispatcher = new CardDispatcher(this.sessionStore, this.sessionHistoryStore, this.cardKitManager, sendCard);
+    this.cardDispatcher = new CardDispatcher(
+      this.sessionStore,
+      this.sessionHistoryStore,
+      this.cardKitManager,
+      sendCard,
+      this.gatewayFeatureRunner
+    );
 
     // SessionManager for directory sessions
-    this.sessionManager = new SessionManager(this.sessionStore, sendMessage);
+    this.sessionManager = new SessionManager(this.sessionStore, sendMessage, this.gatewayFeatureRunner);
     this.messageRouter.setSessionManager(this.sessionManager);
   }
 
@@ -138,6 +167,10 @@ export class FeishuWebSocket {
 
   getClient(): lark.Client {
     return this.client;
+  }
+
+  getGatewayFeatureRunner(): GatewayFeatureRunner {
+    return this.gatewayFeatureRunner;
   }
 
   /**
@@ -264,7 +297,7 @@ export class FeishuWebSocket {
       await this.client.im.v1.messageReaction.create({
         data: {
           reaction_type: {
-            emoji_type: 'OK',
+            emoji_type: 'DONE',
           },
         },
         path: {

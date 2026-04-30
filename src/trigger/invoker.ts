@@ -28,6 +28,15 @@ export interface ChatContext {
   sessionId?: string;
 }
 
+export interface ClaudeTaskInput {
+  feature: string;
+  instruction: string;
+  context?: Record<string, unknown>;
+  cwd?: string;
+  env?: Record<string, string>;
+  timeout?: number;
+}
+
 export interface StreamCallbacks {
   onTextDelta?: (text: string) => void | Promise<void>;
   onThinkingDelta?: (text: string) => void | Promise<void>;
@@ -35,6 +44,22 @@ export interface StreamCallbacks {
   onTextStart?: () => void | Promise<void>;
   onToolUse?: (toolName: string, input: string) => void | Promise<void>;
   onDone?: () => void | Promise<void>;
+}
+
+function buildFeishuContextEnv(context?: {
+  chatId?: string;
+  senderOpenId?: string;
+  chatType?: string;
+  messageId?: string;
+}): Record<string, string> {
+  if (!context) return {};
+
+  return {
+    ...(context.chatId ? { FEISHU_CHAT_ID: context.chatId } : {}),
+    ...(context.senderOpenId ? { FEISHU_SENDER_OPEN_ID: context.senderOpenId } : {}),
+    ...(context.chatType ? { FEISHU_CHAT_TYPE: context.chatType } : {}),
+    ...(context.messageId ? { FEISHU_MESSAGE_ID: context.messageId } : {}),
+  };
 }
 
 // Read .env from workspace/.claude/.env and return as env vars object
@@ -129,6 +154,65 @@ export async function invokeClaudeSkill(options: InvokeOptions): Promise<InvokeR
 }
 
 /**
+ * Invoke Claude Code for a Gateway feature task.
+ *
+ * This path is intentionally non-streaming: Gateway automations should publish
+ * only a final result instead of exposing intermediate thinking or partial text.
+ */
+export async function invokeClaudeTask(input: ClaudeTaskInput): Promise<InvokeResult> {
+  const cwd = input.cwd ? resolve(input.cwd) : resolve(env.REPO_ROOT, 'workspace');
+  const timeout = input.timeout ?? 300000;
+  const workspaceEnv = loadWorkspaceEnv();
+
+  const prompt = [
+    '你正在处理 oh-my-feishu Gateway 功能任务。',
+    '这是后台自动化任务，不是实时对话；不要输出中间过程，只返回最终结论、执行结果和必要的后续操作。',
+    `功能模块：${input.feature}`,
+    '',
+    '任务说明：',
+    input.instruction,
+    '',
+    input.context ? `结构化上下文：\n${JSON.stringify(input.context, null, 2)}` : '',
+  ].filter(Boolean).join('\n');
+
+  try {
+    const result = await execa('claude', [
+      '-p',
+      '--dangerously-skip-permissions',
+      prompt,
+    ], {
+      cwd,
+      timeout,
+      reject: false,
+      stdin: 'ignore',
+      env: { ...process.env, ...workspaceEnv, ...input.env },
+    });
+
+    return {
+      success: result.exitCode === 0,
+      stdout: result.stdout,
+      stderr: result.stderr,
+      exitCode: result.exitCode ?? 1,
+    };
+  } catch (error) {
+    if (error instanceof Error) {
+      return {
+        success: false,
+        stdout: '',
+        stderr: error.message,
+        exitCode: 1,
+      };
+    }
+    return {
+      success: false,
+      stdout: '',
+      stderr: 'Unknown error',
+      exitCode: 1,
+    };
+  }
+}
+
+/**
  * Invoke Claude Code directly with a chat message
  * Uses skills to teach Claude how to respond via lark-cli
  * Each chat ID gets its own session for context continuity
@@ -143,12 +227,7 @@ export async function invokeClaudeChat(
     : resolve(env.REPO_ROOT, 'workspace');
 
   // Pass context as environment variables for the skill to use
-  const contextEnv = {
-    FEISHU_CHAT_ID: context.chatId,
-    FEISHU_SENDER_OPEN_ID: context.senderOpenId,
-    FEISHU_CHAT_TYPE: context.chatType,
-    ...(context.messageId ? { FEISHU_MESSAGE_ID: context.messageId } : {}),
-  };
+  const contextEnv = buildFeishuContextEnv(context);
 
   // Use provided sessionId or generate from chatId
   const sessionId = context.sessionId || chatIdToSessionId(context.chatId);

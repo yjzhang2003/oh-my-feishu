@@ -84,7 +84,7 @@ function columnSet(columns: CardV2Element[][]): CardV2Element {
 function commandTable(): CardV2Element {
   return {
     tag: 'table',
-    page_size: 4,
+    page_size: 7,
     row_height: 'low',
     margin: '4px 0px 0px 0px',
     header_style: {
@@ -96,14 +96,17 @@ function commandTable(): CardV2Element {
       lines: 1,
     },
     columns: [
-      { name: 'command', display_name: '命令', data_type: 'lark_md', width: '28%' },
-      { name: 'usage', display_name: '用途', data_type: 'text', width: '72%' },
+      { name: 'command', display_name: '命令', data_type: 'lark_md', width: '56%' },
+      { name: 'usage', display_name: '用途', data_type: 'text', width: '44%' },
     ],
     rows: [
       { command: '`/menu`', usage: '打开菜单' },
       { command: '`/status`', usage: '查看运行状态' },
-      { command: '`/service`', usage: '管理监控服务' },
-      { command: '`/repair`', usage: '触发修复流程' },
+      { command: '`/service list`', usage: '查看监控服务' },
+      { command: '`/service add <name> <owner/repo> <url>`', usage: '注册监控服务' },
+      { command: '`/service enable <name>`', usage: '启用监控服务' },
+      { command: '`/service disable <name>`', usage: '停用监控服务' },
+      { command: '`/repair <context>`', usage: '触发后台修复流程' },
     ],
   };
 }
@@ -262,7 +265,7 @@ export function createMainMenuCard(): CardBuildResult {
       { text: 'interactive', color: 'blue' },
     ],
     elements: [
-      md('把飞书对话直接连接到 Claude Code。发送普通消息即可开始对话，需要菜单时发送 `/menu`。'),
+      md('这里是菜单！发送 `/menu`即可调出菜单。'),
       columnSet([
         [
           interactiveCard({
@@ -283,7 +286,226 @@ export function createMainMenuCard(): CardBuildResult {
           }),
         ],
       ]),
+      columnSet([
+        [
+          interactiveCard({
+            title: 'Gateway',
+            description: '查看后台自动化能力：状态、服务监控和修复任务。',
+            icon: 'robot_outlined',
+            color: 'green',
+            action: 'menu:gateway',
+          }),
+        ],
+        [
+          interactiveCard({
+            title: '指令菜单',
+            description: '查看可用 slash commands 和参数格式。',
+            icon: 'command_outlined',
+            color: 'orange',
+            action: 'menu:commands',
+          }),
+        ],
+      ]),
+    ],
+  });
+}
+
+/** Level 2: Gateway service list */
+export function createGatewayMenuCard(): CardBuildResult {
+  return createCardV2({
+    title: 'Gateway',
+    subtitle: '功能服务',
+    template: 'green',
+    icon: { token: 'robot_outlined', color: 'green' },
+    tags: [
+      { text: 'gateway', color: 'green' },
+      { text: '1 service', color: 'neutral' },
+    ],
+    elements: [
+      md('Gateway 服务用于承载后台自动化能力。每个服务都有自己的触发条件、配置页面和最终结果通知。'),
+      columnSet([
+        [
+          interactiveCard({
+            title: 'Web 服务监控',
+            description: '监控服务 traceback URL，发现新错误后触发后台修复。',
+            icon: 'search_outlined',
+            color: 'green',
+            action: 'menu:gateway-web-monitor',
+          }),
+        ],
+      ]),
+    ],
+    buttons: [
+      { text: '新建服务', action: 'menu:gateway-new-service' },
+      { text: '返回', action: 'menu:back' },
+    ],
+  });
+}
+
+/** Level 3: Web monitor Gateway service */
+export function createWebMonitorMenuCard(): CardBuildResult {
+  return createCardV2({
+    title: 'Web 服务监控',
+    subtitle: 'Gateway service',
+    template: 'green',
+    icon: { token: 'search_outlined', color: 'green' },
+    tags: [
+      { text: 'web-monitor', color: 'green' },
+      { text: 'traceback', color: 'neutral' },
+    ],
+    elements: [
+      md('轮询已注册服务的 traceback URL。首次读取只记录基线 hash，后续内容变化会触发 Gateway 后台任务。'),
+      columnSet([
+        [
+          iconMd('**触发条件**\ntraceback 内容 hash 发生变化。', 'status-meeting_outlined', 'green'),
+          iconMd('**处理方式**\n调用 Claude Code 静默分析，只发布最终结果。', 'robot_outlined', 'green'),
+        ],
+        [
+          iconMd('**服务配置**\n当前通过 `/service ...` 管理监控服务。', 'command_outlined', 'green'),
+          iconMd('**结果通知**\n发送到服务注册时绑定的飞书会话。', 'chatbox_outlined', 'green'),
+        ],
+      ]),
+    ],
+    buttons: [
+      { text: '新建监控', action: 'menu:web-monitor-new' },
+      { text: '返回 Gateway', action: 'menu:gateway' },
+      { text: '返回', action: 'menu:back' },
+    ],
+  });
+}
+
+/** Level 4: Web monitor creation form */
+export function createWebMonitorInputCard(): object {
+  return {
+    schema: '2.0',
+    header: {
+      title: { tag: 'plain_text', content: '新建监控' },
+      subtitle: { tag: 'plain_text', content: 'Web 服务监控' },
+      template: 'green',
+      icon: {
+        tag: 'standard_icon',
+        token: 'search_outlined',
+        color: 'green',
+      },
+      padding: '12px',
+    },
+    config: {
+      update_multi: true,
+      summary: { content: '新建 Web 服务监控' },
+    },
+    body: {
+      elements: [
+        iconMd('**填写监控信息**\n提交后会注册一个 Web 服务监控，首次轮询只记录基线 hash。', 'search_outlined', 'green'),
+        {
+          tag: 'form',
+          direction: 'vertical',
+          vertical_spacing: '12px',
+          padding: '4px 0px 0px 0px',
+          margin: '8px 0px 0px 0px',
+          name: 'wm_form',
+          elements: [
+            {
+              tag: 'input',
+              element_id: 'wm_name',
+              name: 'wm_name',
+              required: true,
+              width: 'fill',
+              max_length: 80,
+              label: { tag: 'plain_text', content: '服务名称' },
+              placeholder: { tag: 'plain_text', content: '例如 my-api' },
+            },
+            {
+              tag: 'input',
+              element_id: 'wm_repo',
+              name: 'wm_repo',
+              required: true,
+              width: 'fill',
+              max_length: 160,
+              label: { tag: 'plain_text', content: 'GitHub 仓库' },
+              placeholder: { tag: 'plain_text', content: 'owner/repo' },
+            },
+            {
+              tag: 'input',
+              element_id: 'wm_url',
+              name: 'wm_url',
+              required: true,
+              width: 'fill',
+              max_length: 500,
+              label: { tag: 'plain_text', content: 'Traceback URL' },
+              placeholder: { tag: 'plain_text', content: 'https://example.com/traceback' },
+            },
+            {
+              tag: 'column_set',
+              flex_mode: 'none',
+              horizontal_spacing: '8px',
+              horizontal_align: 'right',
+              columns: [
+                {
+                  tag: 'column',
+                  width: 'auto',
+                  elements: [
+                    {
+                      tag: 'button',
+                      text: { tag: 'plain_text', content: '创建监控' },
+                      type: 'primary',
+                      width: 'default',
+                      icon: { tag: 'standard_icon', token: 'add_outlined' },
+                      form_action_type: 'submit',
+                      name: 'wm_submit',
+                    },
+                  ],
+                },
+                {
+                  tag: 'column',
+                  width: 'auto',
+                  elements: [
+                    {
+                      tag: 'button',
+                      text: { tag: 'plain_text', content: '清空' },
+                      type: 'default',
+                      width: 'default',
+                      form_action_type: 'reset',
+                      name: 'wm_reset',
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          tag: 'button',
+          text: { tag: 'plain_text', content: '返回 Web 服务监控' },
+          type: 'default',
+          width: 'default',
+          behaviors: [
+            {
+              type: 'callback',
+              value: { action: 'menu:gateway-web-monitor' },
+            },
+          ],
+        },
+      ],
+    },
+  };
+}
+
+/** Level 2: Command reference */
+export function createCommandMenuCard(): CardBuildResult {
+  return createCardV2({
+    title: '指令菜单',
+    subtitle: 'Slash commands',
+    template: 'orange',
+    icon: { token: 'command_outlined', color: 'orange' },
+    tags: [
+      { text: 'commands', color: 'orange' },
+    ],
+    elements: [
+      iconMd('**对话与会话**\n普通消息会直接进入 Claude Code；需要切换上下文时使用菜单入口。', 'chatbox_outlined', 'orange'),
       commandTable(),
+    ],
+    buttons: [
+      { text: '返回', action: 'menu:back' },
     ],
   });
 }

@@ -7,6 +7,13 @@ import {
   createServiceAddSuccessCard,
   createServiceAddCancelledCard,
 } from './card-builder.js';
+import {
+  createCommandMenuCard,
+  createGatewayMenuCard,
+  createMainMenuCard,
+  createWebMonitorInputCard,
+  createWebMonitorMenuCard,
+} from './card-builder/menu-cards.js';
 
 describe('CardBuilder', () => {
   test('createCallbackCard builds card with header and elements', () => {
@@ -59,5 +66,50 @@ describe('CardBuilder', () => {
     const card = createServiceAddCancelledCard();
     expect(card.header?.title.content).toBe('❌ 注册已取消');
     expect(card.header?.template).toBe('red');
+  });
+
+  test('main menu keeps commands behind a second-level page', () => {
+    const { card } = createMainMenuCard();
+    const elements = ((card as any).body.elements ?? []) as any[];
+
+    expect(elements.some((element) => element.tag === 'table')).toBe(false);
+    expect(JSON.stringify(elements)).toContain('menu:gateway');
+    expect(JSON.stringify(elements)).toContain('menu:commands');
+  });
+
+  test('gateway and command menu cards expose second-level content', () => {
+    const gateway = createGatewayMenuCard().card as any;
+    const commands = createCommandMenuCard().card as any;
+
+    expect(gateway.header.title.content).toBe('Gateway');
+    expect(JSON.stringify(gateway.body.elements)).toContain('Web 服务监控');
+    expect(JSON.stringify(gateway.body.elements)).toContain('menu:gateway-web-monitor');
+    expect(JSON.stringify(gateway)).not.toContain('menu:commands');
+    expect(commands.header.title.content).toBe('指令菜单');
+    expect(commands.body.elements.some((element: any) => element.tag === 'table')).toBe(true);
+    expect(JSON.stringify(commands)).not.toContain('oh-my-feishu gateway');
+    expect(JSON.stringify(commands)).not.toContain('menu:gateway');
+  });
+
+  test('web monitor menu card exposes monitor actions', () => {
+    const webMonitor = createWebMonitorMenuCard().card as any;
+    const cardJson = JSON.stringify(webMonitor);
+
+    expect(webMonitor.header.title.content).toBe('Web 服务监控');
+    expect(cardJson).toContain('menu:web-monitor-new');
+    expect(cardJson).toContain('menu:gateway');
+    expect(cardJson).not.toContain('menu:commands');
+  });
+
+  test('web monitor input card contains required form fields', () => {
+    const card = createWebMonitorInputCard() as any;
+    const cardJson = JSON.stringify(card);
+
+    expect(card.header.title.content).toBe('新建监控');
+    expect(cardJson).toContain('"name":"wm_form"');
+    expect(cardJson).toContain('"name":"wm_name"');
+    expect(cardJson).toContain('"name":"wm_repo"');
+    expect(cardJson).toContain('"name":"wm_url"');
+    expect(cardJson).toContain('"form_action_type":"submit"');
   });
 });

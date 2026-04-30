@@ -3,7 +3,6 @@
  */
 
 import { SessionStore } from '../session-store.js';
-import { addService } from '../../../service/registry.js';
 import {
   createServiceAddStep1Card,
   createServiceAddStep2Card,
@@ -14,11 +13,13 @@ import {
 } from '../../card-builder.js';
 import type { SendCardFn } from '../../types.js';
 import { log } from '../../../utils/logger.js';
+import { createGatewayEvent, type GatewayFeatureRunner } from '../../../gateway/features/index.js';
 
 export class ServiceAddFlow {
   constructor(
     private sessionStore: SessionStore,
-    private sendCard: SendCardFn
+    private sendCard: SendCardFn,
+    private gatewayFeatureRunner?: GatewayFeatureRunner
   ) {}
 
   async start(chatId: string, senderOpenId: string): Promise<void> {
@@ -117,20 +118,31 @@ export class ServiceAddFlow {
     const session = this.sessionStore.get(chatId);
     const name = session.data.name as string;
     const repo = session.data.repo as string;
-    const [githubOwner, githubRepo] = repo.split('/');
 
     try {
-      addService({
-        name,
-        githubOwner,
-        githubRepo,
-        tracebackUrl: trimmedUrl,
-        notifyChatId: chatId,
-        tracebackUrlType: 'json',
-        enabled: true,
-        addedAt: new Date().toISOString(),
-        addedBy: senderOpenId,
-      });
+      if (!this.gatewayFeatureRunner) {
+        throw new Error('Gateway feature runner is not configured');
+      }
+
+      const result = await this.gatewayFeatureRunner.run(createGatewayEvent({
+        feature: 'service-admin',
+        type: 'service.command',
+        source: 'feishu',
+        chatId,
+        senderOpenId,
+        payload: {
+          action: 'add',
+          name,
+          repo,
+          tracebackUrl: trimmedUrl,
+          notifyChatId: chatId,
+          addedBy: senderOpenId,
+        },
+      }));
+
+      if (!result.success) {
+        throw new Error(result.message || String(result.data?.elements || 'Gateway feature failed'));
+      }
 
       log.info('flow', 'ServiceAddFlow completed', { chatId, name, repo });
       this.sessionStore.clear(chatId);
