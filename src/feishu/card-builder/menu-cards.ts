@@ -63,6 +63,40 @@ function interactiveCard(options: {
   };
 }
 
+function sessionOptionCard(options: {
+  title: string;
+  description: string;
+  icon: string;
+  color: string;
+  action: string;
+}): CardV2Element {
+  return {
+    tag: 'interactive_container',
+    width: 'fill',
+    direction: 'vertical',
+    vertical_spacing: '4px',
+    background_style: 'default',
+    has_border: true,
+    border_color: options.color,
+    corner_radius: '10px',
+    padding: '10px 12px 10px 12px',
+    hover_tips: {
+      tag: 'plain_text',
+      content: options.title,
+    },
+    behaviors: [
+      {
+        type: 'callback',
+        value: { action: options.action },
+      },
+    ],
+    elements: [
+      iconMd(`**${options.title}**`, options.icon, options.color),
+      md(options.description),
+    ],
+  };
+}
+
 function columnSet(columns: CardV2Element[][]): CardV2Element {
   return {
     tag: 'column_set',
@@ -111,33 +145,8 @@ function commandTable(): CardV2Element {
   };
 }
 
-function historyTable(entries: HistoryEntry[]): CardV2Element {
-  return {
-    tag: 'table',
-    page_size: Math.min(Math.max(entries.length, 1), 5),
-    row_height: 'low',
-    margin: '4px 0px 0px 0px',
-    header_style: {
-      text_align: 'left',
-      text_size: 'normal',
-      background_style: 'grey',
-      text_color: 'grey',
-      bold: true,
-      lines: 1,
-    },
-    columns: [
-      { name: 'index', display_name: '#', data_type: 'text', width: '12%', horizontal_align: 'center' },
-      { name: 'directory', display_name: '目录', data_type: 'lark_md', width: '48%' },
-      { name: 'session', display_name: '会话', data_type: 'text', width: '20%' },
-      { name: 'last_used', display_name: '最近', data_type: 'text', width: '20%' },
-    ],
-    rows: entries.map((entry, i) => ({
-      index: String(i + 1),
-      directory: `\`${entry.directory.split('/').pop() || entry.directory}\``,
-      session: entry.sessionId ? `${entry.sessionId.slice(0, 8)}...` : '新会话',
-      last_used: relativeTime(entry.lastUsed),
-    })),
-  };
+function historyEntryTitle(entry: HistoryEntry): string {
+  return entry.directory.split('/').filter(Boolean).pop() || entry.directory;
 }
 
 interface CallbackButton {
@@ -667,6 +676,58 @@ export function createDirectoryInputCard(): object {
   };
 }
 
+export function createDirectorySessionSelectCard(
+  directory: string,
+  sessions: { id: string; lastActive: string; summary?: string }[]
+): CardBuildResult {
+  return createCardV2({
+    title: '选择会话',
+    subtitle: '连接已有 Claude Code session，或创建新会话',
+    template: 'indigo',
+    icon: { token: 'folder_outlined', color: 'indigo' },
+    tags: [{ text: `${sessions.length} 个可恢复`, color: 'indigo' }],
+    elements: [
+      iconMd(`**目录**\n\`${directory}\``, 'folder_outlined', 'indigo'),
+      ...sessions.slice(0, 10).map((session, index) => sessionOptionCard({
+        title: `${index + 1}. ${session.summary || '未识别摘要'}`,
+        description: `最近活动：${session.lastActive}\nSession：\`${session.id.slice(0, 8)}...\``,
+        icon: 'chatbox_outlined',
+        color: 'indigo',
+        action: `session:select:${session.id}`,
+      })),
+      iconMd('**下一步**\n点击下方按钮选择要连接的会话，或创建一个新的目录会话。', 'info_outlined', 'grey'),
+    ],
+    buttons: [
+      { text: '新建会话', action: 'session:select:new' },
+      { text: '取消', action: 'session:add-cancel' },
+    ],
+  });
+}
+
+export function createDirectorySessionSuccessCard(directory: string, sessionId: string | null): CardBuildResult {
+  const sessionContent = sessionId
+    ? `已连接 \`${sessionId}\``
+    : '将创建新的 Claude Code 会话';
+
+  return createCardV2({
+    title: '目录会话已创建',
+    subtitle: sessionId ? '已连接已有 Claude Code session' : '新目录会话',
+    template: 'green',
+    icon: { token: 'check_outlined', color: 'green' },
+    tags: [{ text: sessionId ? 'resumed' : 'new', color: 'green' }],
+    elements: [
+      columnSet([
+        [iconMd(`**目录**\n\`${directory}\``, 'folder_outlined', 'green')],
+        [iconMd(`**会话**\n${sessionContent}`, 'chatbox_outlined', 'green')],
+      ]),
+      iconMd('**可以开始对话**\n接下来发送消息，Claude Code 会在这个目录上下文中处理。', 'send_outlined', 'grey'),
+    ],
+    buttons: [
+      { text: '返回菜单', action: 'menu:back' },
+    ],
+  });
+}
+
 /** Level 2b: Session History submenu */
 export function createSessionHistoryCard(entries: HistoryEntry[]): CardBuildResult {
   if (entries.length === 0) {
@@ -706,14 +767,16 @@ export function createSessionHistoryCard(entries: HistoryEntry[]): CardBuildResu
     icon: { token: 'history_outlined', color: 'grey' },
     tags: [{ text: `${entries.length}`, color: 'neutral' }],
     elements: [
-      iconMd(`**历史列表**\n共 ${entries.length} 个历史会话。点击下方按钮查看详情。`, 'history_outlined', 'grey'),
-      historyTable(entries),
+      iconMd(`**历史列表**\n共 ${entries.length} 个历史会话。点击条目查看详情、继续或删除。`, 'history_outlined', 'grey'),
+      ...entries.map((entry, index) => sessionOptionCard({
+        title: `${index + 1}. ${historyEntryTitle(entry)}`,
+        description: `${entry.directory}\n${entry.sessionId ? `Session：\`${entry.sessionId.slice(0, 8)}...\`` : '新会话'} · ${relativeTime(entry.lastUsed)}`,
+        icon: 'folder_outlined',
+        color: 'grey',
+        action: `menu:detail:${index}`,
+      })),
     ],
     buttons: [
-      ...entries.map((_, i) => ({
-        text: `${i + 1}. ${_.directory.split('/').pop() || _.directory}`,
-        action: `menu:detail:${i}`,
-      })),
       { text: '返回', action: 'menu:back' },
     ],
   });

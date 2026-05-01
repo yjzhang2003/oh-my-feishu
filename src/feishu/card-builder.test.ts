@@ -9,8 +9,10 @@ import {
 } from './card-builder.js';
 import {
   createCommandMenuCard,
+  createDirectorySessionSelectCard,
   createGatewayMenuCard,
   createMainMenuCard,
+  createSessionHistoryCard,
   createWebMonitorInputCard,
   createWebMonitorMenuCard,
 } from './card-builder/menu-cards.js';
@@ -111,5 +113,41 @@ describe('CardBuilder', () => {
     expect(cardJson).toContain('"name":"wm_repo"');
     expect(cardJson).toContain('"name":"wm_url"');
     expect(cardJson).toContain('"form_action_type":"submit"');
+  });
+
+  test('directory session select card uses interactive options instead of tables', () => {
+    const { card } = createDirectorySessionSelectCard('/tmp/project', [
+      { id: '11111111-1111-4111-8111-111111111111', lastActive: '2026-05-01T10:00:00.000Z', summary: '修复菜单交互' },
+      { id: '22222222-2222-4222-8222-222222222222', lastActive: '2026-05-01T09:00:00.000Z', summary: '优化 README' },
+    ]);
+    const elements = ((card as any).body.elements ?? []) as any[];
+    const cardJson = JSON.stringify(card);
+
+    expect(elements.some((element) => element.tag === 'table')).toBe(false);
+    expect(elements.filter((element) => element.tag === 'interactive_container')).toHaveLength(2);
+    expect(cardJson).toContain('session:select:11111111-1111-4111-8111-111111111111');
+    expect(cardJson).toContain('修复菜单交互');
+  });
+
+  test('session history card uses interactive entries and keeps detail navigation', () => {
+    const { card } = createSessionHistoryCard([
+      {
+        directory: '/tmp/project-a',
+        sessionId: '11111111-1111-4111-8111-111111111111',
+        lastUsed: '2026-05-01T10:00:00.000Z',
+      },
+      {
+        directory: '/tmp/project-b',
+        sessionId: null,
+        lastUsed: '2026-05-01T09:00:00.000Z',
+      },
+    ]);
+    const elements = ((card as any).body.elements ?? []) as any[];
+    const cardJson = JSON.stringify(card);
+
+    expect(elements.some((element) => element.tag === 'table')).toBe(false);
+    expect(elements.filter((element) => element.tag === 'interactive_container')).toHaveLength(2);
+    expect(cardJson).toContain('menu:detail:0');
+    expect(cardJson).toContain('project-a');
   });
 });

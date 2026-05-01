@@ -1,7 +1,18 @@
 import { execa } from 'execa';
-import { resolve } from 'path';
+import { basename, join, resolve } from 'path';
 import { env } from '../config/env.js';
-import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'fs';
+import {
+  readFileSync,
+  existsSync,
+  mkdirSync,
+  writeFileSync,
+  readdirSync,
+  statSync,
+  openSync,
+  readSync,
+  closeSync,
+} from 'fs';
+import { homedir } from 'os';
 import { chatIdToSessionId } from '../utils/chat-id.js';
 import { readTrigger } from './trigger.js';
 import { getService } from '../service/registry.js';
@@ -424,14 +435,187 @@ export async function checkClaudeCli(): Promise<{ available: boolean; version?: 
 export interface SessionInfo {
   id: string;
   lastActive: string;
+  summary?: string;
+}
+
+const MAX_LOCAL_SESSIONS = 10;
+const SESSION_LOG_TAIL_BYTES = 64 * 1024;
+
+function claudeProjectDirName(directory: string): string {
+  return resolve(directory).replace(/\\/g, '-').replace(/\//g, '-');
+}
+
+function readFileTail(filePath: string, maxBytes: number = SESSION_LOG_TAIL_BYTES): string {
+  let fd: number | null = null;
+  try {
+    const stat = statSync(filePath);
+    const length = Math.min(stat.size, maxBytes);
+    const start = Math.max(0, stat.size - length);
+    const buffer = Buffer.alloc(length);
+    fd = openSync(filePath, 'r');
+    readSync(fd, buffer, 0, length, start);
+    return buffer.toString('utf-8');
+  } catch {
+    return '';
+  } finally {
+    if (fd !== null) {
+      try {
+        closeSync(fd);
+      } catch {
+        // Ignore close failures for best-effort session discovery.
+      }
+    }
+  }
+}
+
+function readLastJsonLine(filePath: string): Record<string, unknown> | null {
+  try {
+    const content = readFileTail(filePath).trim();
+    if (!content) return null;
+
+    const lines = content.split('\n');
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      try {
+        return JSON.parse(line) as Record<string, unknown>;
+      } catch {
+        // Continue scanning because some logs may contain partial/corrupt trailing lines.
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeSessionSummary(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+
+  const summary = value
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!summary || summary.startsWith('[Request interrupted by user]')) {
+    return undefined;
+  }
+
+  return summary.length > 80 ? `${summary.slice(0, 77)}...` : summary;
+}
+
+function messageText(message: unknown): string | undefined {
+  if (!message || typeof message !== 'object') return undefined;
+  const content = (message as { content?: unknown }).content;
+  if (typeof content === 'string') {
+    return content;
+  }
+  if (Array.isArray(content)) {
+    return content
+      .map((item) => {
+        if (!item || typeof item !== 'object') return '';
+        const text = (item as { text?: unknown }).text;
+        return typeof text === 'string' ? text : '';
+      })
+      .filter(Boolean)
+      .join(' ');
+  }
+  return undefined;
+}
+
+function readSessionSummary(filePath: string): string | undefined {
+  try {
+    const lines = readFileTail(filePath).split('\n');
+    let fallback: string | undefined;
+
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line) continue;
+
+      let record: Record<string, unknown>;
+      try {
+        record = JSON.parse(line) as Record<string, unknown>;
+      } catch {
+        continue;
+      }
+
+      if (record.type === 'custom-title') {
+        const title = normalizeSessionSummary(record.customTitle);
+        if (title) return title;
+      }
+
+      if (record.type === 'last-prompt') {
+        const prompt = normalizeSessionSummary(record.lastPrompt);
+        if (prompt) fallback = prompt;
+      }
+
+      if (record.type === 'queue-operation' && record.operation === 'enqueue') {
+        const queued = normalizeSessionSummary(record.content);
+        if (queued) fallback = queued;
+      }
+
+      if (record.type === 'user' && record.isMeta !== true) {
+        const userText = normalizeSessionSummary(messageText(record.message));
+        if (userText) fallback = userText;
+      }
+    }
+
+    return fallback;
+  } catch {
+    return undefined;
+  }
+}
+
+function listLocalClaudeSessions(directory: string): SessionInfo[] {
+  const projectDir = join(homedir(), '.claude', 'projects', claudeProjectDirName(directory));
+  if (!existsSync(projectDir)) {
+    return [];
+  }
+
+  try {
+    return readdirSync(projectDir)
+      .filter((name) => name.endsWith('.jsonl'))
+      .map((name) => {
+        const filePath = join(projectDir, name);
+        const stat = statSync(filePath);
+        return {
+          id: basename(name, '.jsonl'),
+          filePath,
+          mtimeMs: stat.mtimeMs,
+          mtimeIso: stat.mtime.toISOString(),
+        };
+      })
+      .sort((a, b) => b.mtimeMs - a.mtimeMs)
+      .slice(0, MAX_LOCAL_SESSIONS)
+      .map(({ id, filePath, mtimeMs, mtimeIso }) => {
+        const lastRecord = readLastJsonLine(filePath);
+        const timestamp = typeof lastRecord?.timestamp === 'string'
+          ? lastRecord.timestamp
+          : mtimeIso;
+
+        return {
+          id,
+          lastActive: timestamp,
+          summary: readSessionSummary(filePath),
+          mtimeMs,
+        };
+      })
+      .map(({ id, lastActive, summary }) => ({ id, lastActive, summary }));
+  } catch {
+    return [];
+  }
 }
 
 /**
  * List sessions in a directory
  */
 export async function listSessions(directory: string): Promise<SessionInfo[]> {
+  const localSessions = listLocalClaudeSessions(directory);
+  if (localSessions.length > 0) {
+    return localSessions;
+  }
+
   try {
-    const result = await execa('claude', ['session', 'list', '--json', '-C', directory], {
+    const result = await execa('claude', ['session', 'list'], {
       cwd: directory,
       timeout: 10000,
       reject: false,

@@ -89,7 +89,13 @@ export class CardDispatcher {
         if (result.error) {
           return { toast: { type: 'error', content: result.error } };
         }
-        return { toast: { type: 'success', content: '目录会话已创建' } };
+        if (result.card) {
+          return this.updateMenuCard({ card: result.card, elementIds: [] }, {
+            type: 'success',
+            content: result.toast ?? '目录会话已创建',
+          });
+        }
+        return { toast: { type: 'success', content: result.toast ?? '目录会话已创建' } };
       }
 
       if (actionValue.startsWith('menu:')) {
@@ -107,8 +113,7 @@ export class CardDispatcher {
       }
 
       if (actionValue.startsWith('session:')) {
-        const [, actionName] = actionValue.split(':');
-        return this.handleSessionAction(actionName, chatId, operatorOpenId);
+        return this.handleSessionAction(actionValue, chatId, operatorOpenId);
       }
 
       return { toast: { type: 'error', content: '未知操作' } };
@@ -295,7 +300,8 @@ export class CardDispatcher {
     }
   }
 
-  private handleSessionAction(action: string, chatId: string, senderOpenId: string): CardActionResponse {
+  private async handleSessionAction(actionValue: string, chatId: string, senderOpenId: string): Promise<CardActionResponse> {
+    const [, action, param] = actionValue.split(':');
     log.info('dispatcher', 'Session action', { chatId, action });
 
     switch (action) {
@@ -308,6 +314,21 @@ export class CardDispatcher {
       case 'add-cancel':
         this.sessionAddFlow.cancel(chatId);
         return {};
+      case 'select': {
+        const result = param === 'new'
+          ? await this.sessionAddFlow.createNewSession(chatId)
+          : await this.sessionAddFlow.selectExistingSessionById(chatId, param);
+        if (result.error) {
+          return { toast: { type: 'error', content: result.error } };
+        }
+        if (result.card) {
+          return this.updateMenuCard({ card: result.card, elementIds: [] }, {
+            type: 'success',
+            content: result.toast ?? '目录会话已创建',
+          });
+        }
+        return { toast: { type: 'success', content: result.toast ?? '目录会话已创建' } };
+      }
       default:
         return { toast: { type: 'error', content: '未知会话操作' } };
     }

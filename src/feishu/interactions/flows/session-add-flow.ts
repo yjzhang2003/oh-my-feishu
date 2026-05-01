@@ -7,6 +7,10 @@ import { SessionStore } from '../session-store.js';
 import { SessionHistoryStore } from '../session-history-store.js';
 import { log } from '../../../utils/logger.js';
 import { createCallbackCard, md } from '../../card-builder.js';
+import {
+  createDirectorySessionSelectCard,
+  createDirectorySessionSuccessCard,
+} from '../../card-builder/menu-cards.js';
 import type { SendCardFn } from '../../types.js';
 import { listSessions, type SessionInfo } from '../../../trigger/invoker.js';
 import { install } from '../../../marketplace/index.js';
@@ -50,7 +54,7 @@ export class SessionAddFlow {
   /**
    * Handle directory path submitted from input card form
    */
-  async handleDirectorySubmit(chatId: string, dirPath: string): Promise<{ error?: string }> {
+  async handleDirectorySubmit(chatId: string, dirPath: string): Promise<{ error?: string; card?: object; toast?: string }> {
     const trimmedDir = dirPath.trim();
 
     if (!trimmedDir) {
@@ -75,25 +79,18 @@ export class SessionAddFlow {
     const sessions = await listSessions(trimmedDir);
 
     if (sessions.length > 0) {
-      await this.sendCard(chatId, this.createSessionSelectCard(trimmedDir, sessions));
+      return {
+        card: createDirectorySessionSelectCard(trimmedDir, sessions).card,
+        toast: '请选择要连接的 Claude Code 会话',
+      };
     } else {
       // No sessions, install plugin and create new
-      try {
-        await install({ targetDir: trimmedDir });
-        log.info('flow', 'Marketplace plugin installed', { directory: trimmedDir });
-      } catch (err) {
-        log.warn('flow', 'Failed to install marketplace plugin', { directory: trimmedDir, error: String(err) });
-      }
-      this.sessionStore.set(chatId, {
-        flow: 'none',
-        mode: 'directory',
-        data: { directory: trimmedDir },
-      });
-      this.sessionHistoryStore.addHistory(chatId, { directory: trimmedDir, sessionId: null });
-      await this.sendCard(chatId, this.createNoSessionCard(trimmedDir));
+      await this.completeSession(chatId, trimmedDir, null);
+      return {
+        card: createDirectorySessionSuccessCard(trimmedDir, null).card,
+        toast: '目录会话已创建',
+      };
     }
-
-    return {};
   }
 
   private async handleDirectoryInput(chatId: string, text: string): Promise<{ done: boolean; error?: string }> {
@@ -101,6 +98,9 @@ export class SessionAddFlow {
     if (result.error) {
       await this.sendCard(chatId, this.createErrorCard(result.error));
       return { done: false };
+    }
+    if (result.card) {
+      await this.sendCard(chatId, result.card);
     }
     return { done: true };
   }
@@ -112,15 +112,9 @@ export class SessionAddFlow {
 
     if (trimmedInput === 'new' || trimmedInput === '+' || trimmedInput === '新建') {
       // Install plugin and create new session
-      await this.installPluginSafely(directory);
-      this.sessionStore.set(chatId, {
-        flow: 'none',
-        mode: 'directory',
-        data: { directory },
-      });
-      this.sessionHistoryStore.addHistory(chatId, { directory, sessionId: null });
-      await this.sendCard(chatId, this.createSuccessCard(directory, null));
-      return { done: true };
+      const result = await this.createNewSession(chatId);
+      if (result.card) await this.sendCard(chatId, result.card);
+      return { done: !result.error, error: result.error };
     }
 
     // Try to parse as session ID selection
@@ -129,30 +123,17 @@ export class SessionAddFlow {
     const selectedIndex = parseInt(trimmedInput, 10) - 1;
 
     if (!isNaN(selectedIndex) && selectedIndex >= 0 && selectedIndex < sessions.length) {
-      const selectedSession = sessions[selectedIndex];
-      await this.installPluginSafely(directory);
-      this.sessionStore.set(chatId, {
-        flow: 'none',
-        mode: 'directory',
-        data: { directory, sessionId: selectedSession.id },
-      });
-      this.sessionHistoryStore.addHistory(chatId, { directory, sessionId: selectedSession.id });
-      await this.sendCard(chatId, this.createSuccessCard(directory, selectedSession.id));
-      return { done: true };
+      const result = await this.selectExistingSession(chatId, selectedIndex);
+      if (result.card) await this.sendCard(chatId, result.card);
+      return { done: !result.error, error: result.error };
     }
 
     // Try matching by session ID prefix
     const matched = sessions.find(s => s.id.startsWith(trimmedInput));
     if (matched) {
-      await this.installPluginSafely(directory);
-      this.sessionStore.set(chatId, {
-        flow: 'none',
-        mode: 'directory',
-        data: { directory, sessionId: matched.id },
-      });
-      this.sessionHistoryStore.addHistory(chatId, { directory, sessionId: matched.id });
-      await this.sendCard(chatId, this.createSuccessCard(directory, matched.id));
-      return { done: true };
+      const result = await this.selectExistingSessionById(chatId, matched.id);
+      if (result.card) await this.sendCard(chatId, result.card);
+      return { done: !result.error, error: result.error };
     }
 
     await this.sendCard(chatId, this.createErrorCard('无效的选择，请输入编号或 session ID'));
@@ -166,6 +147,64 @@ export class SessionAddFlow {
     } catch (err) {
       log.warn('flow', 'Failed to install marketplace plugin', { directory, error: String(err) });
     }
+  }
+
+  async createNewSession(chatId: string): Promise<{ error?: string; card?: object; toast?: string }> {
+    const session = this.sessionStore.get(chatId);
+    const directory = session.data.directory as string | undefined;
+    if (!directory) {
+      return { error: '目录会话上下文不存在，请重新选择目录' };
+    }
+
+    await this.completeSession(chatId, directory, null);
+    return {
+      card: createDirectorySessionSuccessCard(directory, null).card,
+      toast: '已创建新的目录会话',
+    };
+  }
+
+  async selectExistingSession(chatId: string, index: number): Promise<{ error?: string; card?: object; toast?: string }> {
+    const session = this.sessionStore.get(chatId);
+    const directory = session.data.directory as string | undefined;
+    if (!directory) {
+      return { error: '目录会话上下文不存在，请重新选择目录' };
+    }
+
+    const sessions = await listSessions(directory);
+    const selected = sessions[index];
+    if (!selected) {
+      return { error: '会话不存在，请重新选择' };
+    }
+
+    return this.selectExistingSessionById(chatId, selected.id);
+  }
+
+  async selectExistingSessionById(chatId: string, sessionId: string | undefined): Promise<{ error?: string; card?: object; toast?: string }> {
+    if (!sessionId) {
+      return { error: '会话不存在，请重新选择' };
+    }
+
+    const session = this.sessionStore.get(chatId);
+    const directory = session.data.directory as string | undefined;
+    if (!directory) {
+      return { error: '目录会话上下文不存在，请重新选择目录' };
+    }
+
+    await this.completeSession(chatId, directory, sessionId);
+    return {
+      card: createDirectorySessionSuccessCard(directory, sessionId).card,
+      toast: '已连接 Claude Code 会话',
+    };
+  }
+
+  private async completeSession(chatId: string, directory: string, sessionId: string | null): Promise<void> {
+    void this.installPluginSafely(directory);
+    this.sessionStore.set(chatId, {
+      flow: 'none',
+      mode: 'directory',
+      data: sessionId ? { directory, sessionId } : { directory },
+    });
+    this.sessionHistoryStore.addHistory(chatId, { directory, sessionId });
   }
 
   private createDirectoryInputCard() {
@@ -199,12 +238,17 @@ export class SessionAddFlow {
       elements.push(md(`${i + 1}. \`${s.id}\` (${s.lastActive})`));
     });
     elements.push(md(''));
-    elements.push(md('*输入编号选择，或输入 **new** 创建新会话*'));
+    elements.push(md('*点击下方按钮选择要连接的 Claude Code 会话，或创建新会话*'));
 
     return createCallbackCard({
       title: '📁 选择会话',
       elements,
       buttons: [
+        ...sessions.map((s, i) => ({
+          text: `${i + 1}. ${s.id.slice(0, 8)}...`,
+          action: `session:select:${i}`,
+          type: 'default' as const,
+        })),
         { text: '+ 新建会话', action: 'session:select:new', type: 'primary' },
         { text: '◀️ 取消', action: 'session:add-cancel', type: 'danger' },
       ],
