@@ -39,6 +39,7 @@ docs/
 
 # Workspace runtime data
 workspace/.claude/
+workspace/.omc/
 
 # Runtime data (session history, etc.)
 data/
