@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import React, { useState, useEffect, useCallback } from 'react';
 import { render, Box, Text, useInput, useApp } from 'ink';
-import { resolve } from 'path';
 import chalk from 'chalk';
 import { SelectList } from './components/SelectList.js';
 import { Header } from './components/Header.js';
@@ -16,6 +15,7 @@ import {
   type QRBeginResult,
 } from '../feishu/qr-onboarding.js';
 import { ServiceManageScreen } from './components/ServiceManageScreen.js';
+import { getWorkspaceDir } from '../config/paths.js';
 
 type Screen = 'main' | 'claude' | 'feishu' | 'service' | 'service-manage' | 'logs' | 'init' | 'qr';
 
@@ -378,8 +378,7 @@ async function executeAction(
         setMessage(chalk.red(`✗ Installation failed: ${error instanceof Error ? error.message : 'Unknown error'}`));
       }
     } else if (option.key === 'open') {
-      const workspacePath = resolve(process.cwd(), 'workspace');
-      setMessage(chalk.cyan(`claude ${workspacePath}`));
+      setMessage(chalk.cyan(`claude ${getWorkspaceDir()}`));
     }
   }
 

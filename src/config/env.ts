@@ -1,6 +1,5 @@
 import { z } from 'zod';
-import { dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { getRepoRoot } from './paths.js';
 
 // Environment schema
 const envSchema = z.object({
@@ -16,7 +15,7 @@ const envSchema = z.object({
   MONITOR_TIMEOUT_MS: z.string().default('5000'),
 
   // Agent
-  REPO_ROOT: z.string().default(process.cwd()),
+  REPO_ROOT: z.string().default(getRepoRoot()),
   AGENT_LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
   AGENT_MAX_DIFF_FILES: z.string().default('10'),
   AGENT_MAX_DIFF_LINES: z.string().default('500'),
@@ -33,4 +32,3 @@ export function loadEnv(): Env {
 }
 
 export const env = loadEnv();
-
