@@ -26,6 +26,10 @@ interface LarkCliConfig {
   brand?: string;
 }
 
+function isUsableAppSecret(value: unknown): value is string {
+  return typeof value === 'string' && value.length >= 20 && !value.includes('*');
+}
+
 // Token cache
 let cachedToken: string | null = null;
 let tokenExpireAt: number = 0;
@@ -70,7 +74,7 @@ function loadLarkCliConfig(): LarkCliConfig | null {
       const jsonStr = result.slice(jsonStart, jsonEnd + 1);
       const config = JSON.parse(jsonStr);
       const appConfig = config.apps?.[0] || config;
-      if (appConfig.appId && typeof appConfig.appSecret === 'string') {
+      if (appConfig.appId && isUsableAppSecret(appConfig.appSecret)) {
         return {
           appId: appConfig.appId,
           appSecret: appConfig.appSecret,
@@ -95,7 +99,7 @@ function loadLarkCliConfig(): LarkCliConfig | null {
         const content = readFileSync(configPath, 'utf-8');
         const config = JSON.parse(content);
         const appConfig = config.apps?.[0] || config;
-        if (appConfig.appId && typeof appConfig.appSecret === 'string') {
+        if (appConfig.appId && isUsableAppSecret(appConfig.appSecret)) {
           return {
             appId: appConfig.appId,
             appSecret: appConfig.appSecret,

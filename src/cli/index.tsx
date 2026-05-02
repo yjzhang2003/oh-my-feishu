@@ -6,7 +6,7 @@ import { SelectList } from './components/SelectList.js';
 import { Header } from './components/Header.js';
 import { Footer } from './components/Footer.js';
 import { getAllStatuses, ComponentStatus, checkService, ServiceStatus } from './hooks/useStatus.js';
-import { initLarkConfig, removeLarkConfig } from '../feishu/lark-auth.js';
+import { removeLarkConfig } from '../feishu/lark-auth.js';
 import { execa } from 'execa';
 import {
   beginRegistration,
@@ -17,7 +17,7 @@ import {
 import { ServiceManageScreen } from './components/ServiceManageScreen.js';
 import { getWorkspaceDir } from '../config/paths.js';
 
-type Screen = 'main' | 'claude' | 'feishu' | 'service' | 'service-manage' | 'logs' | 'init' | 'qr';
+type Screen = 'main' | 'claude' | 'feishu' | 'service' | 'service-manage' | 'logs' | 'qr';
 
 const components = ['claude', 'feishu', 'service'] as const;
 const componentNames = ['Claude Code', 'Feishu (Lark)', 'Service'];
@@ -29,7 +29,6 @@ function App() {
   const [statuses, setStatuses] = useState<Record<string, ComponentStatus>>({});
   const [serviceStatus, setServiceStatus] = useState<ServiceStatus | null>(null);
   const [message, setMessage] = useState('');
-  const [initOutput, setInitOutput] = useState<string[]>([]);
   const [logs, setLogs] = useState<string[]>([]);
   const [logsErr, setLogsErr] = useState<string[]>([]);
   const [logsOffset, setLogsOffset] = useState(0);
@@ -85,7 +84,6 @@ function App() {
         setSelectedIndex(componentIndex >= 0 ? componentIndex : 1); // Default to feishu if coming from init
       }
       setMessage('');
-      setInitOutput([]); // Clear init output when returning
       return;
     }
 
@@ -104,8 +102,6 @@ function App() {
       return;
     }
 
-    if (screen === 'init') return; // No input handling during init
-
     if (key.upArrow || input === 'k') {
       const maxIndex = getMaxIndex(screen, statuses, serviceStatus);
       setSubIndex((prev) => (prev - 1 + maxIndex) % maxIndex);
@@ -117,7 +113,6 @@ function App() {
         setMessage,
         refreshStatuses,
         setScreen,
-        setInitOutput,
         setLogs,
         setLogsErr,
         setLogsOffset,
@@ -159,25 +154,6 @@ function App() {
           <SelectList items={items} selectedIndex={selectedIndex} />
         </Box>
         <Footer hints={['↑↓ Navigate', 'Enter Configure', 'q Quit']} />
-      </Box>
-    );
-  }
-
-  if (screen === 'init') {
-    return (
-      <Box flexDirection="column" padding={1}>
-        <Header title="Lark CLI Auth" />
-        <Box marginTop={1} flexDirection="column">
-          {initOutput.map((line, i) => (
-            <Text key={i}>{line}</Text>
-          ))}
-        </Box>
-        {message && (
-          <Box marginTop={1}>
-            <Text>{message}</Text>
-          </Box>
-        )}
-        <Footer hints={['Complete auth in browser...', 'ESC Cancel']} />
       </Box>
     );
   }
@@ -327,7 +303,6 @@ function getScreenConfig(screen: Screen, statuses: Record<string, ComponentStatu
           ]
         : [
             { key: 'qr', label: 'Auth with QR Code', description: 'Scan QR code with Feishu App (Recommended)', status: '★', statusColor: 'yellow' as const },
-            { key: 'init', label: 'Auth with lark-cli', description: 'Browser-based authentication (legacy)' },
             { key: 'back', label: 'Back', description: 'Return to main menu' },
           ],
     };
@@ -345,7 +320,6 @@ async function executeAction(
     setMessage: (msg: string) => void;
     refreshStatuses: () => void;
     setScreen: (s: Screen) => void;
-    setInitOutput: React.Dispatch<React.SetStateAction<string[]>>;
     setLogs: React.Dispatch<React.SetStateAction<string[]>>;
     setLogsErr: React.Dispatch<React.SetStateAction<string[]>>;
     setLogsOffset: React.Dispatch<React.SetStateAction<number>>;
@@ -357,7 +331,7 @@ async function executeAction(
     setQrDeviceCode: React.Dispatch<React.SetStateAction<string>>;
   }
 ) {
-  const { setMessage, refreshStatuses, setScreen, setInitOutput, setLogs, setLogsErr, setLogsOffset, setLogType, setQrLines, setQrUrl, setQrUserCode, setQrStatus, setQrDeviceCode } = handlers;
+  const { setMessage, refreshStatuses, setScreen, setLogs, setLogsErr, setLogsOffset, setLogType, setQrLines, setQrUrl, setQrUserCode, setQrStatus, setQrDeviceCode } = handlers;
   const config = getScreenConfig(screen, statuses, serviceStatus);
   const option = config.options[index];
 
@@ -457,34 +431,6 @@ async function executeAction(
         setQrUserCode('');
         setQrDeviceCode('');
         setMessage(chalk.red(`✗ Error: ${error instanceof Error ? error.message : 'Unknown error'}`));
-        setScreen('feishu');
-      }
-    } else if (option.key === 'init') {
-      // Legacy lark-cli authentication
-      setScreen('init');
-      setInitOutput(['Starting lark-cli config init...', '']);
-      setMessage('');
-
-      const result = await initLarkConfig((line) => {
-        setInitOutput((prev) => [...prev, line]);
-      });
-
-      if (result.success) {
-        setMessage(chalk.green('✓ Lark CLI configured successfully. Restarting service...'));
-        setScreen('feishu');
-        refreshStatuses();
-        // Restart service to pick up new credentials
-        try {
-          await execa('pm2', ['restart', 'oh-my-feishu']);
-        } catch {
-          try {
-            await execa('pm2', ['start', 'ecosystem.config.cjs']);
-          } catch {
-            // Ignore - service might not exist yet
-          }
-        }
-      } else {
-        setMessage(chalk.red(`✗ ${result.error || 'Configuration failed'}`));
         setScreen('feishu');
       }
     } else if (option.key === 'reset') {

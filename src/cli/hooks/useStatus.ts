@@ -1,4 +1,7 @@
 import { spawnSync } from 'child_process';
+import { existsSync, readFileSync } from 'fs';
+import { homedir } from 'os';
+import { resolve } from 'path';
 
 export interface ServiceStatus {
   name: string;
@@ -17,6 +20,36 @@ export interface ComponentStatus {
 }
 
 const CHECK_TIMEOUT_MS = 5000;
+
+function isUsableAppSecret(value: unknown): value is string {
+  return typeof value === 'string' && value.length >= 20 && !value.includes('*');
+}
+
+function readUsableFeishuConfig(): { appId: string; brand: string } | null {
+  const configPaths = [
+    resolve(homedir(), '.lark-cli', 'config.json'),
+    resolve(homedir(), '.config', 'lark-cli', 'config.json'),
+    resolve(homedir(), 'Library', 'Application Support', 'lark-cli', 'config.json'),
+  ];
+
+  for (const configPath of configPaths) {
+    if (!existsSync(configPath)) continue;
+    try {
+      const config = JSON.parse(readFileSync(configPath, 'utf-8'));
+      const appConfig = config.apps?.[0] || config;
+      if (appConfig.appId && isUsableAppSecret(appConfig.appSecret)) {
+        return {
+          appId: appConfig.appId,
+          brand: appConfig.brand || 'feishu',
+        };
+      }
+    } catch {
+      // Try the next known location.
+    }
+  }
+
+  return null;
+}
 
 // Helper to run command with timeout
 function runCommand(cmd: string, args: string[] = [], timeoutMs: number = CHECK_TIMEOUT_MS): { stdout: string; stderr: string; success: boolean } | null {
@@ -45,7 +78,7 @@ export function checkClaudeCode(): ComponentStatus {
   return { name: 'Claude Code', configured: false, message: 'CLI not installed' };
 }
 
-// Feishu/Lark status - check lark-cli configuration
+// Feishu/Lark status - require QR-compatible credentials with a usable appSecret.
 export function checkFeishu(): ComponentStatus {
   // First check if lark-cli is installed
   const larkResult = runCommand('lark-cli', ['--version']);
@@ -53,33 +86,16 @@ export function checkFeishu(): ComponentStatus {
     return { name: 'Feishu', configured: false, message: 'lark-cli not installed' };
   }
 
-  // Check if lark-cli is configured
-  const configResult = runCommand('lark-cli', ['config', 'show']);
-  if (configResult && configResult.stdout) {
-    try {
-      // Output may have extra lines after JSON, extract JSON part
-      const output = configResult.stdout.trim();
-      const jsonStart = output.indexOf('{');
-      const jsonEnd = output.lastIndexOf('}');
-      if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
-        const jsonStr = output.slice(jsonStart, jsonEnd + 1);
-        const config = JSON.parse(jsonStr);
-        const appId = config.appId || '';
-        const brand = config.brand || 'feishu';
-        if (appId) {
-          return {
-            name: 'Feishu',
-            configured: true,
-            message: `${brand}: ${appId.slice(0, 8)}...`
-          };
-        }
-      }
-    } catch {
-      // Config not valid JSON
-    }
+  const config = readUsableFeishuConfig();
+  if (config) {
+    return {
+      name: 'Feishu',
+      configured: true,
+      message: `${config.brand}: ${config.appId.slice(0, 8)}...`
+    };
   }
 
-  return { name: 'Feishu', configured: false, message: 'lark-cli not configured' };
+  return { name: 'Feishu', configured: false, message: 'QR auth required' };
 }
 
 // Agent status - check if agent can start (all required components ready)
@@ -91,7 +107,7 @@ export function checkAgent(): ComponentStatus {
     return { name: 'Agent', configured: false, message: 'Claude CLI required' };
   }
   if (!feishu.configured) {
-    return { name: 'Agent', configured: false, message: 'lark-cli required' };
+    return { name: 'Agent', configured: false, message: 'Feishu QR auth required' };
   }
   return { name: 'Agent', configured: true, message: 'Ready to start' };
 }

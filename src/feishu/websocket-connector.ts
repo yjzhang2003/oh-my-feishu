@@ -33,6 +33,10 @@ export interface FeishuWebSocketConfig {
 const MAX_DEDUP_SET_SIZE = 1000;
 const DEDUP_RETAIN_COUNT = 500;
 
+function isUsableAppSecret(value: unknown): value is string {
+  return typeof value === 'string' && value.length >= 20 && !value.includes('*');
+}
+
 export class FeishuWebSocket {
   private client: lark.Client;
   private wsClient: lark.WSClient | null = null;
@@ -492,7 +496,7 @@ export async function loadLarkCliConfig(): Promise<FeishuWebSocketConfig | null>
     if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
       const config = JSON.parse(output.slice(jsonStart, jsonEnd + 1));
       const appConfig = config.apps?.[0] || config;
-      if (appConfig.appId && typeof appConfig.appSecret === 'string') {
+      if (appConfig.appId && isUsableAppSecret(appConfig.appSecret)) {
         log.debug('feishu', 'Loaded lark-cli config from command', { appId: appConfig.appId.slice(0, 8) + '...' });
         return {
           appId: appConfig.appId,
@@ -532,7 +536,7 @@ export async function loadLarkCliConfig(): Promise<FeishuWebSocketConfig | null>
       return null;
     }
 
-    if (!appConfig.appSecret || typeof appConfig.appSecret !== 'string') {
+    if (!isUsableAppSecret(appConfig.appSecret)) {
       log.error('feishu', 'Invalid lark-cli config: missing appSecret');
       return null;
     }
