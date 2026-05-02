@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { webMonitorFeature } from './feature.js';
+import { updateWebMonitorClaudeRun } from './registry.js';
 import type { GatewayRuntime } from '../types.js';
+
+vi.mock('./registry.js', () => ({
+  updateWebMonitorClaudeRun: vi.fn(),
+}));
 
 function runtime(): GatewayRuntime {
   return {
@@ -31,6 +36,7 @@ describe('webMonitorFeature', () => {
         serviceName: 'api',
         githubOwner: 'org',
         githubRepo: 'api',
+        localRepoPath: '/tmp/workspace/services/api',
         tracebackUrl: 'https://logs.example.com/api',
         tracebackContent: 'Traceback...',
         notifyChatId: 'oc_123',
@@ -50,6 +56,12 @@ describe('webMonitorFeature', () => {
         SERVICE_NAME: 'api',
         NOTIFY_CHAT_ID: 'oc_123',
       }),
+      cwd: '/tmp/workspace/services/api',
+    }));
+    expect(updateWebMonitorClaudeRun).toHaveBeenCalledWith('api', expect.objectContaining({
+      success: true,
+      summary: 'fixed traceback',
+      finishedAt: expect.any(String),
     }));
     expect(rt.sendFeishuMessage).toHaveBeenCalledWith({
       chatId: 'oc_123',

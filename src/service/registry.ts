@@ -11,6 +11,7 @@ export interface ServiceEntry {
   name: string;
   githubOwner: string;
   githubRepo: string;
+  localRepoPath?: string;
   tracebackUrl: string;
   notifyChatId: string;
   tracebackUrlType: 'json' | 'text' | 'html';
@@ -20,6 +21,11 @@ export interface ServiceEntry {
   addedBy: string;
   lastErrorHash?: string;
   lastCheckedAt?: string;
+  lastTracebackAt?: string;
+  lastTracebackPreview?: string;
+  lastClaudeRunAt?: string;
+  lastClaudeRunSuccess?: boolean;
+  lastClaudeRunSummary?: string;
 }
 
 export interface ServiceRegistry {
@@ -119,6 +125,25 @@ export function updateServiceErrorHash(name: string, hash: string, checkedAt: st
   entry.lastErrorHash = hash;
   entry.lastCheckedAt = checkedAt;
   saveRegistry(registry);
+}
+
+export function updateServiceTracebackSnapshot(name: string, preview: string, checkedAt: string): void {
+  updateService(name, {
+    lastCheckedAt: checkedAt,
+    lastTracebackAt: checkedAt,
+    lastTracebackPreview: preview,
+  });
+}
+
+export function updateServiceClaudeRun(
+  name: string,
+  input: { success: boolean; summary: string; finishedAt: string }
+): void {
+  updateService(name, {
+    lastClaudeRunAt: input.finishedAt,
+    lastClaudeRunSuccess: input.success,
+    lastClaudeRunSummary: input.summary,
+  });
 }
 
 export function hashContent(content: string): string {

@@ -40,6 +40,7 @@ docs/
 # Workspace runtime data
 workspace/.claude/
 workspace/.omc/
+workspace/services/
 
 # Runtime data (session history, etc.)
 data/

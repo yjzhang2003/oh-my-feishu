@@ -18,6 +18,7 @@ export function createTracebackDetectedEvent(input: {
       serviceName: service.name,
       githubOwner: service.githubOwner,
       githubRepo: service.githubRepo,
+      localRepoPath: service.localRepoPath,
       tracebackUrl: service.tracebackUrl,
       tracebackContent: tracebackContent.slice(0, MAX_TRACEBACK_CONTEXT_SIZE),
       notifyChatId: service.notifyChatId,

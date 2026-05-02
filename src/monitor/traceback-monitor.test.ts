@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { TracebackMonitor } from './traceback-monitor.js';
-import { addService, removeService, listServices, hashContent } from '../service/registry.js';
+import { addService, removeService, listServices, getService, hashContent } from '../service/registry.js';
 import type { GatewayFeatureRunner } from '../gateway/features/index.js';
 
 describe('TracebackMonitor', () => {
@@ -8,6 +8,7 @@ describe('TracebackMonitor', () => {
 
   afterEach(() => {
     monitor.stop();
+    vi.unstubAllGlobals();
     // Clean up test services
     for (const s of listServices()) {
       if (s.name.startsWith('test-tb-')) {
@@ -69,5 +70,30 @@ describe('TracebackMonitor', () => {
         currentHash: 'new-hash',
       },
     });
+  });
+
+  it('caches latest traceback preview after polling', async () => {
+    addService({
+      name: 'test-tb-preview',
+      githubOwner: 'myorg',
+      githubRepo: 'my-api',
+      tracebackUrl: 'https://example.com/traceback-preview',
+      notifyChatId: 'oc_test',
+      tracebackUrlType: 'json',
+      enabled: true,
+      addedAt: new Date().toISOString(),
+      addedBy: 'test',
+    });
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      text: async () => 'Traceback preview content',
+    })));
+
+    const service = getService('test-tb-preview');
+    await (monitor as any).pollService(service);
+
+    const updated = getService('test-tb-preview');
+    expect(updated?.lastTracebackPreview).toBe('Traceback preview content');
+    expect(updated?.lastTracebackAt).toEqual(expect.any(String));
   });
 });

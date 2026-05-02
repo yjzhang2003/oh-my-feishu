@@ -17,11 +17,14 @@ import {
   createNewSessionCard,
   createSessionDetailCard,
   createSessionHistoryCard,
+  createWebMonitorDetailCard,
   createWebMonitorInputCard,
   createWebMonitorMenuCard,
 } from '../card-builder/menu-cards.js';
 import { CardKitManager } from '../card-kit.js';
 import { createGatewayEvent, type GatewayFeatureRunner } from '../../gateway/features/index.js';
+import { getService, listServices, removeService } from '../../service/registry.js';
+import { removeServiceRepository } from '../../service/repository.js';
 
 export interface CardActionPayload {
   schema?: string;
@@ -150,6 +153,52 @@ export class CardDispatcher {
 
       case 'gateway-web-monitor':
         return this.updateMenuCard(createWebMonitorMenuCard(), { type: 'info', content: '' });
+
+      case 'web-monitor-detail': {
+        const service = getService(param);
+        if (!service) {
+          return { toast: { type: 'error', content: '监控服务不存在' } };
+        }
+        return this.updateMenuCard(createWebMonitorDetailCard(service), { type: 'info', content: '' });
+      }
+
+      case 'web-monitor-delete': {
+        const service = getService(param);
+        if (!service) {
+          return { toast: { type: 'error', content: '监控服务不存在' } };
+        }
+        const removed = removeService(param);
+        if (removed && service.localRepoPath) {
+          removeServiceRepository(param);
+        }
+        return this.updateMenuCard(createWebMonitorMenuCard(listServices()), {
+          type: 'success',
+          content: `已删除监控：${param}`,
+        });
+      }
+
+      case 'web-monitor-session': {
+        const service = getService(param);
+        if (!service) {
+          return { toast: { type: 'error', content: '监控服务不存在' } };
+        }
+        if (!service.localRepoPath) {
+          return { toast: { type: 'error', content: '该服务没有本地仓库目录' } };
+        }
+        this.sessionStore.set(chatId, {
+          mode: 'directory',
+          flow: 'none',
+          data: { directory: service.localRepoPath },
+        });
+        this.sessionHistoryStore.addHistory(chatId, {
+          directory: service.localRepoPath,
+          sessionId: null,
+        });
+        return this.updateMenuCard(createWebMonitorDetailCard(service), {
+          type: 'success',
+          content: `已切换到目录会话：${service.localRepoPath}`,
+        });
+      }
 
       case 'gateway-new-service':
         return { toast: { type: 'info', content: '新建 Gateway 服务暂未实现' } };

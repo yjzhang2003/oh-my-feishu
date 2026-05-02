@@ -1,10 +1,12 @@
 import {
   addService,
+  getService,
   listServices,
   removeService,
   updateService,
   type ServiceEntry,
 } from '../../../service/registry.js';
+import { cloneServiceRepository, removeServiceRepository } from '../../../service/repository.js';
 import type { GatewayEvent, GatewayFeature } from '../types.js';
 
 type ServiceAdminAction = 'add' | 'remove' | 'list' | 'enable' | 'disable' | 'help';
@@ -54,7 +56,7 @@ export const serviceAdminFeature: GatewayFeature = {
   },
 };
 
-function handleAdd(payload: ServiceAdminPayload) {
+async function handleAdd(payload: ServiceAdminPayload) {
   if (!payload.name || !payload.repo || !payload.tracebackUrl) {
     return {
       success: false,
@@ -88,10 +90,21 @@ function handleAdd(payload: ServiceAdminPayload) {
   const [githubOwner, githubRepo] = payload.repo.split('/');
 
   try {
+    if (getService(payload.name)) {
+      throw new Error(`Service "${payload.name}" already exists`);
+    }
+
+    const localRepoPath = await cloneServiceRepository({
+      serviceName: payload.name,
+      owner: githubOwner,
+      repo: githubRepo,
+    });
+
     addService({
       name: payload.name,
       githubOwner,
       githubRepo,
+      localRepoPath,
       tracebackUrl: payload.tracebackUrl,
       notifyChatId: payload.notifyChatId || '',
       tracebackUrlType: 'json',
@@ -107,6 +120,7 @@ function handleAdd(payload: ServiceAdminPayload) {
         elements: [
           `**Name:** ${payload.name}`,
           `**Repo:** ${payload.repo}`,
+          `**Local:** ${localRepoPath}`,
           `**Traceback URL:** ${payload.tracebackUrl}`,
           `**Notify chat:** ${payload.notifyChatId || '(none)'}`,
           '',
@@ -137,7 +151,11 @@ function handleRemove(payload: ServiceAdminPayload) {
     };
   }
 
+  const existing = getService(payload.name);
   const removed = removeService(payload.name);
+  if (removed && existing?.localRepoPath) {
+    removeServiceRepository(payload.name);
+  }
   return {
     success: removed,
     data: {

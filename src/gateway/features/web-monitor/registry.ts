@@ -1,7 +1,9 @@
 import {
   hashContent,
   listEnabledServices,
+  updateServiceClaudeRun,
   updateServiceErrorHash,
+  updateServiceTracebackSnapshot,
   type ServiceEntry,
 } from '../../../service/registry.js';
 
@@ -13,6 +15,17 @@ export function listEnabledWebMonitorServices(): WebMonitorService[] {
 
 export function updateWebMonitorServiceHash(name: string, hash: string, checkedAt: string): void {
   updateServiceErrorHash(name, hash, checkedAt);
+}
+
+export function updateWebMonitorTracebackSnapshot(name: string, preview: string, checkedAt: string): void {
+  updateServiceTracebackSnapshot(name, preview, checkedAt);
+}
+
+export function updateWebMonitorClaudeRun(
+  name: string,
+  input: { success: boolean; summary: string; finishedAt: string }
+): void {
+  updateServiceClaudeRun(name, input);
 }
 
 export function hashTracebackContent(content: string): string {

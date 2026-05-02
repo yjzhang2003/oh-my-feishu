@@ -1,11 +1,13 @@
 import type { GatewayEvent, GatewayFeature, GatewayRuntime } from '../types.js';
 import { formatWebMonitorResultMessage } from './cards.js';
+import { updateWebMonitorClaudeRun } from './registry.js';
 import { buildWebMonitorClaudeTask } from './service-actions.js';
 
 export interface TracebackDetectedPayload {
   serviceName: string;
   githubOwner: string;
   githubRepo: string;
+  localRepoPath?: string;
   tracebackUrl: string;
   tracebackContent: string;
   notifyChatId?: string;
@@ -36,6 +38,11 @@ export const webMonitorFeature: GatewayFeature = {
     });
 
     const claude = await runtime.invokeMainClaude(buildWebMonitorClaudeTask(event, payload));
+    updateWebMonitorClaudeRun(payload.serviceName, {
+      success: claude.success,
+      summary: summarizeClaudeResult(claude),
+      finishedAt: new Date().toISOString(),
+    });
 
     if (payload.notifyChatId) {
       await runtime.sendFeishuMessage({
@@ -73,4 +80,9 @@ function parseTracebackPayload(payload: unknown): TracebackDetectedPayload {
   }
 
   return value as TracebackDetectedPayload;
+}
+
+function summarizeClaudeResult(input: { success: boolean; stdout: string; stderr: string }): string {
+  const text = (input.success ? input.stdout : input.stderr || input.stdout).trim();
+  return (text || (input.success ? 'Claude Code task completed.' : 'Claude Code task failed.')).slice(0, 1200);
 }

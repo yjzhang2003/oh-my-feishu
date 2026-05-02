@@ -13,6 +13,7 @@ import {
   createGatewayMenuCard,
   createMainMenuCard,
   createSessionHistoryCard,
+  createWebMonitorDetailCard,
   createWebMonitorInputCard,
   createWebMonitorMenuCard,
 } from './card-builder/menu-cards.js';
@@ -94,13 +95,59 @@ describe('CardBuilder', () => {
   });
 
   test('web monitor menu card exposes monitor actions', () => {
-    const webMonitor = createWebMonitorMenuCard().card as any;
+    const webMonitor = createWebMonitorMenuCard([]).card as any;
     const cardJson = JSON.stringify(webMonitor);
 
     expect(webMonitor.header.title.content).toBe('Web 服务监控');
     expect(cardJson).toContain('menu:web-monitor-new');
     expect(cardJson).toContain('menu:gateway');
     expect(cardJson).not.toContain('menu:commands');
+  });
+
+  test('web monitor menu card uses interactive service entries instead of tables', () => {
+    const { card } = createWebMonitorMenuCard([{
+      name: 'api',
+      githubOwner: 'org',
+      githubRepo: 'api',
+      localRepoPath: '/tmp/workspace/services/api',
+      tracebackUrl: 'https://logs.example.com/api',
+      notifyChatId: 'oc_test',
+      tracebackUrlType: 'json',
+      enabled: true,
+      addedAt: '2026-05-01T10:00:00.000Z',
+      addedBy: 'ou_test',
+    }]);
+    const elements = ((card as any).body.elements ?? []) as any[];
+    const cardJson = JSON.stringify(card);
+
+    expect(elements.some((element) => element.tag === 'table')).toBe(false);
+    expect(elements.some((element) => element.tag === 'interactive_container')).toBe(true);
+    expect(cardJson).toContain('menu:web-monitor-detail:api');
+  });
+
+  test('web monitor detail card exposes service actions', () => {
+    const { card } = createWebMonitorDetailCard({
+      name: 'api',
+      githubOwner: 'org',
+      githubRepo: 'api',
+      localRepoPath: '/tmp/workspace/services/api',
+      tracebackUrl: 'https://logs.example.com/api',
+      notifyChatId: 'oc_test',
+      tracebackUrlType: 'json',
+      enabled: true,
+      addedAt: '2026-05-01T10:00:00.000Z',
+      addedBy: 'ou_test',
+      lastTracebackPreview: 'Traceback...',
+      lastClaudeRunAt: '2026-05-01T10:05:00.000Z',
+      lastClaudeRunSuccess: true,
+      lastClaudeRunSummary: 'fixed',
+    });
+    const cardJson = JSON.stringify(card);
+
+    expect(cardJson).toContain('menu:web-monitor-session:api');
+    expect(cardJson).toContain('menu:web-monitor-delete:api');
+    expect(cardJson).toContain('Traceback...');
+    expect(cardJson).toContain('fixed');
   });
 
   test('web monitor input card contains required form fields', () => {

@@ -4,6 +4,7 @@
  */
 
 import type { HistoryEntry } from '../interactions/session-history-store.js';
+import { listServices, type ServiceEntry } from '../../service/registry.js';
 
 export interface CardBuildResult {
   card: object;
@@ -150,6 +151,10 @@ function commandTable(): CardV2Element {
 
 function historyEntryTitle(entry: HistoryEntry): string {
   return entry.directory.split('/').filter(Boolean).pop() || entry.directory;
+}
+
+function codeBlock(content: string): string {
+  return `\`\`\`text\n${content.replace(/```/g, '`\u200b``')}\n\`\`\``;
 }
 
 interface CallbackButton {
@@ -355,33 +360,90 @@ export function createGatewayMenuCard(): CardBuildResult {
 }
 
 /** Level 3: Web monitor Gateway service */
-export function createWebMonitorMenuCard(): CardBuildResult {
+export function createWebMonitorMenuCard(services: ServiceEntry[] = listServices()): CardBuildResult {
+  if (services.length === 0) {
+    return createCardV2({
+      title: 'Web 服务监控',
+      subtitle: 'Gateway service',
+      template: 'grey',
+      icon: { token: 'search_outlined', color: 'grey' },
+      tags: [
+        { text: '0 services', color: 'neutral' },
+      ],
+      elements: [
+        iconMd('**暂无监控服务**\n点击“新建监控”注册服务。注册后会浅克隆 GitHub 仓库到本地 workspace。', 'search_outlined', 'grey'),
+      ],
+      buttons: [
+        { text: '新建监控', action: 'menu:web-monitor-new' },
+        { text: '返回 Gateway', action: 'menu:gateway' },
+        { text: '返回', action: 'menu:back' },
+      ],
+    });
+  }
+
   return createCardV2({
     title: 'Web 服务监控',
-    subtitle: 'Gateway service',
+    subtitle: '监控服务列表',
     template: 'green',
     icon: { token: 'search_outlined', color: 'green' },
     tags: [
-      { text: 'web-monitor', color: 'green' },
-      { text: 'traceback', color: 'neutral' },
+      { text: `${services.length} services`, color: 'green' },
     ],
     elements: [
-      md('轮询已注册服务的 traceback URL。首次读取只记录基线 hash，后续内容变化会触发 Gateway 后台任务。'),
-      columnSet([
-        [
-          iconMd('**触发条件**\ntraceback 内容 hash 发生变化。', 'status-meeting_outlined', 'green'),
-          iconMd('**处理方式**\n调用 Claude Code 静默分析，只发布最终结果。', 'robot_outlined', 'green'),
-        ],
-        [
-          iconMd('**服务配置**\n当前通过 `/service ...` 管理监控服务。', 'command_outlined', 'green'),
-          iconMd('**结果通知**\n发送到服务注册时绑定的飞书会话。', 'chatbox_outlined', 'green'),
-        ],
-      ]),
+      iconMd('**监控列表**\n点击服务查看详情、删除监控、查看最新日志，或用该仓库目录新建 Claude Code 会话。', 'search_outlined', 'green'),
+      ...services.map((service, index) => sessionOptionCard({
+        title: `${index + 1}. ${service.name}`,
+        description: [
+          `${service.githubOwner}/${service.githubRepo}`,
+          service.localRepoPath ? `本地：\`${service.localRepoPath}\`` : '本地仓库：未初始化',
+          `${service.enabled ? '启用' : '停用'} · ${service.lastCheckedAt ? `上次检查：${relativeTime(service.lastCheckedAt)}` : '尚未检查'}`,
+        ].join('\n'),
+        icon: service.enabled ? 'search_outlined' : 'stop_outlined',
+        color: service.enabled ? 'green' : 'grey',
+        action: `menu:web-monitor-detail:${service.name}`,
+      })),
     ],
     buttons: [
       { text: '新建监控', action: 'menu:web-monitor-new' },
       { text: '返回 Gateway', action: 'menu:gateway' },
       { text: '返回', action: 'menu:back' },
+    ],
+  });
+}
+
+export function createWebMonitorDetailCard(service: ServiceEntry): CardBuildResult {
+  const latestLog = service.lastTracebackPreview
+    ? codeBlock(service.lastTracebackPreview.slice(0, 1200))
+    : '暂无日志缓存。等待下一次轮询后会显示 traceback 预览。';
+  const claudeRun = service.lastClaudeRunAt
+    ? `${service.lastClaudeRunSuccess ? '成功' : '失败'} · ${relativeTime(service.lastClaudeRunAt)}\n${service.lastClaudeRunSummary || '无摘要'}`
+    : '暂无 Claude Code 介入记录。';
+
+  return createCardV2({
+    title: service.name,
+    subtitle: 'Web 服务监控详情',
+    template: service.enabled ? 'green' : 'grey',
+    icon: { token: 'details_outlined', color: service.enabled ? 'green' : 'grey' },
+    tags: [
+      { text: service.enabled ? 'enabled' : 'disabled', color: service.enabled ? 'green' : 'neutral' },
+      { text: 'web-monitor', color: 'green' },
+    ],
+    elements: [
+      columnSet([
+        [
+          iconMd(`**仓库**\n\`${service.githubOwner}/${service.githubRepo}\`\n\n**本地目录**\n${service.localRepoPath ? `\`${service.localRepoPath}\`` : '未初始化'}`, 'folder_outlined', 'green'),
+        ],
+        [
+          iconMd(`**Traceback URL**\n${service.tracebackUrl}\n\n**通知会话**\n${service.notifyChatId || '未设置'}`, 'link-copy_outlined', 'green'),
+        ],
+      ]),
+      iconMd(`**最新日志**\n${latestLog}`, 'doc-search_outlined', 'orange'),
+      iconMd(`**最近一次 Claude Code 介入**\n${claudeRun}`, 'robot_outlined', service.lastClaudeRunSuccess === false ? 'red' : 'blue'),
+    ],
+    buttons: [
+      { text: '以此目录新建会话', action: `menu:web-monitor-session:${service.name}` },
+      { text: '删除监控', action: `menu:web-monitor-delete:${service.name}` },
+      { text: '返回 Web 服务监控', action: 'menu:gateway-web-monitor' },
     ],
   });
 }
