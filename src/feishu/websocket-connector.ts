@@ -1,5 +1,6 @@
 import * as lark from '@larksuiteoapi/node-sdk';
 import { resolve } from 'path';
+import { execSync } from 'child_process';
 import { log } from '../utils/logger.js';
 import { env } from '../config/env.js';
 import { MessageRouter, type MessageData, type SendMessageFn } from './message-router.js';
@@ -473,32 +474,42 @@ export class FeishuWebSocket {
 }
 
 /**
- * Load lark-cli configuration
- * Priority: Environment variables > lark-cli config file
+ * Load lark-cli configuration.
  */
 export async function loadLarkCliConfig(): Promise<FeishuWebSocketConfig | null> {
   const os = await import('os');
   const path = await import('path');
   const fs = await import('fs');
 
-  // First check environment variables
-  const envAppId = process.env.LARK_APP_ID;
-  const envAppSecret = process.env.LARK_APP_SECRET;
-
-  if (envAppId && envAppSecret) {
-    log.debug('feishu', 'Using LARK_APP_ID/LARK_APP_SECRET from environment');
-    return {
-      appId: envAppId,
-      appSecret: envAppSecret,
-    };
+  try {
+    const output = execSync('lark-cli config show', {
+      encoding: 'utf-8',
+      timeout: 5000,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    const jsonStart = output.indexOf('{');
+    const jsonEnd = output.lastIndexOf('}');
+    if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+      const config = JSON.parse(output.slice(jsonStart, jsonEnd + 1));
+      const appConfig = config.apps?.[0] || config;
+      if (appConfig.appId && typeof appConfig.appSecret === 'string') {
+        log.debug('feishu', 'Loaded lark-cli config from command', { appId: appConfig.appId.slice(0, 8) + '...' });
+        return {
+          appId: appConfig.appId,
+          appSecret: appConfig.appSecret,
+          domain: appConfig.brand === 'lark' ? lark.Domain.Lark : lark.Domain.Feishu,
+        };
+      }
+    }
+  } catch {
+    // Fall back to reading the QR-compatible config file directly.
   }
 
-  // Fall back to lark-cli config
   const configPath = path.join(os.homedir(), '.lark-cli', 'config.json');
 
   if (!fs.existsSync(configPath)) {
     log.error('feishu', 'lark-cli config not found', { path: configPath });
-    log.error('feishu', 'Set LARK_APP_ID and LARK_APP_SECRET environment variables or run: lark-cli config init --new');
+    log.error('feishu', 'Run oh-my-feishu and complete Feishu auth.');
     return null;
   }
 
@@ -517,9 +528,7 @@ export async function loadLarkCliConfig(): Promise<FeishuWebSocketConfig | null>
     // Check if appSecret is stored in keychain (object with source: "keychain")
     if (appConfig.appSecret && typeof appConfig.appSecret === 'object' && appConfig.appSecret.source === 'keychain') {
       log.error('feishu', 'lark-cli stores appSecret in system keychain');
-      log.error('feishu', 'Please set LARK_APP_SECRET environment variable in .env file:');
-      log.error('feishu', `  LARK_APP_ID=${appConfig.appId}`);
-      log.error('feishu', '  LARK_APP_SECRET=your_app_secret');
+      log.error('feishu', 'Run oh-my-feishu and use QR auth to store a local bot credential.');
       return null;
     }
 

@@ -1,23 +1,9 @@
 import { z } from 'zod';
-import { config } from 'dotenv';
-import { resolve, dirname } from 'path';
-import { existsSync } from 'fs';
+import { dirname } from 'path';
 import { fileURLToPath } from 'url';
-
-// Load .env file
-const envPath = resolve(process.cwd(), '.env');
-if (existsSync(envPath)) {
-  config({ path: envPath });
-}
 
 // Environment schema
 const envSchema = z.object({
-  // Feishu
-  FEISHU_APP_ID: z.string().optional(),
-  FEISHU_APP_SECRET: z.string().optional(),
-  FEISHU_ENCRYPT_KEY: z.string().optional(),
-  FEISHU_VERIFICATION_TOKEN: z.string().optional(),
-
   // GitHub
   GITHUB_TOKEN: z.string().optional(),
   GITHUB_REPO_OWNER: z.string().optional(),
@@ -47,5 +33,4 @@ export function loadEnv(): Env {
 }
 
 export const env = loadEnv();
-
 

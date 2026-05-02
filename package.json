@@ -27,7 +27,6 @@
     "@larksuiteoapi/node-sdk": "^1.62.0",
     "@types/qrcode": "^1.5.6",
     "chalk": "^5.3.0",
-    "dotenv": "^16.4.0",
     "execa": "^8.0.1",
     "hono": "^4.3.0",
     "ink": "^4.4.1",
