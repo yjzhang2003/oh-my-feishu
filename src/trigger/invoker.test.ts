@@ -1,7 +1,10 @@
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'fs';
+import { EventEmitter } from 'events';
 import { tmpdir } from 'os';
 import { join, resolve } from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { execa } from 'execa';
+import { chatIdToSessionId } from '../utils/chat-id.js';
 
 const hoisted = vi.hoisted(() => ({
   homeDir: '',
@@ -60,5 +63,43 @@ describe('listSessions', () => {
       { id: 'newer-session', lastActive: '2026-05-01T10:00:00.000Z', summary: 'gateway-menu-polish' },
       { id: 'older-session', lastActive: '2026-04-30T10:05:00.000Z', summary: '修复目录会话恢复' },
     ]);
+  });
+});
+
+describe('invokeClaudeChat', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('retries missing direct chat sessions with deterministic --session-id', async () => {
+    const { invokeClaudeChat } = await import('./invoker.js');
+    const chatId = 'oc_direct_chat';
+    const sessionId = chatIdToSessionId(chatId);
+
+    vi.mocked(execa)
+      .mockReturnValueOnce({
+        stdout: new EventEmitter(),
+        stderr: 'No conversation found with session ID',
+        exitCode: 1,
+      } as any)
+      .mockReturnValueOnce({
+        stdout: new EventEmitter(),
+        stderr: '',
+        exitCode: 0,
+      } as any);
+
+    await invokeClaudeChat({
+      chatId,
+      chatType: 'group',
+      senderOpenId: 'ou_test',
+      message: '你好',
+    });
+
+    expect(vi.mocked(execa)).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(execa).mock.calls[0][1]).toContain('--resume');
+    expect(vi.mocked(execa).mock.calls[0][1]).toContain(sessionId);
+    expect(vi.mocked(execa).mock.calls[1][1]).toContain('--session-id');
+    expect(vi.mocked(execa).mock.calls[1][1]).toContain(sessionId);
+    expect(vi.mocked(execa).mock.calls[1][1]).not.toContain('--resume');
   });
 });

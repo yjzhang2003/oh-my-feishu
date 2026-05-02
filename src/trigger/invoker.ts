@@ -323,7 +323,7 @@ export async function invokeClaudeChat(
     if (result.stderr?.includes('No conversation found with session ID')) {
       const retryArgs: string[] = ['-p', '--dangerously-skip-permissions'];
       retryArgs.push('--output-format', 'stream-json', '--include-partial-messages', '--verbose');
-      retryArgs.push(prompt);
+      retryArgs.push('--session-id', sessionId, prompt);
 
       const retryProc = execa('claude', retryArgs, {
         cwd,

@@ -17,10 +17,10 @@ import {
 } from '../feishu/qr-onboarding.js';
 import { ServiceManageScreen } from './components/ServiceManageScreen.js';
 
-type Screen = 'main' | 'claude' | 'feishu' | 'github' | 'service' | 'service-manage' | 'logs' | 'init' | 'qr';
+type Screen = 'main' | 'claude' | 'feishu' | 'service' | 'service-manage' | 'logs' | 'init' | 'qr';
 
-const components = ['claude', 'feishu', 'github', 'service'] as const;
-const componentNames = ['Claude Code', 'Feishu (Lark)', 'GitHub', 'Service'];
+const components = ['claude', 'feishu', 'service'] as const;
+const componentNames = ['Claude Code', 'Feishu (Lark)', 'Service'];
 
 function App() {
   const { exit } = useApp();
@@ -333,21 +333,6 @@ function getScreenConfig(screen: Screen, statuses: Record<string, ComponentStatu
     };
   }
 
-  if (screen === 'github') {
-    const installed = statuses.github?.configured;
-    return {
-      status: statuses.github?.message,
-      options: installed
-        ? [
-            { key: 'back', label: 'Back', description: 'Return to main menu' },
-          ]
-        : [
-            { key: 'install', label: 'Install gh CLI', description: 'Visit GitHub CLI website' },
-            { key: 'back', label: 'Back', description: 'Return to main menu' },
-          ],
-    };
-  }
-
   return { status: '', options: [{ key: 'back', label: 'Back', description: 'Return to main menu' }] };
 }
 
@@ -511,13 +496,6 @@ async function executeAction(
         setMessage(chalk.red(`✗ ${result.error || 'Failed to remove config'}`));
       }
       refreshStatuses();
-    }
-  }
-
-  // GitHub actions
-  if (screen === 'github') {
-    if (option.key === 'install') {
-      setMessage(chalk.cyan('Run: brew install gh  OR  visit https://cli.github.com/'));
     }
   }
 

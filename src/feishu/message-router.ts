@@ -111,6 +111,10 @@ export class MessageRouter {
     const handler = this.commandRegistry.find(command);
     if (!handler) {
       log.warn('feishu', 'Unknown command', { command });
+      await this.sendMessage.sendTextMessage(
+        chatId,
+        `未知命令：${command}\n发送 /menu 查看可用功能，或使用 /help 查看帮助。`
+      );
       return;
     }
 
@@ -120,6 +124,8 @@ export class MessageRouter {
       chatType,
       messageId,
       args,
+      sessionMode: this.sessionStore.get(chatId).mode,
+      sessionDirectory: this.sessionStore.get(chatId).data.directory as string | undefined,
       connected: this.sendMessage.isConnected(),
       gatewayFeatureRunner: this.gatewayFeatureRunner ?? undefined,
       sendText: (text: string) => this.sendMessage.sendTextMessage(chatId, text),

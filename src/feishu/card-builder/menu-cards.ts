@@ -141,6 +141,9 @@ function commandTable(): CardV2Element {
       { command: '`/service enable <name>`', usage: '启用监控服务' },
       { command: '`/service disable <name>`', usage: '停用监控服务' },
       { command: '`/repair <context>`', usage: '触发后台修复流程' },
+      { command: '`/claude plugin list`', usage: '查看 Claude Code 插件' },
+      { command: '`/claude plugin marketplace add <url>`', usage: '添加插件市场' },
+      { command: '`/claude plugin install <name>`', usage: '安装插件' },
     ],
   };
 }

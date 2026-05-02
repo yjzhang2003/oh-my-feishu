@@ -1,4 +1,3 @@
-import { env } from '../../../config/env.js';
 import { listServices } from '../../../service/registry.js';
 import { checkClaudeCli } from '../../../trigger/invoker.js';
 import type { GatewayEvent, GatewayFeature } from '../types.js';
@@ -21,7 +20,6 @@ export const statusFeature: GatewayFeature = {
 
 **Claude CLI:** ${claudeStatus.available ? `✅ ${claudeStatus.version}` : '❌ Not available'}
 **WebSocket:** ${payload.connected ? '✅ Connected' : '❌ Disconnected'}
-**GitHub:** ${env.GITHUB_TOKEN ? '✅ Configured' : '❌ Not configured'}
 **Services:** ${enabledCount} enabled / ${services.length} registered`;
 
     return {
@@ -31,6 +29,7 @@ export const statusFeature: GatewayFeature = {
         text,
         claudeAvailable: claudeStatus.available,
         claudeVersion: claudeStatus.version,
+        websocketConnected: Boolean(payload.connected),
         servicesRegistered: services.length,
         servicesEnabled: enabledCount,
       },

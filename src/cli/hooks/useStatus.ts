@@ -82,16 +82,6 @@ export function checkFeishu(): ComponentStatus {
   return { name: 'Feishu', configured: false, message: 'lark-cli not configured' };
 }
 
-// GitHub status - check if gh CLI is installed
-export function checkGitHub(): ComponentStatus {
-  const result = runCommand('gh', ['--version']);
-  if (result && result.success) {
-    const version = result.stdout.trim().split('\n')[0];
-    return { name: 'GitHub', configured: true, message: `${version} installed` };
-  }
-  return { name: 'GitHub', configured: false, message: 'gh CLI not installed' };
-}
-
 // Agent status - check if agent can start (all required components ready)
 export function checkAgent(): ComponentStatus {
   const claude = checkClaudeCode();
@@ -110,9 +100,8 @@ export function checkAgent(): ComponentStatus {
 export function getAllStatuses(): Record<string, ComponentStatus> {
   const claude = checkClaudeCode();
   const feishu = checkFeishu();
-  const github = checkGitHub();
 
-  return { claude, feishu, github };
+  return { claude, feishu };
 }
 
 // Check if PM2 is installed

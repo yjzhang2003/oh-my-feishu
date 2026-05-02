@@ -8,6 +8,8 @@ export interface CommandContext {
   chatType: string;
   messageId: string;
   args: string[];
+  sessionMode?: 'direct' | 'directory';
+  sessionDirectory?: string;
   connected?: boolean;
   gatewayFeatureRunner?: import('../../gateway/features/index.js').GatewayFeatureRunner;
   sendText: (text: string) => Promise<void>;
