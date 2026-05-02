@@ -51,12 +51,13 @@ describe('webMonitorFeature', () => {
         serviceName: 'api',
         repo: 'org/api',
         tracebackContent: 'Traceback...',
+        localRepoPath: '/tmp/workspace/services/api',
       }),
       env: expect.objectContaining({
         SERVICE_NAME: 'api',
         NOTIFY_CHAT_ID: 'oc_123',
+        TARGET_REPO_PATH: '/tmp/workspace/services/api',
       }),
-      cwd: '/tmp/workspace/services/api',
     }));
     expect(updateWebMonitorClaudeRun).toHaveBeenCalledWith('api', expect.objectContaining({
       success: true,
