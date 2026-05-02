@@ -1,8 +1,8 @@
 ---
-name: analyze-log
+name: web-monitor-analyze-log
 description: >
-  Analyze error logs and tracebacks to identify root cause, affected files,
-  and propose a minimal fix. Use when debugging service errors or reviewing bug reports.
+  Web Monitor helper. Analyze service error logs and tracebacks to identify
+  root cause, affected files, and a minimal fix.
 ---
 
 # Log Analysis Protocol

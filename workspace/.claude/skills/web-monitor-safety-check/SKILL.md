@@ -1,9 +1,9 @@
 ---
-name: safety-check
+name: web-monitor-safety-check
 description: >
-  Review proposed code changes for safety violations:
-  path traversal, excessive diff size, missing tests, hardcoded secrets.
-  Gatekeeper for auto-repair pipeline.
+  Web Monitor helper. Review proposed auto-repair code changes for safety
+  violations: path traversal, excessive diff size, missing tests, hardcoded
+  secrets.
 ---
 
 # Safety Check Protocol

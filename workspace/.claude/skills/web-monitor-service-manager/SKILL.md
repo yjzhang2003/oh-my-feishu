@@ -1,13 +1,13 @@
 ---
-name: service-manager
-description: "管理服务注册表：读取、添加、删除、启用/禁用 traceback 监控服务。操作 workspace/.claude/services.json。"
+name: web-monitor-service-manager
+description: "Web Monitor helper. 管理 Web 服务监控注册表：读取、添加、删除、启用/禁用 traceback 监控服务。"
 metadata:
   category: "devops"
   requires:
     files: ["workspace/.claude/services.json"]
 ---
 
-# Service Manager
+# Web Monitor Service Manager
 
 管理服务注册表，配置需要被 TracebackMonitor 监控的 GitHub 仓库和日志地址。
 
