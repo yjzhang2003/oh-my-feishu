@@ -7,9 +7,10 @@ export function buildWebMonitorClaudeTask(
 ): ClaudeTaskInput {
   return {
     feature: 'web-monitor',
+    skillCommand: '/web-monitor-auto-repair',
     instruction: [
       '处理一个 Web 服务 traceback 监控事件。',
-      '请读取 web-monitor-auto-repair / web-monitor-service-manager 相关能力，分析错误、尝试修复，并只输出最终结果。',
+      '使用 web-monitor-auto-repair 工作流分析错误、尝试修复，并只输出最终结果。',
       '如果完成了修复，请说明修改点、验证结果和后续需要用户处理的事项。',
     ].join('\n'),
     context: {

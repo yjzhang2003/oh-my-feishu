@@ -28,8 +28,9 @@ export const repairFeature: GatewayFeature = {
 
     const claude = await runtime.invokeMainClaude({
       feature: 'repair',
+      skillCommand: '/web-monitor-auto-repair',
       instruction: [
-        '读取 web-monitor-auto-repair skill 并严格按其流程执行。',
+        '严格按 web-monitor-auto-repair 工作流执行。',
         '触发上下文已经写入 workspace/.claude/triggers/latest.json。',
         '这是 Gateway 后台任务，不要输出中间过程；只返回最终结果、修复结论、验证情况和后续动作。',
       ].join('\n'),

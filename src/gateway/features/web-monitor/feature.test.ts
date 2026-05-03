@@ -47,6 +47,7 @@ describe('webMonitorFeature', () => {
     expect(result.success).toBe(true);
     expect(rt.invokeMainClaude).toHaveBeenCalledWith(expect.objectContaining({
       feature: 'web-monitor',
+      skillCommand: '/web-monitor-auto-repair',
       context: expect.objectContaining({
         serviceName: 'api',
         repo: 'org/api',

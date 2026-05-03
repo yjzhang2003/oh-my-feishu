@@ -21,6 +21,7 @@ export interface GatewayTrigger {
 
 export interface ClaudeTaskInput {
   feature: string;
+  skillCommand?: string;
   instruction: string;
   context?: Record<string, unknown>;
   cwd?: string;

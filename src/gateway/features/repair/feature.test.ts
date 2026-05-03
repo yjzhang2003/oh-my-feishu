@@ -35,6 +35,7 @@ describe('repairFeature', () => {
     expect(result.success).toBe(true);
     expect(runtime.invokeMainClaude).toHaveBeenCalledWith(expect.objectContaining({
       feature: 'repair',
+      skillCommand: '/web-monitor-auto-repair',
       context: expect.objectContaining({
         repairContext: 'Fix API traceback',
       }),
