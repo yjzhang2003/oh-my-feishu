@@ -159,6 +159,10 @@ describe('CardBuilder', () => {
     expect(cardJson).toContain('"name":"wm_name"');
     expect(cardJson).toContain('"name":"wm_repo"');
     expect(cardJson).toContain('"name":"wm_url"');
+    expect(cardJson).toContain('"name":"wm_auto_pr"');
+    expect(cardJson).toContain('"name":"wm_pr_base"');
+    expect(cardJson).toContain('"name":"wm_pr_mode"');
+    expect(cardJson).toContain('"name":"wm_pr_branch_prefix"');
     expect(cardJson).toContain('"form_action_type":"submit"');
   });
 

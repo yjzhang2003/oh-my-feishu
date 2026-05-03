@@ -16,6 +16,10 @@ const registry = vi.hoisted(() => ({
     lastCheckedAt?: string;
     localRepoPath?: string;
     pollIntervalSec?: number;
+    autoPr?: boolean;
+    prBaseBranch?: string;
+    prDraft?: boolean;
+    prBranchPrefix?: string;
     lastErrorHash?: string;
     lastTracebackAt?: string;
     lastTracebackPreview?: string;
@@ -80,6 +84,10 @@ describe('serviceAdminFeature', () => {
         tracebackUrl: 'https://logs.example.com/test',
         notifyChatId: 'oc_test',
         addedBy: 'ou_test',
+        autoPr: true,
+        prBaseBranch: 'develop',
+        prDraft: false,
+        prBranchPrefix: 'bot/web-monitor',
       },
       createdAt: '2026-04-30T00:00:00.000Z',
     }, {} as never);
@@ -92,6 +100,12 @@ describe('serviceAdminFeature', () => {
       repo: 'repo',
     });
     expect(registry.services[0].localRepoPath).toBe('/tmp/workspace/services/test-gateway-service');
+    expect(registry.services[0]).toMatchObject({
+      autoPr: true,
+      prBaseBranch: 'develop',
+      prDraft: false,
+      prBranchPrefix: 'bot/web-monitor',
+    });
 
     const listResult = await serviceAdminFeature.handle({
       id: 'evt_list',
@@ -204,6 +218,10 @@ describe('serviceAdminFeature', () => {
         tracebackUrl: 'https://logs.example.com/new-api',
         notifyChatId: 'oc_new',
         pollIntervalSec: 120,
+        autoPr: true,
+        prBaseBranch: 'release',
+        prDraft: false,
+        prBranchPrefix: 'bot/fix',
       },
       createdAt: '2026-05-03T00:00:00.000Z',
     }, {} as never);
@@ -215,6 +233,10 @@ describe('serviceAdminFeature', () => {
       tracebackUrl: 'https://logs.example.com/new-api',
       notifyChatId: 'oc_new',
       pollIntervalSec: 120,
+      autoPr: true,
+      prBaseBranch: 'release',
+      prDraft: false,
+      prBranchPrefix: 'bot/fix',
     });
     expect(registry.services[0].lastErrorHash).toBeUndefined();
     expect(registry.services[0].lastTracebackPreview).toBeUndefined();

@@ -81,6 +81,7 @@ export class FeishuWebSocket {
       registry: createDefaultGatewayFeatureRegistry(),
       runtime: createGatewayRuntime({
         sendTextMessage: (chatId, text) => this.sendTextMessage(chatId, text),
+        sendCardMessage: (chatId, card) => this.sendCardMessageRaw(chatId, card),
         updateCard: (input) => {
           switch (input.kind) {
             case 'content':

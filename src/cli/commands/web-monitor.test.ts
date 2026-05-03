@@ -19,6 +19,10 @@ describe('web-monitor CLI command parsing', () => {
       tracebackUrl: 'https://logs.example.com/api',
       notifyChatId: 'oc_test',
       addedBy: 'workspace-claude',
+      autoPr: false,
+      prBaseBranch: 'main',
+      prDraft: true,
+      prBranchPrefix: 'oh-my-feishu/web-monitor',
     });
   });
 
@@ -34,6 +38,12 @@ describe('web-monitor CLI command parsing', () => {
       '',
       '--interval',
       '120',
+      '--auto-pr',
+      '--pr-base',
+      'release',
+      '--pr-ready',
+      '--pr-branch-prefix',
+      'bot/fix',
     ]);
 
     expect(buildServiceAdminPayload(opts)).toEqual({
@@ -43,6 +53,10 @@ describe('web-monitor CLI command parsing', () => {
       tracebackUrl: 'https://logs.example.com/new-api',
       notifyChatId: '',
       pollIntervalSec: 120,
+      autoPr: true,
+      prBaseBranch: 'release',
+      prDraft: false,
+      prBranchPrefix: 'bot/fix',
     });
   });
 

@@ -17,6 +17,10 @@ export interface WebMonitorCommandOptions {
   tracebackUrl?: string;
   chatId?: string;
   interval?: number;
+  autoPr?: boolean;
+  prBaseBranch?: string;
+  prDraft?: boolean;
+  prBranchPrefix?: string;
 }
 
 export function parseWebMonitorArgs(args: string[]): WebMonitorCommandOptions {
@@ -66,6 +70,10 @@ export function buildServiceAdminPayload(opts: WebMonitorCommandOptions): Record
         tracebackUrl: opts.tracebackUrl,
         notifyChatId: opts.chatId || '',
         addedBy: 'workspace-claude',
+        autoPr: opts.autoPr ?? false,
+        prBaseBranch: opts.prBaseBranch || 'main',
+        prDraft: opts.prDraft ?? true,
+        prBranchPrefix: opts.prBranchPrefix || 'oh-my-feishu/web-monitor',
       };
     case 'update':
       return {
@@ -75,6 +83,10 @@ export function buildServiceAdminPayload(opts: WebMonitorCommandOptions): Record
         ...(opts.tracebackUrl ? { tracebackUrl: opts.tracebackUrl } : {}),
         ...(opts.chatId !== undefined ? { notifyChatId: opts.chatId } : {}),
         ...(opts.interval !== undefined ? { pollIntervalSec: opts.interval } : {}),
+        ...(opts.autoPr !== undefined ? { autoPr: opts.autoPr } : {}),
+        ...(opts.prBaseBranch !== undefined ? { prBaseBranch: opts.prBaseBranch } : {}),
+        ...(opts.prDraft !== undefined ? { prDraft: opts.prDraft } : {}),
+        ...(opts.prBranchPrefix !== undefined ? { prBranchPrefix: opts.prBranchPrefix } : {}),
       };
     default:
       return { action: 'help' };
@@ -133,6 +145,20 @@ function parseFlags(args: string[], opts: WebMonitorCommandOptions): void {
     } else if (flag === '--interval') {
       const parsed = Number(value);
       if (Number.isFinite(parsed)) opts.interval = parsed;
+      i += 1;
+    } else if (flag === '--auto-pr') {
+      opts.autoPr = true;
+    } else if (flag === '--no-auto-pr') {
+      opts.autoPr = false;
+    } else if (flag === '--pr-base') {
+      opts.prBaseBranch = value;
+      i += 1;
+    } else if (flag === '--pr-draft') {
+      opts.prDraft = true;
+    } else if (flag === '--pr-ready') {
+      opts.prDraft = false;
+    } else if (flag === '--pr-branch-prefix') {
+      opts.prBranchPrefix = value;
       i += 1;
     }
   }
@@ -199,15 +225,16 @@ ${chalk.bold('Web Monitor commands')}
 ${chalk.bold('Usage:')}
   oh-my-feishu web-monitor list
   oh-my-feishu web-monitor get <name>
-  oh-my-feishu web-monitor add <name> <owner/repo> <traceback_url> [--chat-id <chat_id>]
+  oh-my-feishu web-monitor add <name> <owner/repo> <traceback_url> [--chat-id <chat_id>] [--auto-pr] [--pr-base <branch>] [--pr-ready]
   oh-my-feishu web-monitor remove <name>
   oh-my-feishu web-monitor enable <name>
   oh-my-feishu web-monitor disable <name>
-  oh-my-feishu web-monitor update <name> [--repo <owner/repo>] [--traceback-url <url>] [--chat-id <chat_id>] [--interval <seconds>]
+  oh-my-feishu web-monitor update <name> [--repo <owner/repo>] [--traceback-url <url>] [--chat-id <chat_id>] [--interval <seconds>] [--auto-pr|--no-auto-pr] [--pr-base <branch>] [--pr-draft|--pr-ready]
 
 ${chalk.bold('Examples:')}
   oh-my-feishu web-monitor list
   oh-my-feishu web-monitor add api myorg/api https://logs.example.com/api
+  oh-my-feishu web-monitor add api myorg/api https://logs.example.com/api --auto-pr --pr-base main --pr-ready
   oh-my-feishu web-monitor update api --traceback-url https://logs.example.com/new-api --interval 60
 `);
 }

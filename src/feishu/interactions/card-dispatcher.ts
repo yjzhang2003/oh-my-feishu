@@ -285,6 +285,11 @@ export class CardDispatcher {
     const name = String(formValue.wm_name || '').trim();
     const repo = String(formValue.wm_repo || '').trim();
     const tracebackUrl = String(formValue.wm_url || '').trim();
+    const autoPr = String(formValue.wm_auto_pr || 'false') === 'true';
+    const prBaseBranch = String(formValue.wm_pr_base || 'main').trim() || 'main';
+    const prDraft = String(formValue.wm_pr_mode || 'draft') !== 'ready';
+    const prBranchPrefix = String(formValue.wm_pr_branch_prefix || 'oh-my-feishu/web-monitor').trim()
+      || 'oh-my-feishu/web-monitor';
 
     if (!name || !repo || !tracebackUrl) {
       return { toast: { type: 'error', content: '请填写服务名称、仓库和 Traceback URL' } };
@@ -303,6 +308,10 @@ export class CardDispatcher {
         tracebackUrl,
         notifyChatId: chatId,
         addedBy: senderOpenId,
+        autoPr,
+        prBaseBranch,
+        prDraft,
+        prBranchPrefix,
       },
     });
 

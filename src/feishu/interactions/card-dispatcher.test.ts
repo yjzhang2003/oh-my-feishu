@@ -74,6 +74,10 @@ describe('CardDispatcher', () => {
           wm_name: 'my-api',
           wm_repo: 'owner/repo',
           wm_url: 'https://example.com/traceback',
+          wm_auto_pr: 'true',
+          wm_pr_base: 'develop',
+          wm_pr_mode: 'ready',
+          wm_pr_branch_prefix: 'bot/web-monitor',
         },
       },
     });
@@ -92,6 +96,10 @@ describe('CardDispatcher', () => {
         tracebackUrl: 'https://example.com/traceback',
         notifyChatId: 'oc_test',
         addedBy: 'ou_test',
+        autoPr: true,
+        prBaseBranch: 'develop',
+        prDraft: false,
+        prBranchPrefix: 'bot/web-monitor',
       },
     });
     expect(response.toast).toEqual({

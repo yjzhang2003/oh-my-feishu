@@ -15,6 +15,10 @@ export interface ServiceEntry {
   notifyChatId: string;
   tracebackUrlType: 'json' | 'text' | 'html';
   pollIntervalSec?: number;
+  autoPr?: boolean;
+  prBaseBranch?: string;
+  prDraft?: boolean;
+  prBranchPrefix?: string;
   enabled: boolean;
   addedAt: string;
   addedBy: string;

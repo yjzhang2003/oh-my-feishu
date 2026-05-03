@@ -1,5 +1,5 @@
 import type { GatewayEvent, GatewayFeature, GatewayRuntime } from '../types.js';
-import { formatWebMonitorResultMessage } from './cards.js';
+import { createWebMonitorResultCard, formatWebMonitorResultMessage } from './cards.js';
 import { updateWebMonitorClaudeRun } from './registry.js';
 import { buildWebMonitorClaudeTask } from './service-actions.js';
 
@@ -11,6 +11,10 @@ export interface TracebackDetectedPayload {
   tracebackUrl: string;
   tracebackContent: string;
   notifyChatId?: string;
+  autoPr?: boolean;
+  prBaseBranch?: string;
+  prDraft?: boolean;
+  prBranchPrefix?: string;
   previousHash?: string;
   currentHash?: string;
 }
@@ -45,10 +49,28 @@ export const webMonitorFeature: GatewayFeature = {
     });
 
     if (payload.notifyChatId) {
-      await runtime.sendFeishuMessage({
-        chatId: payload.notifyChatId,
-        content: formatWebMonitorResultMessage(claude),
-      });
+      const content = formatWebMonitorResultMessage(claude);
+      if (runtime.sendFeishuCard) {
+        await runtime.sendFeishuCard({
+          chatId: payload.notifyChatId,
+          card: createWebMonitorResultCard({
+            serviceName: payload.serviceName,
+            repo: `${payload.githubOwner}/${payload.githubRepo}`,
+            success: claude.success,
+            summary: content,
+            tracebackPreview: payload.tracebackContent,
+            autoPr: payload.autoPr,
+            prBaseBranch: payload.prBaseBranch,
+            prDraft: payload.prDraft,
+            prBranchPrefix: payload.prBranchPrefix,
+          }),
+        });
+      } else {
+        await runtime.sendFeishuMessage({
+          chatId: payload.notifyChatId,
+          content,
+        });
+      }
     }
 
     return {

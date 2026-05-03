@@ -32,10 +32,12 @@ oh-my-feishu web-monitor get <name>
 ### Add a service
 
 ```bash
-oh-my-feishu web-monitor add <name> <owner/repo> <traceback_url> [--chat-id <chat_id>]
+oh-my-feishu web-monitor add <name> <owner/repo> <traceback_url> [--chat-id <chat_id>] [--auto-pr] [--pr-base <branch>] [--pr-ready]
 ```
 
 Adding a service shallow-clones the GitHub repository into the controlled workspace service directory and registers it with the Gateway `service-admin` feature.
+
+By default, auto PR is disabled. Add `--auto-pr` only when the user explicitly wants Web Monitor repairs to push a branch and open a PR automatically.
 
 ### Remove a service
 
@@ -59,10 +61,22 @@ oh-my-feishu web-monitor update <name> \
   [--repo <owner/repo>] \
   [--traceback-url <url>] \
   [--chat-id <chat_id>] \
-  [--interval <seconds>]
+  [--interval <seconds>] \
+  [--auto-pr|--no-auto-pr] \
+  [--pr-base <branch>] \
+  [--pr-draft|--pr-ready] \
+  [--pr-branch-prefix <prefix>]
 ```
 
 Updating `--traceback-url` resets the cached traceback hash and preview so the monitor establishes a fresh baseline for the new URL.
+
+PR-related flags:
+
+- `--auto-pr`: after a successful repair, create a branch, commit, push, and open a PR.
+- `--no-auto-pr`: keep repairs local and only report the result.
+- `--pr-base <branch>`: target branch for the PR, default `main`.
+- `--pr-draft` / `--pr-ready`: create draft PRs by default; use ready PRs only when requested.
+- `--pr-branch-prefix <prefix>`: branch prefix for generated repair branches.
 
 ## Safety Rules
 
@@ -71,6 +85,7 @@ Updating `--traceback-url` resets the cached traceback hash and preview so the m
 3. Do not modify service repositories while managing the monitor registry.
 4. If the CLI reports that Gateway is unavailable, tell the user the oh-my-feishu PM2 service must be running.
 5. Do not expose or guess Feishu chat IDs. Only use `--chat-id` if the user provides one or the surrounding oh-my-feishu context already supplies it.
+6. Do not enable auto PR unless the user explicitly asks for automatic PR submission.
 
 ## Output
 

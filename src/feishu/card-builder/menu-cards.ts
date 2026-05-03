@@ -396,6 +396,7 @@ export function createWebMonitorMenuCard(services: ServiceEntry[] = listServices
         description: [
           `${service.githubOwner}/${service.githubRepo}`,
           service.localRepoPath ? `本地：\`${service.localRepoPath}\`` : '本地仓库：未初始化',
+          `PR：${service.autoPr ? `自动创建 · base ${service.prBaseBranch || 'main'} · ${service.prDraft === false ? 'ready' : 'draft'}` : '关闭'}`,
           `${service.enabled ? '启用' : '停用'} · ${service.lastCheckedAt ? `上次检查：${relativeTime(service.lastCheckedAt)}` : '尚未检查'}`,
         ].join('\n'),
         icon: service.enabled ? 'search_outlined' : 'stop_outlined',
@@ -418,6 +419,9 @@ export function createWebMonitorDetailCard(service: ServiceEntry): CardBuildResu
   const claudeRun = service.lastClaudeRunAt
     ? `${service.lastClaudeRunSuccess ? '成功' : '失败'} · ${relativeTime(service.lastClaudeRunAt)}\n${service.lastClaudeRunSummary || '无摘要'}`
     : '暂无 Claude Code 介入记录。';
+  const prConfig = service.autoPr
+    ? `自动创建 PR\nbase: \`${service.prBaseBranch || 'main'}\`\nmode: ${service.prDraft === false ? 'ready' : 'draft'}\nbranch: \`${service.prBranchPrefix || 'oh-my-feishu/web-monitor'}/*\``
+    : '关闭。修复后只保留本地改动并返回结果卡片。';
 
   return createCardV2({
     title: service.name,
@@ -437,6 +441,7 @@ export function createWebMonitorDetailCard(service: ServiceEntry): CardBuildResu
           iconMd(`**Traceback URL**\n${service.tracebackUrl}\n\n**通知会话**\n${service.notifyChatId || '未设置'}`, 'link-copy_outlined', 'green'),
         ],
       ]),
+      iconMd(`**PR 设置**\n${prConfig}`, 'command_outlined', service.autoPr ? 'green' : 'grey'),
       iconMd(`**最新日志**\n${latestLog}`, 'doc-search_outlined', 'orange'),
       iconMd(`**最近一次 Claude Code 介入**\n${claudeRun}`, 'robot_outlined', service.lastClaudeRunSuccess === false ? 'red' : 'blue'),
     ],
@@ -469,7 +474,7 @@ export function createWebMonitorInputCard(): object {
     },
     body: {
       elements: [
-        iconMd('**填写监控信息**\n提交后会注册一个 Web 服务监控，首次轮询只记录基线 hash。', 'search_outlined', 'green'),
+        iconMd('**填写监控信息**\n提交后会注册一个 Web 服务监控，首次轮询只记录基线 hash。默认不会自动提交 PR；可由 workspace Claude 通过 `oh-my-feishu web-monitor update <name> --auto-pr` 开启。', 'search_outlined', 'green'),
         {
           tag: 'form',
           direction: 'vertical',
@@ -507,6 +512,68 @@ export function createWebMonitorInputCard(): object {
               max_length: 500,
               label: { tag: 'plain_text', content: 'Traceback URL' },
               placeholder: { tag: 'plain_text', content: 'https://example.com/traceback' },
+            },
+            {
+              tag: 'select_static',
+              element_id: 'wm_auto_pr',
+              name: 'wm_auto_pr',
+              required: false,
+              width: 'fill',
+              type: 'default',
+              label: { tag: 'plain_text', content: '自动提交 PR' },
+              placeholder: { tag: 'plain_text', content: '默认关闭' },
+              options: [
+                {
+                  text: { tag: 'plain_text', content: '关闭：只保留本地修复' },
+                  value: 'false',
+                },
+                {
+                  text: { tag: 'plain_text', content: '开启：修复后创建 PR' },
+                  value: 'true',
+                },
+              ],
+            },
+            {
+              tag: 'input',
+              element_id: 'wm_pr_base',
+              name: 'wm_pr_base',
+              required: false,
+              width: 'fill',
+              max_length: 120,
+              default_value: 'main',
+              label: { tag: 'plain_text', content: 'PR 目标分支' },
+              placeholder: { tag: 'plain_text', content: 'main' },
+            },
+            {
+              tag: 'select_static',
+              element_id: 'wm_pr_mode',
+              name: 'wm_pr_mode',
+              required: false,
+              width: 'fill',
+              type: 'default',
+              label: { tag: 'plain_text', content: 'PR 模式' },
+              placeholder: { tag: 'plain_text', content: '默认 draft' },
+              options: [
+                {
+                  text: { tag: 'plain_text', content: 'Draft PR' },
+                  value: 'draft',
+                },
+                {
+                  text: { tag: 'plain_text', content: 'Ready PR' },
+                  value: 'ready',
+                },
+              ],
+            },
+            {
+              tag: 'input',
+              element_id: 'wm_pr_branch_prefix',
+              name: 'wm_pr_branch_prefix',
+              required: false,
+              width: 'fill',
+              max_length: 160,
+              default_value: 'oh-my-feishu/web-monitor',
+              label: { tag: 'plain_text', content: 'PR 分支前缀' },
+              placeholder: { tag: 'plain_text', content: 'oh-my-feishu/web-monitor' },
             },
             {
               tag: 'column_set',

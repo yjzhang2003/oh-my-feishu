@@ -6,7 +6,7 @@ description: >
   report for the oh-my-feishu Gateway runtime.
 context: fork
 agent: general-purpose
-allowed-tools: Read Edit Bash(pytest *) Bash(npm test *) Bash(npm run *) Bash(git *) Bash(curl *) Bash(cat *) Bash(tail *) Bash(ls *) Bash(find *)
+allowed-tools: Read Edit Bash(pytest *) Bash(npm test *) Bash(npm run *) Bash(git *) Bash(gh *) Bash(curl *) Bash(cat *) Bash(tail *) Bash(ls *) Bash(find *)
 ---
 
 # Web Monitor Auto-Repair Protocol
@@ -25,6 +25,10 @@ Use these input sources in order:
    - `TRACEBACK_URL`
    - `TARGET_REPO_PATH`
    - `NOTIFY_CHAT_ID`
+   - `WEB_MONITOR_AUTO_PR`
+   - `WEB_MONITOR_PR_BASE_BRANCH`
+   - `WEB_MONITOR_PR_DRAFT`
+   - `WEB_MONITOR_PR_BRANCH_PREFIX`
 3. Optional fallback files if present:
    - `.claude/triggers/latest.json`
    - `workspace/.claude/triggers/latest.json`
@@ -94,10 +98,15 @@ Before applying any edit:
 
 ### Step 7: Commit & Notify
 1. Leave the working tree with the minimal fix applied.
-2. Do not push or create a PR by default.
-3. If explicitly allowed to commit, create a local commit with a focused message.
-4. Do not send a separate Feishu notification by default. The Gateway runtime publishes your final stdout to Feishu.
-5. Use `web-monitor-notify-feishu` only if the prompt explicitly asks for a separate Feishu card.
+2. If `WEB_MONITOR_AUTO_PR` is not `true`, do not commit, push, or create a PR by default.
+3. If `WEB_MONITOR_AUTO_PR=true`, create a branch, commit the minimal fix, push it, and open a GitHub PR:
+   - base branch: `WEB_MONITOR_PR_BASE_BRANCH` or `main`
+   - branch prefix: `WEB_MONITOR_PR_BRANCH_PREFIX` or `oh-my-feishu/web-monitor`
+   - PR mode: draft unless `WEB_MONITOR_PR_DRAFT=false`
+   - use `gh pr create` and include root cause plus verification in the PR body
+4. If auto PR is enabled but `gh` is unavailable, authentication is missing, push fails, or PR creation fails, keep the local fix and report the exact failure.
+5. Do not send a separate Feishu notification by default. The Gateway runtime publishes your final stdout to Feishu.
+6. Use `web-monitor-notify-feishu` only if the prompt explicitly asks for a separate Feishu card.
 
 ## Output
 
@@ -108,6 +117,7 @@ Always return a concise final report on stdout:
 - `root_cause`: one concise paragraph
 - `changes`: files changed and why
 - `verification`: command run and result
+- `pr`: PR URL if created, otherwise `not_created` with reason
 - `follow_up`: anything the user must do
 
 Also write the same report to `.claude/triggers/result.md` when possible.

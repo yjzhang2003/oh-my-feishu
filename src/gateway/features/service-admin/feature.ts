@@ -19,6 +19,10 @@ interface ServiceAdminPayload {
   notifyChatId?: string;
   addedBy?: string;
   pollIntervalSec?: number;
+  autoPr?: boolean;
+  prBaseBranch?: string;
+  prDraft?: boolean;
+  prBranchPrefix?: string;
 }
 
 export const serviceAdminFeature: GatewayFeature = {
@@ -118,6 +122,17 @@ async function handleAdd(payload: ServiceAdminPayload) {
       enabled: true,
       addedAt: new Date().toISOString(),
       addedBy: payload.addedBy || 'unknown',
+      autoPr: payload.autoPr ?? false,
+      prBaseBranch: payload.prBaseBranch || 'main',
+      prDraft: payload.prDraft ?? true,
+      prBranchPrefix: payload.prBranchPrefix || 'oh-my-feishu/web-monitor',
+    });
+
+    const prConfig = formatPrConfig({
+      autoPr: payload.autoPr ?? false,
+      prBaseBranch: payload.prBaseBranch || 'main',
+      prDraft: payload.prDraft ?? true,
+      prBranchPrefix: payload.prBranchPrefix || 'oh-my-feishu/web-monitor',
     });
 
     return {
@@ -130,6 +145,7 @@ async function handleAdd(payload: ServiceAdminPayload) {
           `**Local:** ${localRepoPath}`,
           `**Traceback URL:** ${payload.tracebackUrl}`,
           `**Notify chat:** ${payload.notifyChatId || '(none)'}`,
+          `**Auto PR:** ${prConfig}`,
           '',
           'TracebackMonitor will poll this service for new errors.',
         ],
@@ -228,6 +244,7 @@ function handleGet(payload: ServiceAdminPayload) {
         `**Notify chat:** ${service.notifyChatId || '(none)'}`,
         `**Enabled:** ${service.enabled}`,
         `**Poll interval:** ${service.pollIntervalSec || 60}s`,
+        `**Auto PR:** ${formatPrConfig(service)}`,
         `**Last checked:** ${service.lastCheckedAt || '(never)'}`,
       ],
     },
@@ -296,12 +313,28 @@ function handleUpdate(payload: ServiceAdminPayload) {
     updates.pollIntervalSec = payload.pollIntervalSec;
   }
 
+  if (payload.autoPr !== undefined) {
+    updates.autoPr = payload.autoPr;
+  }
+
+  if (payload.prBaseBranch !== undefined) {
+    updates.prBaseBranch = payload.prBaseBranch || 'main';
+  }
+
+  if (payload.prDraft !== undefined) {
+    updates.prDraft = payload.prDraft;
+  }
+
+  if (payload.prBranchPrefix !== undefined) {
+    updates.prBranchPrefix = payload.prBranchPrefix || 'oh-my-feishu/web-monitor';
+  }
+
   if (Object.keys(updates).length === 0) {
     return {
       success: false,
       data: {
         title: 'No updates provided',
-        elements: ['Provide at least one of: repo, tracebackUrl, notifyChatId, pollIntervalSec.'],
+        elements: ['Provide at least one of: repo, tracebackUrl, notifyChatId, pollIntervalSec, autoPr, prBaseBranch, prDraft, prBranchPrefix.'],
       },
     };
   }
@@ -362,7 +395,14 @@ function handleToggle(action: 'enable' | 'disable', payload: ServiceAdminPayload
 }
 
 function formatServiceLine(service: ServiceEntry): string {
-  return `- **${service.name}** \`${service.githubOwner}/${service.githubRepo}\` ${service.enabled ? '🟢' : '🔴'} ${service.lastCheckedAt ? `last: ${service.lastCheckedAt}` : ''}`;
+  return `- **${service.name}** \`${service.githubOwner}/${service.githubRepo}\` ${service.enabled ? '🟢' : '🔴'} ${service.autoPr ? 'auto-pr' : 'local-fix'} ${service.lastCheckedAt ? `last: ${service.lastCheckedAt}` : ''}`;
+}
+
+function formatPrConfig(service: Pick<ServiceEntry, 'autoPr' | 'prBaseBranch' | 'prDraft' | 'prBranchPrefix'>): string {
+  if (!service.autoPr) {
+    return 'disabled';
+  }
+  return `enabled · base=${service.prBaseBranch || 'main'} · ${service.prDraft === false ? 'ready' : 'draft'} · branch=${service.prBranchPrefix || 'oh-my-feishu/web-monitor'}/*`;
 }
 
 function parsePayload(payload: unknown): ServiceAdminPayload {
@@ -379,5 +419,9 @@ function parsePayload(payload: unknown): ServiceAdminPayload {
     notifyChatId: value.notifyChatId,
     addedBy: value.addedBy,
     pollIntervalSec: value.pollIntervalSec,
+    autoPr: value.autoPr,
+    prBaseBranch: value.prBaseBranch,
+    prDraft: value.prDraft,
+    prBranchPrefix: value.prBranchPrefix,
   };
 }
