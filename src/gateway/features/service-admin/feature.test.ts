@@ -15,6 +15,10 @@ const registry = vi.hoisted(() => ({
     addedBy: string;
     lastCheckedAt?: string;
     localRepoPath?: string;
+    pollIntervalSec?: number;
+    lastErrorHash?: string;
+    lastTracebackAt?: string;
+    lastTracebackPreview?: string;
   }>,
 }));
 
@@ -140,5 +144,79 @@ describe('serviceAdminFeature', () => {
     expect(result.success).toBe(false);
     expect(registry.services).toHaveLength(0);
     expect(result.message).toBe('clone failed');
+  });
+
+  it('gets a registered service', async () => {
+    registry.services.push({
+      name: 'api',
+      githubOwner: 'org',
+      githubRepo: 'api',
+      tracebackUrl: 'https://logs.example.com/api',
+      notifyChatId: 'oc_test',
+      tracebackUrlType: 'json',
+      enabled: true,
+      addedAt: '2026-05-03T00:00:00.000Z',
+      addedBy: 'test',
+      localRepoPath: '/tmp/workspace/services/api',
+    });
+
+    const result = await serviceAdminFeature.handle({
+      id: 'evt_get',
+      type: 'service.command',
+      source: 'cli',
+      payload: { action: 'get', name: 'api' },
+      createdAt: '2026-05-03T00:00:00.000Z',
+    }, {} as never);
+
+    expect(result.success).toBe(true);
+    expect(result.data?.service).toMatchObject({
+      name: 'api',
+      githubOwner: 'org',
+      githubRepo: 'api',
+    });
+  });
+
+  it('updates service settings and clears traceback cache when URL changes', async () => {
+    registry.services.push({
+      name: 'api',
+      githubOwner: 'org',
+      githubRepo: 'api',
+      tracebackUrl: 'https://logs.example.com/api',
+      notifyChatId: 'oc_test',
+      tracebackUrlType: 'json',
+      enabled: true,
+      addedAt: '2026-05-03T00:00:00.000Z',
+      addedBy: 'test',
+      lastErrorHash: 'old-hash',
+      lastCheckedAt: '2026-05-03T00:00:00.000Z',
+      lastTracebackAt: '2026-05-03T00:00:00.000Z',
+      lastTracebackPreview: 'old traceback',
+    });
+
+    const result = await serviceAdminFeature.handle({
+      id: 'evt_update',
+      type: 'service.command',
+      source: 'cli',
+      payload: {
+        action: 'update',
+        name: 'api',
+        repo: 'new-org/new-api',
+        tracebackUrl: 'https://logs.example.com/new-api',
+        notifyChatId: 'oc_new',
+        pollIntervalSec: 120,
+      },
+      createdAt: '2026-05-03T00:00:00.000Z',
+    }, {} as never);
+
+    expect(result.success).toBe(true);
+    expect(registry.services[0]).toMatchObject({
+      githubOwner: 'new-org',
+      githubRepo: 'new-api',
+      tracebackUrl: 'https://logs.example.com/new-api',
+      notifyChatId: 'oc_new',
+      pollIntervalSec: 120,
+    });
+    expect(registry.services[0].lastErrorHash).toBeUndefined();
+    expect(registry.services[0].lastTracebackPreview).toBeUndefined();
   });
 });

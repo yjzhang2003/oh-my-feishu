@@ -9,7 +9,7 @@ import {
 import { cloneServiceRepository, removeServiceRepository } from '../../../service/repository.js';
 import type { GatewayEvent, GatewayFeature } from '../types.js';
 
-type ServiceAdminAction = 'add' | 'remove' | 'list' | 'enable' | 'disable' | 'help';
+type ServiceAdminAction = 'add' | 'remove' | 'list' | 'get' | 'update' | 'enable' | 'disable' | 'help';
 
 interface ServiceAdminPayload {
   action: ServiceAdminAction;
@@ -18,6 +18,7 @@ interface ServiceAdminPayload {
   tracebackUrl?: string;
   notifyChatId?: string;
   addedBy?: string;
+  pollIntervalSec?: number;
 }
 
 export const serviceAdminFeature: GatewayFeature = {
@@ -34,6 +35,10 @@ export const serviceAdminFeature: GatewayFeature = {
         return handleRemove(payload);
       case 'list':
         return handleList();
+      case 'get':
+        return handleGet(payload);
+      case 'update':
+        return handleUpdate(payload);
       case 'enable':
       case 'disable':
         return handleToggle(payload.action, payload);
@@ -47,6 +52,8 @@ export const serviceAdminFeature: GatewayFeature = {
               '`/service add <name> <owner/repo> <traceback_url>`',
               '`/service remove <name>`',
               '`/service list`',
+              '`/service get <name>`',
+              '`/service update <name> [repo] [traceback_url]`',
               '`/service enable <name>`',
               '`/service disable <name>`',
             ],
@@ -186,6 +193,143 @@ function handleList() {
   };
 }
 
+function handleGet(payload: ServiceAdminPayload) {
+  if (!payload.name) {
+    return {
+      success: false,
+      data: {
+        title: 'Invalid /service get',
+        elements: ['Usage: `/service get <name>`'],
+      },
+    };
+  }
+
+  const service = getService(payload.name);
+  if (!service) {
+    return {
+      success: false,
+      data: {
+        title: 'Service Not Found',
+        elements: [`Service "${payload.name}" is not registered.`],
+      },
+    };
+  }
+
+  return {
+    success: true,
+    data: {
+      title: `Service ${service.name}`,
+      service,
+      elements: [
+        `**Name:** ${service.name}`,
+        `**Repo:** ${service.githubOwner}/${service.githubRepo}`,
+        `**Local:** ${service.localRepoPath || '(none)'}`,
+        `**Traceback URL:** ${service.tracebackUrl}`,
+        `**Notify chat:** ${service.notifyChatId || '(none)'}`,
+        `**Enabled:** ${service.enabled}`,
+        `**Poll interval:** ${service.pollIntervalSec || 60}s`,
+        `**Last checked:** ${service.lastCheckedAt || '(never)'}`,
+      ],
+    },
+  };
+}
+
+function handleUpdate(payload: ServiceAdminPayload) {
+  if (!payload.name) {
+    return {
+      success: false,
+      data: {
+        title: 'Invalid /service update',
+        elements: ['Usage: `/service update <name> [repo] [traceback_url]`'],
+      },
+    };
+  }
+
+  const updates: Partial<ServiceEntry> = {};
+
+  if (payload.repo) {
+    if (!/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(payload.repo)) {
+      return {
+        success: false,
+        data: {
+          title: 'Invalid repo format',
+          elements: ['Repo must be in `owner/repo` format (e.g. `myorg/my-api`)'],
+        },
+      };
+    }
+    const [githubOwner, githubRepo] = payload.repo.split('/');
+    updates.githubOwner = githubOwner;
+    updates.githubRepo = githubRepo;
+  }
+
+  if (payload.tracebackUrl) {
+    if (!/^https?:\/\/.+/.test(payload.tracebackUrl)) {
+      return {
+        success: false,
+        data: {
+          title: 'Invalid URL',
+          elements: ['Traceback URL must start with `http://` or `https://`'],
+        },
+      };
+    }
+    updates.tracebackUrl = payload.tracebackUrl;
+    updates.lastErrorHash = undefined;
+    updates.lastCheckedAt = undefined;
+    updates.lastTracebackAt = undefined;
+    updates.lastTracebackPreview = undefined;
+  }
+
+  if (payload.notifyChatId !== undefined) {
+    updates.notifyChatId = payload.notifyChatId;
+  }
+
+  if (payload.pollIntervalSec !== undefined) {
+    if (!Number.isInteger(payload.pollIntervalSec) || payload.pollIntervalSec < 10) {
+      return {
+        success: false,
+        data: {
+          title: 'Invalid poll interval',
+          elements: ['Poll interval must be an integer >= 10 seconds.'],
+        },
+      };
+    }
+    updates.pollIntervalSec = payload.pollIntervalSec;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return {
+      success: false,
+      data: {
+        title: 'No updates provided',
+        elements: ['Provide at least one of: repo, tracebackUrl, notifyChatId, pollIntervalSec.'],
+      },
+    };
+  }
+
+  const updated = updateService(payload.name, updates);
+  if (!updated) {
+    return {
+      success: false,
+      data: {
+        title: 'Service Not Found',
+        elements: [`Service "${payload.name}" is not registered.`],
+      },
+    };
+  }
+
+  return {
+    success: true,
+    data: {
+      title: 'Service Updated',
+      service: updated,
+      elements: [
+        `Service "${payload.name}" has been updated.`,
+        `Changed fields: ${Object.keys(updates).join(', ')}`,
+      ],
+    },
+  };
+}
+
 function handleToggle(action: 'enable' | 'disable', payload: ServiceAdminPayload) {
   if (!payload.name) {
     return {
@@ -234,5 +378,6 @@ function parsePayload(payload: unknown): ServiceAdminPayload {
     tracebackUrl: value.tracebackUrl,
     notifyChatId: value.notifyChatId,
     addedBy: value.addedBy,
+    pollIntervalSec: value.pollIntervalSec,
   };
 }

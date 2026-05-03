@@ -1,106 +1,82 @@
 ---
 name: web-monitor-service-manager
-description: "Web Monitor helper. 管理 Web 服务监控注册表：读取、添加、删除、启用/禁用 traceback 监控服务。"
+description: "Web Monitor helper. Manage oh-my-feishu Web Monitor services through the Gateway-backed CLI."
 metadata:
   category: "devops"
   requires:
-    files: ["workspace/.claude/services.json"]
+    bins: ["oh-my-feishu"]
 ---
 
 # Web Monitor Service Manager
 
-管理服务注册表，配置需要被 TracebackMonitor 监控的 GitHub 仓库和日志地址。
+Use this skill when the user asks to list, inspect, add, remove, enable, disable, or update oh-my-feishu Web Monitor services.
 
-## 数据位置
+## Principle
 
-`workspace/.claude/services.json`
+Do not edit `workspace/.claude/services.json` directly. Web Monitor service operations must go through the oh-my-feishu CLI so validation, shallow clone, deletion, Gateway events, and future side effects remain centralized.
 
-## ServiceEntry 结构
+## Commands
 
-```typescript
-interface ServiceEntry {
-  name: string;              // 服务唯一标识，如 "my-api"
-  githubOwner: string;       // GitHub 组织/用户，如 "myorg"
-  githubRepo: string;        // GitHub 仓库名，如 "my-api"
-  tracebackUrl: string;      // 日志接口地址，如 "https://logs.example.com/api/tracebacks"
-  notifyChatId: string;      // 飞书群 chat_id（可选）
-  tracebackUrlType: "json" | "text" | "html";
-  pollIntervalSec?: number;  // 轮询间隔秒数（可选，默认 60）
-  enabled: boolean;          // 是否启用监控
-  addedAt: string;           // ISO 时间戳
-  addedBy: string;           // 添加者标识
-  lastErrorHash?: string;    // 上次错误哈希（系统自动维护）
-  lastCheckedAt?: string;    // 上次检查时间（系统自动维护）
-}
-```
-
-## 操作指令
-
-### 1. 列出所有服务
+### List services
 
 ```bash
-cat workspace/.claude/services.json
+oh-my-feishu web-monitor list
 ```
 
-### 2. 添加服务
+### Inspect one service
 
-1. 读取当前的 `services.json`
-2. 在 `services` 数组追加新条目：
-
-```json
-{
-  "name": "<service-name>",
-  "githubOwner": "<owner>",
-  "githubRepo": "<repo>",
-  "tracebackUrl": "<url>",
-  "notifyChatId": "<chat-id-or-empty>",
-  "tracebackUrlType": "json",
-  "enabled": true,
-  "addedAt": "<current-iso-time>",
-  "addedBy": "claude"
-}
+```bash
+oh-my-feishu web-monitor get <name>
 ```
 
-3. 写回文件
-4. 验证 JSON 格式正确
+### Add a service
 
-**校验规则：**
-- `name` 唯一，不能与现有服务重复
-- `githubOwner/githubRepo` 格式正确（不含 `/`）
-- `tracebackUrl` 必须以 `http://` 或 `https://` 开头
+```bash
+oh-my-feishu web-monitor add <name> <owner/repo> <traceback_url> [--chat-id <chat_id>]
+```
 
-### 3. 删除服务
+Adding a service shallow-clones the GitHub repository into the controlled workspace service directory and registers it with the Gateway `service-admin` feature.
 
-1. 读取 `services.json`
-2. 从 `services` 数组中移除指定 `name` 的条目
-3. 写回文件
+### Remove a service
 
-### 4. 启用 / 禁用服务
+```bash
+oh-my-feishu web-monitor remove <name>
+```
 
-1. 读取 `services.json`
-2. 找到对应服务，修改 `enabled` 字段
-3. 写回文件
+Removing a service deletes the registry entry and removes the controlled local service repository when present.
 
-### 5. 修改服务配置
+### Enable or disable a service
 
-支持修改以下字段：
-- `tracebackUrl`
-- `githubOwner` / `githubRepo`
-- `notifyChatId`
-- `pollIntervalSec`
+```bash
+oh-my-feishu web-monitor enable <name>
+oh-my-feishu web-monitor disable <name>
+```
 
-**注意：** `name` 字段不可修改，如需改名请删除后重新添加。
+### Update service configuration
 
-## 安全规则
+```bash
+oh-my-feishu web-monitor update <name> \
+  [--repo <owner/repo>] \
+  [--traceback-url <url>] \
+  [--chat-id <chat_id>] \
+  [--interval <seconds>]
+```
 
-1. **备份原则**：修改前先读取确认当前内容
-2. **格式校验**：写回后确保 JSON 有效（`services` 是数组，`version` 为 1）
-3. **最小权限**：只修改用户明确要求的字段，不动其他服务
-4. **命名规范**：服务名使用 kebab-case 或 snake_case，避免空格和特殊字符
+Updating `--traceback-url` resets the cached traceback hash and preview so the monitor establishes a fresh baseline for the new URL.
 
-## 输出格式
+## Safety Rules
 
-操作完成后汇报：
-- 操作类型（添加/删除/启用/禁用/修改）
-- 受影响的服务名
-- 当前注册服务总数
+1. Confirm destructive operations before running `remove`.
+2. Prefer `get <name>` before `update`, `enable`, `disable`, or `remove`.
+3. Do not modify service repositories while managing the monitor registry.
+4. If the CLI reports that Gateway is unavailable, tell the user the oh-my-feishu PM2 service must be running.
+5. Do not expose or guess Feishu chat IDs. Only use `--chat-id` if the user provides one or the surrounding oh-my-feishu context already supplies it.
+
+## Output
+
+Summarize the CLI result in plain language:
+
+- operation performed
+- affected service
+- current status or changed fields
+- any errors and next steps
