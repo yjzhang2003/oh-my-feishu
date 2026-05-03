@@ -287,7 +287,7 @@ export function createMainMenuCard(): CardBuildResult {
         [
           interactiveCard({
             title: '新建会话',
-            description: '切换直接对话，或绑定本地项目目录。',
+            description: '开始聊天或绑定项目目录。',
             icon: 'add_outlined',
             color: 'blue',
             action: 'menu:new',
@@ -296,7 +296,7 @@ export function createMainMenuCard(): CardBuildResult {
         [
           interactiveCard({
             title: '历史会话',
-            description: '恢复最近使用过的目录上下文。',
+            description: '继续最近的目录会话。',
             icon: 'history_outlined',
             color: 'indigo',
             action: 'menu:history',
@@ -306,8 +306,8 @@ export function createMainMenuCard(): CardBuildResult {
       columnSet([
         [
           interactiveCard({
-            title: 'Gateway',
-            description: '查看后台自动化能力：状态、服务监控和修复任务。',
+            title: '自动化技能',
+            description: '管理后台自动处理能力。',
             icon: 'robot_outlined',
             color: 'green',
             action: 'menu:gateway',
@@ -316,7 +316,7 @@ export function createMainMenuCard(): CardBuildResult {
         [
           interactiveCard({
             title: '指令菜单',
-            description: '查看可用 slash commands 和参数格式。',
+            description: '查看可用指令。',
             icon: 'command_outlined',
             color: 'orange',
             action: 'menu:commands',
@@ -327,24 +327,24 @@ export function createMainMenuCard(): CardBuildResult {
   });
 }
 
-/** Level 2: Gateway service list */
+/** Level 2: Automation skill list */
 export function createGatewayMenuCard(): CardBuildResult {
   return createCardV2({
-    title: 'Gateway',
-    subtitle: '功能服务',
+    title: '自动化技能',
+    subtitle: '后台能力',
     template: 'green',
     icon: { token: 'robot_outlined', color: 'green' },
     tags: [
-      { text: 'gateway', color: 'green' },
-      { text: '1 service', color: 'neutral' },
+      { text: 'automation', color: 'green' },
+      { text: '1 skill', color: 'neutral' },
     ],
     elements: [
-      md('Gateway 服务用于承载后台自动化能力。每个服务都有自己的触发条件、配置页面和最终结果通知。'),
+      md('这些技能可以在后台监听事件，并只返回最终结果。'),
       columnSet([
         [
           interactiveCard({
             title: 'Web 服务监控',
-            description: '监控服务 traceback URL，发现新错误后触发后台修复。',
+            description: '监听异常日志，触发自动修复。',
             icon: 'search_outlined',
             color: 'green',
             action: 'menu:gateway-web-monitor',
@@ -359,23 +359,23 @@ export function createGatewayMenuCard(): CardBuildResult {
   });
 }
 
-/** Level 3: Web monitor Gateway service */
+/** Level 3: Web monitor automation skill */
 export function createWebMonitorMenuCard(services: ServiceEntry[] = listServices()): CardBuildResult {
   if (services.length === 0) {
     return createCardV2({
       title: 'Web 服务监控',
-      subtitle: 'Gateway service',
+      subtitle: '自动化技能',
       template: 'grey',
       icon: { token: 'search_outlined', color: 'grey' },
       tags: [
         { text: '0 services', color: 'neutral' },
       ],
       elements: [
-        iconMd('**暂无监控服务**\n点击“新建监控”注册服务。注册后会浅克隆 GitHub 仓库到本地 workspace。', 'search_outlined', 'grey'),
+        iconMd('**暂无监控服务**\n点击“新建监控”开始。', 'search_outlined', 'grey'),
       ],
       buttons: [
         { text: '新建监控', action: 'menu:web-monitor-new' },
-        { text: '返回 Gateway', action: 'menu:gateway' },
+        { text: '返回自动化技能', action: 'menu:gateway' },
         { text: '返回', action: 'menu:back' },
       ],
     });
@@ -390,14 +390,13 @@ export function createWebMonitorMenuCard(services: ServiceEntry[] = listServices
       { text: `${services.length} services`, color: 'green' },
     ],
     elements: [
-      iconMd('**监控列表**\n点击服务查看详情、删除监控、查看最新日志，或用该仓库目录新建 Claude Code 会话。', 'search_outlined', 'green'),
+      iconMd('**监控列表**\n点击服务查看详情。', 'search_outlined', 'green'),
       ...services.map((service, index) => sessionOptionCard({
         title: `${index + 1}. ${service.name}`,
         description: [
           `${service.githubOwner}/${service.githubRepo}`,
-          service.localRepoPath ? `本地：\`${service.localRepoPath}\`` : '本地仓库：未初始化',
-          `PR：${service.autoPr ? `自动创建 · base ${service.prBaseBranch || 'main'} · ${service.prDraft === false ? 'ready' : 'draft'}` : '关闭'}`,
-          `${service.enabled ? '启用' : '停用'} · ${service.lastCheckedAt ? `上次检查：${relativeTime(service.lastCheckedAt)}` : '尚未检查'}`,
+          `${service.enabled ? '启用' : '停用'} · ${service.lastCheckedAt ? relativeTime(service.lastCheckedAt) : '未检查'}`,
+          `PR：${service.autoPr ? `${service.prBaseBranch || 'main'} · ${service.prDraft === false ? 'ready' : 'draft'}` : '关闭'}`,
         ].join('\n'),
         icon: service.enabled ? 'search_outlined' : 'stop_outlined',
         color: service.enabled ? 'green' : 'grey',
@@ -406,7 +405,7 @@ export function createWebMonitorMenuCard(services: ServiceEntry[] = listServices
     ],
     buttons: [
       { text: '新建监控', action: 'menu:web-monitor-new' },
-      { text: '返回 Gateway', action: 'menu:gateway' },
+      { text: '返回自动化技能', action: 'menu:gateway' },
       { text: '返回', action: 'menu:back' },
     ],
   });
@@ -474,7 +473,7 @@ export function createWebMonitorInputCard(): object {
     },
     body: {
       elements: [
-        iconMd('**填写监控信息**\n提交后会注册一个 Web 服务监控，首次轮询只记录基线 hash。默认不会自动提交 PR；可由 workspace Claude 通过 `oh-my-feishu web-monitor update <name> --auto-pr` 开启。', 'search_outlined', 'green'),
+        iconMd('**填写监控信息**\n默认只保留本地修复，不自动提交 PR。', 'search_outlined', 'green'),
         {
           tag: 'form',
           direction: 'vertical',
@@ -514,22 +513,43 @@ export function createWebMonitorInputCard(): object {
               placeholder: { tag: 'plain_text', content: 'https://example.com/traceback' },
             },
             {
-              tag: 'select_static',
-              element_id: 'wm_auto_pr',
-              name: 'wm_auto_pr',
-              required: false,
-              width: 'fill',
-              type: 'default',
-              label: { tag: 'plain_text', content: '自动提交 PR' },
-              placeholder: { tag: 'plain_text', content: '默认关闭' },
-              options: [
+              tag: 'column_set',
+              horizontal_spacing: '8px',
+              horizontal_align: 'left',
+              columns: [
                 {
-                  text: { tag: 'plain_text', content: '关闭：只保留本地修复' },
-                  value: 'false',
+                  tag: 'column',
+                  width: 'weighted',
+                  weight: 1,
+                  elements: [
+                    md('**自动提交 PR**'),
+                  ],
                 },
                 {
-                  text: { tag: 'plain_text', content: '开启：修复后创建 PR' },
-                  value: 'true',
+                  tag: 'column',
+                  width: 'weighted',
+                  weight: 3,
+                  elements: [
+                    {
+                      tag: 'select_static',
+                      element_id: 'wm_auto_pr',
+                      name: 'wm_auto_pr',
+                      required: false,
+                      width: 'fill',
+                      type: 'default',
+                      placeholder: { tag: 'plain_text', content: '默认关闭' },
+                      options: [
+                        {
+                          text: { tag: 'plain_text', content: '关闭：只保留本地修复' },
+                          value: 'false',
+                        },
+                        {
+                          text: { tag: 'plain_text', content: '开启：修复后创建 PR' },
+                          value: 'true',
+                        },
+                      ],
+                    },
+                  ],
                 },
               ],
             },
@@ -545,22 +565,43 @@ export function createWebMonitorInputCard(): object {
               placeholder: { tag: 'plain_text', content: 'main' },
             },
             {
-              tag: 'select_static',
-              element_id: 'wm_pr_mode',
-              name: 'wm_pr_mode',
-              required: false,
-              width: 'fill',
-              type: 'default',
-              label: { tag: 'plain_text', content: 'PR 模式' },
-              placeholder: { tag: 'plain_text', content: '默认 draft' },
-              options: [
+              tag: 'column_set',
+              horizontal_spacing: '8px',
+              horizontal_align: 'left',
+              columns: [
                 {
-                  text: { tag: 'plain_text', content: 'Draft PR' },
-                  value: 'draft',
+                  tag: 'column',
+                  width: 'weighted',
+                  weight: 1,
+                  elements: [
+                    md('**PR 模式**'),
+                  ],
                 },
                 {
-                  text: { tag: 'plain_text', content: 'Ready PR' },
-                  value: 'ready',
+                  tag: 'column',
+                  width: 'weighted',
+                  weight: 3,
+                  elements: [
+                    {
+                      tag: 'select_static',
+                      element_id: 'wm_pr_mode',
+                      name: 'wm_pr_mode',
+                      required: false,
+                      width: 'fill',
+                      type: 'default',
+                      placeholder: { tag: 'plain_text', content: '默认 draft' },
+                      options: [
+                        {
+                          text: { tag: 'plain_text', content: 'Draft PR' },
+                          value: 'draft',
+                        },
+                        {
+                          text: { tag: 'plain_text', content: 'Ready PR' },
+                          value: 'ready',
+                        },
+                      ],
+                    },
+                  ],
                 },
               ],
             },
@@ -591,6 +632,7 @@ export function createWebMonitorInputCard(): object {
                       type: 'primary',
                       width: 'default',
                       icon: { tag: 'standard_icon', token: 'add_outlined' },
+                      action_type: 'form_submit',
                       form_action_type: 'submit',
                       name: 'wm_submit',
                     },
@@ -605,6 +647,7 @@ export function createWebMonitorInputCard(): object {
                       text: { tag: 'plain_text', content: '清空' },
                       type: 'default',
                       width: 'default',
+                      action_type: 'form_reset',
                       form_action_type: 'reset',
                       name: 'wm_reset',
                     },

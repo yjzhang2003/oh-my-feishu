@@ -80,14 +80,15 @@ describe('CardBuilder', () => {
     expect(JSON.stringify(elements)).toContain('menu:commands');
   });
 
-  test('gateway and command menu cards expose second-level content', () => {
+  test('automation skill and command menu cards expose second-level content', () => {
     const gateway = createGatewayMenuCard().card as any;
     const commands = createCommandMenuCard().card as any;
 
-    expect(gateway.header.title.content).toBe('Gateway');
+    expect(gateway.header.title.content).toBe('自动化技能');
     expect(JSON.stringify(gateway.body.elements)).toContain('Web 服务监控');
     expect(JSON.stringify(gateway.body.elements)).toContain('menu:gateway-web-monitor');
     expect(JSON.stringify(gateway)).not.toContain('menu:commands');
+    expect(JSON.stringify(gateway)).not.toContain('Gateway');
     expect(commands.header.title.content).toBe('指令菜单');
     expect(commands.body.elements.some((element: any) => element.tag === 'table')).toBe(true);
     expect(JSON.stringify(commands)).not.toContain('oh-my-feishu gateway');
