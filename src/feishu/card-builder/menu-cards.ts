@@ -98,6 +98,30 @@ function sessionOptionCard(options: {
   };
 }
 
+function displayBox(options: {
+  title: string;
+  content: string;
+  icon: string;
+  color: string;
+}): CardV2Element {
+  return {
+    tag: 'interactive_container',
+    width: 'fill',
+    direction: 'vertical',
+    vertical_spacing: '6px',
+    background_style: 'default',
+    has_border: true,
+    border_color: options.color,
+    corner_radius: '10px',
+    padding: '10px 12px 10px 12px',
+    disabled: true,
+    elements: [
+      iconMd(`**${options.title}**`, options.icon, options.color),
+      md(options.content),
+    ],
+  };
+}
+
 function columnSet(columns: CardV2Element[][]): CardV2Element {
   return {
     tag: 'column_set',
@@ -414,7 +438,7 @@ export function createWebMonitorMenuCard(services: ServiceEntry[] = listServices
 export function createWebMonitorDetailCard(service: ServiceEntry): CardBuildResult {
   const latestLog = service.lastTracebackPreview
     ? codeBlock(service.lastTracebackPreview.slice(0, 1200))
-    : '暂无日志缓存。等待下一次轮询后会显示 traceback 预览。';
+    : '暂无日志缓存。等待下一次轮询后会显示最近日志片段。';
   const claudeRun = service.lastClaudeRunAt
     ? `${service.lastClaudeRunSuccess ? '成功' : '失败'} · ${relativeTime(service.lastClaudeRunAt)}\n${service.lastClaudeRunSummary || '无摘要'}`
     : '暂无 Claude Code 介入记录。';
@@ -432,17 +456,48 @@ export function createWebMonitorDetailCard(service: ServiceEntry): CardBuildResu
       { text: 'web-monitor', color: 'green' },
     ],
     elements: [
-      columnSet([
-        [
-          iconMd(`**仓库**\n\`${service.githubOwner}/${service.githubRepo}\`\n\n**本地目录**\n${service.localRepoPath ? `\`${service.localRepoPath}\`` : '未初始化'}`, 'folder_outlined', 'green'),
-        ],
-        [
-          iconMd(`**Traceback URL**\n${service.tracebackUrl}\n\n**通知会话**\n${service.notifyChatId || '未设置'}`, 'link-copy_outlined', 'green'),
-        ],
-      ]),
-      iconMd(`**PR 设置**\n${prConfig}`, 'command_outlined', service.autoPr ? 'green' : 'grey'),
-      iconMd(`**最新日志**\n${latestLog}`, 'doc-search_outlined', 'orange'),
-      iconMd(`**最近一次 Claude Code 介入**\n${claudeRun}`, 'robot_outlined', service.lastClaudeRunSuccess === false ? 'red' : 'blue'),
+      displayBox({
+        title: '仓库',
+        content: `\`${service.githubOwner}/${service.githubRepo}\``,
+        icon: 'folder_outlined',
+        color: 'green',
+      }),
+      displayBox({
+        title: '本地目录',
+        content: service.localRepoPath ? `\`${service.localRepoPath}\`` : '未初始化',
+        icon: 'local_outlined',
+        color: service.localRepoPath ? 'green' : 'grey',
+      }),
+      displayBox({
+        title: 'Traceback URL',
+        content: service.tracebackUrl,
+        icon: 'link-copy_outlined',
+        color: 'green',
+      }),
+      displayBox({
+        title: '通知会话',
+        content: service.notifyChatId || '未设置',
+        icon: 'chatbox_outlined',
+        color: service.notifyChatId ? 'green' : 'grey',
+      }),
+      displayBox({
+        title: 'PR 设置',
+        content: prConfig,
+        icon: 'command_outlined',
+        color: service.autoPr ? 'green' : 'grey',
+      }),
+      displayBox({
+        title: '最近日志片段',
+        content: latestLog,
+        icon: 'doc-search_outlined',
+        color: 'orange',
+      }),
+      displayBox({
+        title: '最近一次 Claude Code 介入',
+        content: claudeRun,
+        icon: 'robot_outlined',
+        color: service.lastClaudeRunSuccess === false ? 'red' : 'blue',
+      }),
     ],
     buttons: [
       { text: '以此目录新建会话', action: `menu:web-monitor-session:${service.name}` },

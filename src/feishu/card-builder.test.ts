@@ -144,11 +144,17 @@ describe('CardBuilder', () => {
       lastClaudeRunSummary: 'fixed',
     });
     const cardJson = JSON.stringify(card);
+    const elements = ((card as any).body.elements ?? []) as any[];
 
     expect(cardJson).toContain('menu:web-monitor-session:api');
     expect(cardJson).toContain('menu:web-monitor-delete:api');
     expect(cardJson).toContain('Traceback...');
     expect(cardJson).toContain('fixed');
+    expect(elements.slice(0, 7).every((element) => element.tag === 'interactive_container')).toBe(true);
+    expect(elements.some((element) => (
+      element.tag === 'interactive_container'
+      && JSON.stringify(element).includes('最近一次 Claude Code 介入')
+    ))).toBe(true);
   });
 
   test('web monitor input card contains required form fields', () => {

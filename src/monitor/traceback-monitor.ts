@@ -16,6 +16,13 @@ const MAX_CONTENT_SIZE = 10240; // 10KB — truncate before hashing
 const DEFAULT_GLOBAL_INTERVAL_SEC = 60;
 const MAX_TRACEBACK_PREVIEW_SIZE = 1200;
 
+function tailPreview(content: string, maxLength: number): string {
+  if (content.length <= maxLength) {
+    return content;
+  }
+  return content.slice(content.length - maxLength);
+}
+
 export class TracebackMonitor {
   private running = false;
   private globalIntervalSec: number;
@@ -101,7 +108,7 @@ export class TracebackMonitor {
       if (content.length > MAX_CONTENT_SIZE) {
         content = content.slice(0, MAX_CONTENT_SIZE);
       }
-      updateWebMonitorTracebackSnapshot(service.name, content.slice(0, MAX_TRACEBACK_PREVIEW_SIZE), now);
+      updateWebMonitorTracebackSnapshot(service.name, tailPreview(content, MAX_TRACEBACK_PREVIEW_SIZE), now);
 
       const currentHash = hashTracebackContent(content);
 

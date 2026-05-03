@@ -108,4 +108,28 @@ describe('TracebackMonitor', () => {
     expect(updated?.lastTracebackPreview).toBe('Traceback preview content');
     expect(updated?.lastTracebackAt).toEqual(expect.any(String));
   });
+
+  it('caches the tail of long traceback logs as latest preview', async () => {
+    addService({
+      name: 'test-tb-preview-tail',
+      githubOwner: 'myorg',
+      githubRepo: 'my-api',
+      tracebackUrl: 'https://example.com/traceback-preview-tail',
+      notifyChatId: 'oc_test',
+      tracebackUrlType: 'json',
+      enabled: true,
+      addedAt: new Date().toISOString(),
+      addedBy: 'test',
+    });
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      text: async () => `${'old log\n'.repeat(300)}LATEST_TRACEBACK`,
+    })));
+
+    const service = getService('test-tb-preview-tail');
+    await (monitor as any).pollService(service);
+
+    const updated = getService('test-tb-preview-tail');
+    expect(updated?.lastTracebackPreview).toContain('LATEST_TRACEBACK');
+  });
 });
