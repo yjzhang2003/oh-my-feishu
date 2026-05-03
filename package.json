@@ -3,9 +3,18 @@
   "version": "0.6.0",
   "description": "The best way to use Claude Code on Feishu",
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "bin": {
-    "oh-my-feishu": "./dist/cli/cli.js"
+    "oh-my-feishu": "dist/cli/cli.js"
   },
+  "files": [
+    "dist/",
+    "oh-my-feishu-plugin/",
+    ".claude-plugin/",
+    "README.md",
+    "CHANGELOG.md"
+  ],
   "scripts": {
     "cli": "tsx src/cli/index.tsx",
     "start": "tsx src/start.ts",
@@ -15,11 +24,23 @@
     "restart": "pm2 restart oh-my-feishu",
     "logs": "pm2 logs oh-my-feishu",
     "status": "pm2 status",
-    "build": "tsc",
+    "clean": "rm -rf dist",
+    "build": "npm run clean && tsc",
     "test": "vitest",
     "test:run": "vitest run",
-    "lint": "eslint src/",
-    "typecheck": "tsc --noEmit"
+    "lint": "eslint \"src/**/*.{ts,tsx}\"",
+    "typecheck": "tsc --noEmit",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm run lint && npm run typecheck && npm run test:run && npm run build",
+    "pack:dry-run": "npm pack --dry-run"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yjzhang2003/oh-my-feishu.git"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
   },
   "dependencies": {
     "@hono/node-server": "^1.11.0",
