@@ -1,11 +1,10 @@
 import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'fs';
-import { resolve } from 'path';
+import { dirname, resolve } from 'path';
 import { createHash } from 'crypto';
 import { env } from '../config/env.js';
 import { log } from '../utils/logger.js';
 
-const REGISTRY_DIR = resolve(env.REPO_ROOT, 'workspace', '.claude');
-const REGISTRY_PATH = resolve(REGISTRY_DIR, 'services.json');
+const DEFAULT_REGISTRY_PATH = resolve(env.REPO_ROOT, 'workspace', '.claude', 'services.json');
 
 export interface ServiceEntry {
   name: string;
@@ -34,18 +33,20 @@ export interface ServiceRegistry {
 }
 
 function ensureRegistryDir(): void {
-  if (!existsSync(REGISTRY_DIR)) {
-    mkdirSync(REGISTRY_DIR, { recursive: true });
+  const registryDir = dirname(getRegistryPath());
+  if (!existsSync(registryDir)) {
+    mkdirSync(registryDir, { recursive: true });
   }
 }
 
 export function loadRegistry(): ServiceRegistry {
-  if (!existsSync(REGISTRY_PATH)) {
+  const registryPath = getRegistryPath();
+  if (!existsSync(registryPath)) {
     return { version: 1, services: [] };
   }
 
   try {
-    const content = readFileSync(REGISTRY_PATH, 'utf-8');
+    const content = readFileSync(registryPath, 'utf-8');
     const parsed = JSON.parse(content) as ServiceRegistry;
     if (!parsed.version || !Array.isArray(parsed.services)) {
       log.warn('service', 'Invalid registry format, returning empty');
@@ -60,7 +61,7 @@ export function loadRegistry(): ServiceRegistry {
 
 export function saveRegistry(registry: ServiceRegistry): void {
   ensureRegistryDir();
-  writeFileSync(REGISTRY_PATH, JSON.stringify(registry, null, 2));
+  writeFileSync(getRegistryPath(), JSON.stringify(registry, null, 2));
 }
 
 export function addService(entry: ServiceEntry): ServiceEntry {
@@ -151,5 +152,7 @@ export function hashContent(content: string): string {
 }
 
 export function getRegistryPath(): string {
-  return REGISTRY_PATH;
+  return process.env.OH_MY_FEISHU_SERVICE_REGISTRY_PATH
+    ? resolve(process.env.OH_MY_FEISHU_SERVICE_REGISTRY_PATH)
+    : DEFAULT_REGISTRY_PATH;
 }

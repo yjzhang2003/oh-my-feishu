@@ -1,10 +1,19 @@
-import { describe, it, expect, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { mkdtempSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import { TracebackMonitor } from './traceback-monitor.js';
 import { addService, removeService, listServices, getService, hashContent } from '../service/registry.js';
 import type { GatewayFeatureRunner } from '../gateway/features/index.js';
 
 describe('TracebackMonitor', () => {
   const monitor = new TracebackMonitor({ globalIntervalSec: 1 });
+  let registryDir = '';
+
+  beforeEach(() => {
+    registryDir = mkdtempSync(join(tmpdir(), 'oh-my-feishu-monitor-registry-'));
+    process.env.OH_MY_FEISHU_SERVICE_REGISTRY_PATH = join(registryDir, 'services.json');
+  });
 
   afterEach(() => {
     monitor.stop();
@@ -15,6 +24,9 @@ describe('TracebackMonitor', () => {
         removeService(s.name);
       }
     }
+    delete process.env.OH_MY_FEISHU_SERVICE_REGISTRY_PATH;
+    rmSync(registryDir, { recursive: true, force: true });
+    registryDir = '';
   });
 
   it('starts and stops without error', () => {

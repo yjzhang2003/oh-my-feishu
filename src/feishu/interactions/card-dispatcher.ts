@@ -61,7 +61,7 @@ export class CardDispatcher {
     private sessionStore: SessionStore,
     private sessionHistoryStore: SessionHistoryStore,
     private cardKitManager: CardKitManager,
-    sendCard: SendCardFn,
+    private sendCard: SendCardFn,
     private gatewayFeatureRunner?: GatewayFeatureRunner
   ) {
     this.serviceAddFlow = new ServiceAddFlow(sessionStore, sendCard, gatewayFeatureRunner);
@@ -290,7 +290,7 @@ export class CardDispatcher {
       return { toast: { type: 'error', content: '请填写服务名称、仓库和 Traceback URL' } };
     }
 
-    const result = await this.gatewayFeatureRunner.run(createGatewayEvent({
+    const event = createGatewayEvent({
       feature: 'service-admin',
       type: 'service.command',
       source: 'feishu',
@@ -304,19 +304,66 @@ export class CardDispatcher {
         notifyChatId: chatId,
         addedBy: senderOpenId,
       },
-    }));
-
-    if (!result.success) {
-      const elements = Array.isArray(result.data?.elements)
-        ? result.data.elements.join('\n')
-        : result.message || '注册失败';
-      return { toast: { type: 'error', content: elements } };
-    }
-
-    return this.updateMenuCard(createWebMonitorMenuCard(), {
-      type: 'success',
-      content: `已创建监控：${name}`,
     });
+
+    void this.gatewayFeatureRunner.run(event)
+      .then(async (result) => {
+        if (!result.success) {
+          const elements = Array.isArray(result.data?.elements)
+            ? result.data.elements.join('\n')
+            : result.message || '注册失败';
+          await this.sendCard(chatId, this.createWebMonitorRegistrationResultCard(
+            '监控创建失败',
+            elements,
+            'red'
+          ));
+          return;
+        }
+
+        await this.sendCard(chatId, createWebMonitorMenuCard().card);
+      })
+      .catch(async (error) => {
+        const msg = error instanceof Error ? error.message : 'Unknown error';
+        log.error('dispatcher', 'Web monitor registration failed', { chatId, name, error: msg });
+        await this.sendCard(chatId, this.createWebMonitorRegistrationResultCard(
+          '监控创建失败',
+          msg,
+          'red'
+        ));
+      });
+
+    return {
+      toast: {
+        type: 'info',
+        content: `正在创建监控：${name}，仓库克隆完成后会发送结果卡片`,
+      },
+    };
+  }
+
+  private createWebMonitorRegistrationResultCard(
+    title: string,
+    content: string,
+    template: 'red' | 'green'
+  ): object {
+    return {
+      schema: '2.0',
+      header: {
+        title: { tag: 'plain_text', content: title },
+        template,
+      },
+      config: {
+        update_multi: true,
+        summary: { content: title },
+      },
+      body: {
+        elements: [
+          {
+            tag: 'markdown',
+            content,
+          },
+        ],
+      },
+    };
   }
 
   private handleNavAction(action: string, chatId: string): CardActionResponse {

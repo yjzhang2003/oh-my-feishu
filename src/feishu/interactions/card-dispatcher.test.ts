@@ -56,11 +56,12 @@ describe('CardDispatcher', () => {
     tempDirs.push(tempDir);
     sessionStore = new SessionStore();
     const run = vi.fn().mockResolvedValue({ success: true, data: { title: 'Service Registered' } });
+    const sendCard = vi.fn();
     const dispatcher = new CardDispatcher(
       sessionStore,
       new SessionHistoryStore(tempDir),
       {} as any,
-      vi.fn(),
+      sendCard,
       { run } as unknown as GatewayFeatureRunner
     );
 
@@ -93,8 +94,51 @@ describe('CardDispatcher', () => {
         addedBy: 'ou_test',
       },
     });
-    expect(response.toast).toEqual({ type: 'success', content: '已创建监控：my-api' });
-    expect(response.card?.type).toBe('raw');
+    expect(response.toast).toEqual({
+      type: 'info',
+      content: '正在创建监控：my-api，仓库克隆完成后会发送结果卡片',
+    });
+    expect(response.card).toBeUndefined();
+    await vi.waitFor(() => expect(sendCard).toHaveBeenCalledWith('oc_test', expect.objectContaining({
+      schema: '2.0',
+    })));
+  });
+
+  it('returns web monitor form submit callback before registration finishes', async () => {
+    const tempDir = mkdtempSync(join(tmpdir(), 'oh-my-feishu-dispatcher-'));
+    tempDirs.push(tempDir);
+    sessionStore = new SessionStore();
+    let resolveRun!: (value: { success: boolean; data: { title: string } }) => void;
+    const run = vi.fn(() => new Promise<{ success: boolean; data: { title: string } }>((resolve) => {
+      resolveRun = resolve;
+    }));
+    const sendCard = vi.fn();
+    const dispatcher = new CardDispatcher(
+      sessionStore,
+      new SessionHistoryStore(tempDir),
+      {} as any,
+      sendCard,
+      { run } as unknown as GatewayFeatureRunner
+    );
+
+    const response = await dispatcher.dispatch({
+      operator: { open_id: 'ou_test' },
+      context: { open_chat_id: 'oc_test' },
+      action: {
+        tag: 'button',
+        form_value: {
+          wm_name: 'slow-api',
+          wm_repo: 'owner/repo',
+          wm_url: 'https://example.com/traceback',
+        },
+      },
+    });
+
+    expect(response.toast?.content).toContain('正在创建监控：slow-api');
+    expect(sendCard).not.toHaveBeenCalled();
+
+    resolveRun({ success: true, data: { title: 'Service Registered' } });
+    await vi.waitFor(() => expect(sendCard).toHaveBeenCalledTimes(1));
   });
 
   it('returns a clickable session selection card when a directory has Claude sessions', async () => {
