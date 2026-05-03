@@ -103,3 +103,32 @@ describe('invokeClaudeChat', () => {
     expect(vi.mocked(execa).mock.calls[1][1]).not.toContain('--resume');
   });
 });
+
+describe('invokeClaudeTask', () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('places skillCommand at the beginning of the prompt', async () => {
+    const { invokeClaudeTask } = await import('./invoker.js');
+
+    vi.mocked(execa).mockResolvedValueOnce({
+      exitCode: 0,
+      stdout: 'done',
+      stderr: '',
+    } as any);
+
+    await invokeClaudeTask({
+      feature: 'web-monitor',
+      skillCommand: '/web-monitor-auto-repair',
+      instruction: 'Repair traceback',
+      context: { serviceName: 'api' },
+    });
+
+    const args = vi.mocked(execa).mock.calls[0][1] as string[];
+    const prompt = args[2];
+    expect(prompt.startsWith('/web-monitor-auto-repair\n')).toBe(true);
+    expect(prompt).toContain('功能模块：web-monitor');
+    expect(prompt).toContain('"serviceName": "api"');
+  });
+});

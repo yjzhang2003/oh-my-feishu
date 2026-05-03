@@ -129,9 +129,9 @@ Response (success):
 
 ## 与 lark-cli 的关系
 
-- 如果用户已使用 `lark-cli config init` 配置过，优先使用 lark-cli 的配置
-- 如果 lark-cli 配置的 appSecret 存在 keychain，引导用户使用 QR 码注册
-- QR 注册成功后，凭证存储为兼容 lark-cli 的格式
+- CLI 只提供 QR 扫码注册入口，不再提供 `lark-cli config init` 认证入口
+- `lark-cli config show` 的 appSecret 可能是脱敏值，不能作为后端长连接凭证来源
+- QR 注册成功后，凭证存储为兼容 lark-cli 的格式，供 oh-my-feishu 后台服务读取
 
 ## 文件结构
 

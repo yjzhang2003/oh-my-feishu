@@ -41,6 +41,7 @@ export interface ChatContext {
 
 export interface ClaudeTaskInput {
   feature: string;
+  skillCommand?: string;
   instruction: string;
   context?: Record<string, unknown>;
   cwd?: string;
@@ -176,6 +177,8 @@ export async function invokeClaudeTask(input: ClaudeTaskInput): Promise<InvokeRe
   const workspaceEnv = loadWorkspaceEnv();
 
   const prompt = [
+    input.skillCommand,
+    input.skillCommand ? '' : undefined,
     '你正在处理 oh-my-feishu Gateway 功能任务。',
     '这是后台自动化任务，不是实时对话；不要输出中间过程，只返回最终结论、执行结果和必要的后续操作。',
     `功能模块：${input.feature}`,

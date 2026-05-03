@@ -6,6 +6,7 @@
 
 import { handleSessionCommand, type SessionCommandOptions } from './commands/session.js';
 import { handleGatewayCommand, type GatewayCommandOptions } from './commands/gateway.js';
+import { handleWebMonitorCommand, parseWebMonitorArgs } from './commands/web-monitor.js';
 import chalk from 'chalk';
 
 async function main() {
@@ -50,6 +51,11 @@ async function main() {
     return;
   }
 
+  if (command === 'web-monitor') {
+    await handleWebMonitorCommand(parseWebMonitorArgs(args.slice(1)));
+    return;
+  }
+
   if (command === 'help' || command === '--help' || command === '-h') {
     printHelp();
     return;
@@ -75,6 +81,9 @@ ${chalk.bold('Commands:')}
   gateway list              List Gateway features
   gateway status            Show Gateway status
   gateway trigger <feature> <eventType> [jsonPayload]
+  web-monitor list          List Web Monitor services
+  web-monitor add <name> <owner/repo> <traceback_url>
+  web-monitor update <name> [--traceback-url <url>] [--repo <owner/repo>]
   help                      Show this help message
 
 ${chalk.bold('Examples:')}
@@ -83,6 +92,7 @@ ${chalk.bold('Examples:')}
   oh-my-feishu session list      # List active sessions
   oh-my-feishu gateway list      # List Gateway features
   oh-my-feishu gateway status    # Show Gateway status
+  oh-my-feishu web-monitor list  # List monitored services
 `);
 }
 

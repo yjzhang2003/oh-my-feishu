@@ -17,11 +17,14 @@ import {
   createNewSessionCard,
   createSessionDetailCard,
   createSessionHistoryCard,
+  createWebMonitorDetailCard,
   createWebMonitorInputCard,
   createWebMonitorMenuCard,
 } from '../card-builder/menu-cards.js';
 import { CardKitManager } from '../card-kit.js';
 import { createGatewayEvent, type GatewayFeatureRunner } from '../../gateway/features/index.js';
+import { getService, listServices, removeService } from '../../service/registry.js';
+import { removeServiceRepository } from '../../service/repository.js';
 
 export interface CardActionPayload {
   schema?: string;
@@ -58,7 +61,7 @@ export class CardDispatcher {
     private sessionStore: SessionStore,
     private sessionHistoryStore: SessionHistoryStore,
     private cardKitManager: CardKitManager,
-    sendCard: SendCardFn,
+    private sendCard: SendCardFn,
     private gatewayFeatureRunner?: GatewayFeatureRunner
   ) {
     this.serviceAddFlow = new ServiceAddFlow(sessionStore, sendCard, gatewayFeatureRunner);
@@ -151,6 +154,52 @@ export class CardDispatcher {
       case 'gateway-web-monitor':
         return this.updateMenuCard(createWebMonitorMenuCard(), { type: 'info', content: '' });
 
+      case 'web-monitor-detail': {
+        const service = getService(param);
+        if (!service) {
+          return { toast: { type: 'error', content: '监控服务不存在' } };
+        }
+        return this.updateMenuCard(createWebMonitorDetailCard(service), { type: 'info', content: '' });
+      }
+
+      case 'web-monitor-delete': {
+        const service = getService(param);
+        if (!service) {
+          return { toast: { type: 'error', content: '监控服务不存在' } };
+        }
+        const removed = removeService(param);
+        if (removed && service.localRepoPath) {
+          removeServiceRepository(param);
+        }
+        return this.updateMenuCard(createWebMonitorMenuCard(listServices()), {
+          type: 'success',
+          content: `已删除监控：${param}`,
+        });
+      }
+
+      case 'web-monitor-session': {
+        const service = getService(param);
+        if (!service) {
+          return { toast: { type: 'error', content: '监控服务不存在' } };
+        }
+        if (!service.localRepoPath) {
+          return { toast: { type: 'error', content: '该服务没有本地仓库目录' } };
+        }
+        this.sessionStore.set(chatId, {
+          mode: 'directory',
+          flow: 'none',
+          data: { directory: service.localRepoPath },
+        });
+        this.sessionHistoryStore.addHistory(chatId, {
+          directory: service.localRepoPath,
+          sessionId: null,
+        });
+        return this.updateMenuCard(createWebMonitorDetailCard(service), {
+          type: 'success',
+          content: `已切换到目录会话：${service.localRepoPath}`,
+        });
+      }
+
       case 'gateway-new-service':
         return { toast: { type: 'info', content: '新建 Gateway 服务暂未实现' } };
 
@@ -236,12 +285,17 @@ export class CardDispatcher {
     const name = String(formValue.wm_name || '').trim();
     const repo = String(formValue.wm_repo || '').trim();
     const tracebackUrl = String(formValue.wm_url || '').trim();
+    const autoPr = String(formValue.wm_auto_pr || 'false') === 'true';
+    const prBaseBranch = String(formValue.wm_pr_base || 'main').trim() || 'main';
+    const prDraft = String(formValue.wm_pr_mode || 'draft') !== 'ready';
+    const prBranchPrefix = String(formValue.wm_pr_branch_prefix || 'oh-my-feishu/web-monitor').trim()
+      || 'oh-my-feishu/web-monitor';
 
     if (!name || !repo || !tracebackUrl) {
       return { toast: { type: 'error', content: '请填写服务名称、仓库和 Traceback URL' } };
     }
 
-    const result = await this.gatewayFeatureRunner.run(createGatewayEvent({
+    const event = createGatewayEvent({
       feature: 'service-admin',
       type: 'service.command',
       source: 'feishu',
@@ -254,20 +308,71 @@ export class CardDispatcher {
         tracebackUrl,
         notifyChatId: chatId,
         addedBy: senderOpenId,
+        autoPr,
+        prBaseBranch,
+        prDraft,
+        prBranchPrefix,
       },
-    }));
-
-    if (!result.success) {
-      const elements = Array.isArray(result.data?.elements)
-        ? result.data.elements.join('\n')
-        : result.message || '注册失败';
-      return { toast: { type: 'error', content: elements } };
-    }
-
-    return this.updateMenuCard(createWebMonitorMenuCard(), {
-      type: 'success',
-      content: `已创建监控：${name}`,
     });
+
+    void this.gatewayFeatureRunner.run(event)
+      .then(async (result) => {
+        if (!result.success) {
+          const elements = Array.isArray(result.data?.elements)
+            ? result.data.elements.join('\n')
+            : result.message || '注册失败';
+          await this.sendCard(chatId, this.createWebMonitorRegistrationResultCard(
+            '监控创建失败',
+            elements,
+            'red'
+          ));
+          return;
+        }
+
+        await this.sendCard(chatId, createWebMonitorMenuCard().card);
+      })
+      .catch(async (error) => {
+        const msg = error instanceof Error ? error.message : 'Unknown error';
+        log.error('dispatcher', 'Web monitor registration failed', { chatId, name, error: msg });
+        await this.sendCard(chatId, this.createWebMonitorRegistrationResultCard(
+          '监控创建失败',
+          msg,
+          'red'
+        ));
+      });
+
+    return {
+      toast: {
+        type: 'info',
+        content: `正在创建监控：${name}，仓库克隆完成后会发送结果卡片`,
+      },
+    };
+  }
+
+  private createWebMonitorRegistrationResultCard(
+    title: string,
+    content: string,
+    template: 'red' | 'green'
+  ): object {
+    return {
+      schema: '2.0',
+      header: {
+        title: { tag: 'plain_text', content: title },
+        template,
+      },
+      config: {
+        update_multi: true,
+        summary: { content: title },
+      },
+      body: {
+        elements: [
+          {
+            tag: 'markdown',
+            content,
+          },
+        ],
+      },
+    };
   }
 
   private handleNavAction(action: string, chatId: string): CardActionResponse {

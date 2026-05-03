@@ -4,6 +4,7 @@
  */
 
 import type { HistoryEntry } from '../interactions/session-history-store.js';
+import { listServices, type ServiceEntry } from '../../service/registry.js';
 
 export interface CardBuildResult {
   card: object;
@@ -97,6 +98,30 @@ function sessionOptionCard(options: {
   };
 }
 
+function displayBox(options: {
+  title: string;
+  content: string;
+  icon: string;
+  color: string;
+}): CardV2Element {
+  return {
+    tag: 'interactive_container',
+    width: 'fill',
+    direction: 'vertical',
+    vertical_spacing: '6px',
+    background_style: 'default',
+    has_border: true,
+    border_color: options.color,
+    corner_radius: '10px',
+    padding: '10px 12px 10px 12px',
+    disabled: true,
+    elements: [
+      iconMd(`**${options.title}**`, options.icon, options.color),
+      md(options.content),
+    ],
+  };
+}
+
 function columnSet(columns: CardV2Element[][]): CardV2Element {
   return {
     tag: 'column_set',
@@ -150,6 +175,10 @@ function commandTable(): CardV2Element {
 
 function historyEntryTitle(entry: HistoryEntry): string {
   return entry.directory.split('/').filter(Boolean).pop() || entry.directory;
+}
+
+function codeBlock(content: string): string {
+  return `\`\`\`text\n${content.replace(/```/g, '`\u200b``')}\n\`\`\``;
 }
 
 interface CallbackButton {
@@ -282,7 +311,7 @@ export function createMainMenuCard(): CardBuildResult {
         [
           interactiveCard({
             title: '新建会话',
-            description: '切换直接对话，或绑定本地项目目录。',
+            description: '开始聊天或绑定项目目录。',
             icon: 'add_outlined',
             color: 'blue',
             action: 'menu:new',
@@ -291,7 +320,7 @@ export function createMainMenuCard(): CardBuildResult {
         [
           interactiveCard({
             title: '历史会话',
-            description: '恢复最近使用过的目录上下文。',
+            description: '继续最近的目录会话。',
             icon: 'history_outlined',
             color: 'indigo',
             action: 'menu:history',
@@ -301,8 +330,8 @@ export function createMainMenuCard(): CardBuildResult {
       columnSet([
         [
           interactiveCard({
-            title: 'Gateway',
-            description: '查看后台自动化能力：状态、服务监控和修复任务。',
+            title: '自动化技能',
+            description: '管理后台自动处理能力。',
             icon: 'robot_outlined',
             color: 'green',
             action: 'menu:gateway',
@@ -311,7 +340,7 @@ export function createMainMenuCard(): CardBuildResult {
         [
           interactiveCard({
             title: '指令菜单',
-            description: '查看可用 slash commands 和参数格式。',
+            description: '查看可用指令。',
             icon: 'command_outlined',
             color: 'orange',
             action: 'menu:commands',
@@ -322,24 +351,24 @@ export function createMainMenuCard(): CardBuildResult {
   });
 }
 
-/** Level 2: Gateway service list */
+/** Level 2: Automation skill list */
 export function createGatewayMenuCard(): CardBuildResult {
   return createCardV2({
-    title: 'Gateway',
-    subtitle: '功能服务',
+    title: '自动化技能',
+    subtitle: '后台能力',
     template: 'green',
     icon: { token: 'robot_outlined', color: 'green' },
     tags: [
-      { text: 'gateway', color: 'green' },
-      { text: '1 service', color: 'neutral' },
+      { text: 'automation', color: 'green' },
+      { text: '1 skill', color: 'neutral' },
     ],
     elements: [
-      md('Gateway 服务用于承载后台自动化能力。每个服务都有自己的触发条件、配置页面和最终结果通知。'),
+      md('这些技能可以在后台监听事件，并只返回最终结果。'),
       columnSet([
         [
           interactiveCard({
             title: 'Web 服务监控',
-            description: '监控服务 traceback URL，发现新错误后触发后台修复。',
+            description: '监听异常日志，触发自动修复。',
             icon: 'search_outlined',
             color: 'green',
             action: 'menu:gateway-web-monitor',
@@ -354,34 +383,126 @@ export function createGatewayMenuCard(): CardBuildResult {
   });
 }
 
-/** Level 3: Web monitor Gateway service */
-export function createWebMonitorMenuCard(): CardBuildResult {
+/** Level 3: Web monitor automation skill */
+export function createWebMonitorMenuCard(services: ServiceEntry[] = listServices()): CardBuildResult {
+  if (services.length === 0) {
+    return createCardV2({
+      title: 'Web 服务监控',
+      subtitle: '自动化技能',
+      template: 'grey',
+      icon: { token: 'search_outlined', color: 'grey' },
+      tags: [
+        { text: '0 services', color: 'neutral' },
+      ],
+      elements: [
+        iconMd('**暂无监控服务**\n点击“新建监控”开始。', 'search_outlined', 'grey'),
+      ],
+      buttons: [
+        { text: '新建监控', action: 'menu:web-monitor-new' },
+        { text: '返回自动化技能', action: 'menu:gateway' },
+        { text: '返回', action: 'menu:back' },
+      ],
+    });
+  }
+
   return createCardV2({
     title: 'Web 服务监控',
-    subtitle: 'Gateway service',
+    subtitle: '监控服务列表',
     template: 'green',
     icon: { token: 'search_outlined', color: 'green' },
     tags: [
-      { text: 'web-monitor', color: 'green' },
-      { text: 'traceback', color: 'neutral' },
+      { text: `${services.length} services`, color: 'green' },
     ],
     elements: [
-      md('轮询已注册服务的 traceback URL。首次读取只记录基线 hash，后续内容变化会触发 Gateway 后台任务。'),
-      columnSet([
-        [
-          iconMd('**触发条件**\ntraceback 内容 hash 发生变化。', 'status-meeting_outlined', 'green'),
-          iconMd('**处理方式**\n调用 Claude Code 静默分析，只发布最终结果。', 'robot_outlined', 'green'),
-        ],
-        [
-          iconMd('**服务配置**\n当前通过 `/service ...` 管理监控服务。', 'command_outlined', 'green'),
-          iconMd('**结果通知**\n发送到服务注册时绑定的飞书会话。', 'chatbox_outlined', 'green'),
-        ],
-      ]),
+      iconMd('**监控列表**\n点击服务查看详情。', 'search_outlined', 'green'),
+      ...services.map((service, index) => sessionOptionCard({
+        title: `${index + 1}. ${service.name}`,
+        description: [
+          `${service.githubOwner}/${service.githubRepo}`,
+          `${service.enabled ? '启用' : '停用'} · ${service.lastCheckedAt ? relativeTime(service.lastCheckedAt) : '未检查'}`,
+          `PR：${service.autoPr ? `${service.prBaseBranch || 'main'} · ${service.prDraft === false ? 'ready' : 'draft'}` : '关闭'}`,
+        ].join('\n'),
+        icon: service.enabled ? 'search_outlined' : 'stop_outlined',
+        color: service.enabled ? 'green' : 'grey',
+        action: `menu:web-monitor-detail:${service.name}`,
+      })),
     ],
     buttons: [
       { text: '新建监控', action: 'menu:web-monitor-new' },
-      { text: '返回 Gateway', action: 'menu:gateway' },
+      { text: '返回自动化技能', action: 'menu:gateway' },
       { text: '返回', action: 'menu:back' },
+    ],
+  });
+}
+
+export function createWebMonitorDetailCard(service: ServiceEntry): CardBuildResult {
+  const latestLog = service.lastTracebackPreview
+    ? codeBlock(service.lastTracebackPreview.slice(0, 1200))
+    : '暂无日志缓存。等待下一次轮询后会显示最近日志片段。';
+  const claudeRun = service.lastClaudeRunAt
+    ? `${service.lastClaudeRunSuccess ? '成功' : '失败'} · ${relativeTime(service.lastClaudeRunAt)}\n${service.lastClaudeRunSummary || '无摘要'}`
+    : '暂无 Claude Code 介入记录。';
+  const prConfig = service.autoPr
+    ? `自动创建 PR\nbase: \`${service.prBaseBranch || 'main'}\`\nmode: ${service.prDraft === false ? 'ready' : 'draft'}\nbranch: \`${service.prBranchPrefix || 'oh-my-feishu/web-monitor'}/*\``
+    : '关闭。修复后只保留本地改动并返回结果卡片。';
+
+  return createCardV2({
+    title: service.name,
+    subtitle: 'Web 服务监控详情',
+    template: service.enabled ? 'green' : 'grey',
+    icon: { token: 'details_outlined', color: service.enabled ? 'green' : 'grey' },
+    tags: [
+      { text: service.enabled ? 'enabled' : 'disabled', color: service.enabled ? 'green' : 'neutral' },
+      { text: 'web-monitor', color: 'green' },
+    ],
+    elements: [
+      displayBox({
+        title: '仓库',
+        content: `\`${service.githubOwner}/${service.githubRepo}\``,
+        icon: 'folder_outlined',
+        color: 'green',
+      }),
+      displayBox({
+        title: '本地目录',
+        content: service.localRepoPath ? `\`${service.localRepoPath}\`` : '未初始化',
+        icon: 'local_outlined',
+        color: service.localRepoPath ? 'green' : 'grey',
+      }),
+      displayBox({
+        title: 'Traceback URL',
+        content: service.tracebackUrl,
+        icon: 'link-copy_outlined',
+        color: 'green',
+      }),
+      displayBox({
+        title: '通知会话',
+        content: service.notifyChatId || '未设置',
+        icon: 'chatbox_outlined',
+        color: service.notifyChatId ? 'green' : 'grey',
+      }),
+      displayBox({
+        title: 'PR 设置',
+        content: prConfig,
+        icon: 'command_outlined',
+        color: service.autoPr ? 'green' : 'grey',
+      }),
+      displayBox({
+        title: '最近日志片段',
+        content: latestLog,
+        icon: 'doc-search_outlined',
+        color: 'orange',
+      }),
+      displayBox({
+        title: '最近一次 Claude Code 介入',
+        content: claudeRun,
+        icon: 'robot_outlined',
+        color: service.lastClaudeRunSuccess === false ? 'red' : 'blue',
+      }),
+    ],
+    buttons: [
+      { text: '以此目录新建会话', action: `menu:web-monitor-session:${service.name}` },
+      { text: '删除监控', action: `menu:web-monitor-delete:${service.name}` },
+      { text: '返回 Web 服务监控', action: 'menu:gateway-web-monitor' },
     ],
   });
 }
@@ -407,7 +528,7 @@ export function createWebMonitorInputCard(): object {
     },
     body: {
       elements: [
-        iconMd('**填写监控信息**\n提交后会注册一个 Web 服务监控，首次轮询只记录基线 hash。', 'search_outlined', 'green'),
+        iconMd('**填写监控信息**\n默认只保留本地修复，不自动提交 PR。', 'search_outlined', 'green'),
         {
           tag: 'form',
           direction: 'vertical',
@@ -448,6 +569,110 @@ export function createWebMonitorInputCard(): object {
             },
             {
               tag: 'column_set',
+              horizontal_spacing: '8px',
+              horizontal_align: 'left',
+              columns: [
+                {
+                  tag: 'column',
+                  width: 'weighted',
+                  weight: 1,
+                  elements: [
+                    md('**自动提交 PR**'),
+                  ],
+                },
+                {
+                  tag: 'column',
+                  width: 'weighted',
+                  weight: 3,
+                  elements: [
+                    {
+                      tag: 'select_static',
+                      element_id: 'wm_auto_pr',
+                      name: 'wm_auto_pr',
+                      required: false,
+                      width: 'fill',
+                      type: 'default',
+                      placeholder: { tag: 'plain_text', content: '默认关闭' },
+                      options: [
+                        {
+                          text: { tag: 'plain_text', content: '关闭：只保留本地修复' },
+                          value: 'false',
+                        },
+                        {
+                          text: { tag: 'plain_text', content: '开启：修复后创建 PR' },
+                          value: 'true',
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              tag: 'input',
+              element_id: 'wm_pr_base',
+              name: 'wm_pr_base',
+              required: false,
+              width: 'fill',
+              max_length: 120,
+              default_value: 'main',
+              label: { tag: 'plain_text', content: 'PR 目标分支' },
+              placeholder: { tag: 'plain_text', content: 'main' },
+            },
+            {
+              tag: 'column_set',
+              horizontal_spacing: '8px',
+              horizontal_align: 'left',
+              columns: [
+                {
+                  tag: 'column',
+                  width: 'weighted',
+                  weight: 1,
+                  elements: [
+                    md('**PR 模式**'),
+                  ],
+                },
+                {
+                  tag: 'column',
+                  width: 'weighted',
+                  weight: 3,
+                  elements: [
+                    {
+                      tag: 'select_static',
+                      element_id: 'wm_pr_mode',
+                      name: 'wm_pr_mode',
+                      required: false,
+                      width: 'fill',
+                      type: 'default',
+                      placeholder: { tag: 'plain_text', content: '默认 draft' },
+                      options: [
+                        {
+                          text: { tag: 'plain_text', content: 'Draft PR' },
+                          value: 'draft',
+                        },
+                        {
+                          text: { tag: 'plain_text', content: 'Ready PR' },
+                          value: 'ready',
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              tag: 'input',
+              element_id: 'wm_pr_branch_prefix',
+              name: 'wm_pr_branch_prefix',
+              required: false,
+              width: 'fill',
+              max_length: 160,
+              default_value: 'oh-my-feishu/web-monitor',
+              label: { tag: 'plain_text', content: 'PR 分支前缀' },
+              placeholder: { tag: 'plain_text', content: 'oh-my-feishu/web-monitor' },
+            },
+            {
+              tag: 'column_set',
               flex_mode: 'none',
               horizontal_spacing: '8px',
               horizontal_align: 'right',
@@ -462,6 +687,7 @@ export function createWebMonitorInputCard(): object {
                       type: 'primary',
                       width: 'default',
                       icon: { tag: 'standard_icon', token: 'add_outlined' },
+                      action_type: 'form_submit',
                       form_action_type: 'submit',
                       name: 'wm_submit',
                     },
@@ -476,6 +702,7 @@ export function createWebMonitorInputCard(): object {
                       text: { tag: 'plain_text', content: '清空' },
                       type: 'default',
                       width: 'default',
+                      action_type: 'form_reset',
                       form_action_type: 'reset',
                       name: 'wm_reset',
                     },

@@ -13,6 +13,7 @@ import {
   createGatewayMenuCard,
   createMainMenuCard,
   createSessionHistoryCard,
+  createWebMonitorDetailCard,
   createWebMonitorInputCard,
   createWebMonitorMenuCard,
 } from './card-builder/menu-cards.js';
@@ -79,14 +80,15 @@ describe('CardBuilder', () => {
     expect(JSON.stringify(elements)).toContain('menu:commands');
   });
 
-  test('gateway and command menu cards expose second-level content', () => {
+  test('automation skill and command menu cards expose second-level content', () => {
     const gateway = createGatewayMenuCard().card as any;
     const commands = createCommandMenuCard().card as any;
 
-    expect(gateway.header.title.content).toBe('Gateway');
+    expect(gateway.header.title.content).toBe('自动化技能');
     expect(JSON.stringify(gateway.body.elements)).toContain('Web 服务监控');
     expect(JSON.stringify(gateway.body.elements)).toContain('menu:gateway-web-monitor');
     expect(JSON.stringify(gateway)).not.toContain('menu:commands');
+    expect(JSON.stringify(gateway)).not.toContain('Gateway');
     expect(commands.header.title.content).toBe('指令菜单');
     expect(commands.body.elements.some((element: any) => element.tag === 'table')).toBe(true);
     expect(JSON.stringify(commands)).not.toContain('oh-my-feishu gateway');
@@ -94,13 +96,65 @@ describe('CardBuilder', () => {
   });
 
   test('web monitor menu card exposes monitor actions', () => {
-    const webMonitor = createWebMonitorMenuCard().card as any;
+    const webMonitor = createWebMonitorMenuCard([]).card as any;
     const cardJson = JSON.stringify(webMonitor);
 
     expect(webMonitor.header.title.content).toBe('Web 服务监控');
     expect(cardJson).toContain('menu:web-monitor-new');
     expect(cardJson).toContain('menu:gateway');
     expect(cardJson).not.toContain('menu:commands');
+  });
+
+  test('web monitor menu card uses interactive service entries instead of tables', () => {
+    const { card } = createWebMonitorMenuCard([{
+      name: 'api',
+      githubOwner: 'org',
+      githubRepo: 'api',
+      localRepoPath: '/tmp/workspace/services/api',
+      tracebackUrl: 'https://logs.example.com/api',
+      notifyChatId: 'oc_test',
+      tracebackUrlType: 'json',
+      enabled: true,
+      addedAt: '2026-05-01T10:00:00.000Z',
+      addedBy: 'ou_test',
+    }]);
+    const elements = ((card as any).body.elements ?? []) as any[];
+    const cardJson = JSON.stringify(card);
+
+    expect(elements.some((element) => element.tag === 'table')).toBe(false);
+    expect(elements.some((element) => element.tag === 'interactive_container')).toBe(true);
+    expect(cardJson).toContain('menu:web-monitor-detail:api');
+  });
+
+  test('web monitor detail card exposes service actions', () => {
+    const { card } = createWebMonitorDetailCard({
+      name: 'api',
+      githubOwner: 'org',
+      githubRepo: 'api',
+      localRepoPath: '/tmp/workspace/services/api',
+      tracebackUrl: 'https://logs.example.com/api',
+      notifyChatId: 'oc_test',
+      tracebackUrlType: 'json',
+      enabled: true,
+      addedAt: '2026-05-01T10:00:00.000Z',
+      addedBy: 'ou_test',
+      lastTracebackPreview: 'Traceback...',
+      lastClaudeRunAt: '2026-05-01T10:05:00.000Z',
+      lastClaudeRunSuccess: true,
+      lastClaudeRunSummary: 'fixed',
+    });
+    const cardJson = JSON.stringify(card);
+    const elements = ((card as any).body.elements ?? []) as any[];
+
+    expect(cardJson).toContain('menu:web-monitor-session:api');
+    expect(cardJson).toContain('menu:web-monitor-delete:api');
+    expect(cardJson).toContain('Traceback...');
+    expect(cardJson).toContain('fixed');
+    expect(elements.slice(0, 7).every((element) => element.tag === 'interactive_container')).toBe(true);
+    expect(elements.some((element) => (
+      element.tag === 'interactive_container'
+      && JSON.stringify(element).includes('最近一次 Claude Code 介入')
+    ))).toBe(true);
   });
 
   test('web monitor input card contains required form fields', () => {
@@ -112,6 +166,10 @@ describe('CardBuilder', () => {
     expect(cardJson).toContain('"name":"wm_name"');
     expect(cardJson).toContain('"name":"wm_repo"');
     expect(cardJson).toContain('"name":"wm_url"');
+    expect(cardJson).toContain('"name":"wm_auto_pr"');
+    expect(cardJson).toContain('"name":"wm_pr_base"');
+    expect(cardJson).toContain('"name":"wm_pr_mode"');
+    expect(cardJson).toContain('"name":"wm_pr_branch_prefix"');
     expect(cardJson).toContain('"form_action_type":"submit"');
   });
 

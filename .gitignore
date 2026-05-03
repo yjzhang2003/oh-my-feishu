@@ -32,14 +32,18 @@ coverage/
 *.tsbuildinfo
 
 # Claude Code internals
-.claude/
+/.claude/
 
 # Docs (keep local, don't track)
 docs/
 
 # Workspace runtime data
-workspace/.claude/
+workspace/.claude/*
+!workspace/.claude/skills/
+workspace/.claude/skills/*
+!workspace/.claude/skills/*/
 workspace/.omc/
+workspace/services/
 
 # Runtime data (session history, etc.)
 data/

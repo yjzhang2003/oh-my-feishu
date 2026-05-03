@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { writeFileSync, mkdirSync, rmSync, existsSync } from 'fs';
+import { writeFileSync, mkdirSync, rmSync } from 'fs';
 import { resolve } from 'path';
 import {
   loadRegistry,
@@ -12,15 +12,23 @@ import {
   updateService,
   updateServiceErrorHash,
   hashContent,
+  getRegistryPath,
   type ServiceEntry,
 } from './registry.js';
 
 const TEST_DIR = resolve(process.cwd(), 'tmp-test-registry');
 const TEST_REGISTRY_PATH = resolve(TEST_DIR, 'services.json');
 
-// Override the registry path for testing by manipulating env before import
-// Since the module uses env.REPO_ROOT at import time, we need a different approach
-// We'll test the functions that take explicit paths or test via the file system
+beforeEach(() => {
+  process.env.OH_MY_FEISHU_SERVICE_REGISTRY_PATH = TEST_REGISTRY_PATH;
+  rmSync(TEST_DIR, { recursive: true, force: true });
+  mkdirSync(TEST_DIR, { recursive: true });
+});
+
+afterEach(() => {
+  rmSync(TEST_DIR, { recursive: true, force: true });
+  delete process.env.OH_MY_FEISHU_SERVICE_REGISTRY_PATH;
+});
 
 const sampleEntry: ServiceEntry = {
   name: 'test-api',
@@ -50,32 +58,17 @@ describe('hashContent', () => {
 });
 
 describe('ServiceRegistry file operations', () => {
-  beforeEach(() => {
-    // Create temp directory
-    mkdirSync(TEST_DIR, { recursive: true });
-    // Clean any existing file
-    if (existsSync(TEST_REGISTRY_PATH)) {
-      rmSync(TEST_REGISTRY_PATH);
-    }
-  });
-
-  afterEach(() => {
-    rmSync(TEST_DIR, { recursive: true, force: true });
-  });
-
   it('loadRegistry returns empty registry when file does not exist', () => {
-    // The actual loadRegistry uses env.REPO_ROOT, so we test the behavior
-    // indirectly by verifying the returned structure
     const registry = loadRegistry();
     expect(registry.version).toBe(1);
     expect(Array.isArray(registry.services)).toBe(true);
   });
 
   it('loadRegistry handles corrupt JSON gracefully', () => {
-    // Write corrupt JSON to the actual registry path
-    // This test is conditional — only works if we can write to the workspace
+    writeFileSync(TEST_REGISTRY_PATH, '{bad json');
     const registry = loadRegistry();
     expect(registry.version).toBe(1);
+    expect(registry.services).toEqual([]);
   });
 
   it('saveRegistry and loadRegistry round-trip', () => {
@@ -88,6 +81,7 @@ describe('ServiceRegistry file operations', () => {
     expect(loaded.services.length).toBe(1);
     expect(loaded.services[0].name).toBe('test-api');
     expect(loaded.services[0].githubOwner).toBe('myorg');
+    expect(getRegistryPath()).toBe(TEST_REGISTRY_PATH);
   });
 });
 

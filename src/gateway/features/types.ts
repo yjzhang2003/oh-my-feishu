@@ -21,6 +21,7 @@ export interface GatewayTrigger {
 
 export interface ClaudeTaskInput {
   feature: string;
+  skillCommand?: string;
   instruction: string;
   context?: Record<string, unknown>;
   cwd?: string;
@@ -38,6 +39,11 @@ export interface GatewayResult {
 export interface FeishuSendInput {
   chatId: string;
   content: string;
+}
+
+export interface FeishuSendCardInput {
+  chatId: string;
+  card: object;
 }
 
 export type FeishuCardUpdateInput =
@@ -75,6 +81,7 @@ export interface GatewayLogger {
 export interface GatewayRuntime {
   invokeMainClaude(input: ClaudeTaskInput): Promise<InvokeResult>;
   sendFeishuMessage(input: FeishuSendInput): Promise<void>;
+  sendFeishuCard?(input: FeishuSendCardInput): Promise<void>;
   updateCard?(input: FeishuCardUpdateInput): Promise<boolean>;
   log: GatewayLogger;
 }

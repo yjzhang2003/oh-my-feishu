@@ -1,19 +1,32 @@
-import { describe, it, expect, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { mkdtempSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import { TracebackMonitor } from './traceback-monitor.js';
-import { addService, removeService, listServices, hashContent } from '../service/registry.js';
+import { addService, removeService, listServices, getService, hashContent } from '../service/registry.js';
 import type { GatewayFeatureRunner } from '../gateway/features/index.js';
 
 describe('TracebackMonitor', () => {
   const monitor = new TracebackMonitor({ globalIntervalSec: 1 });
+  let registryDir = '';
+
+  beforeEach(() => {
+    registryDir = mkdtempSync(join(tmpdir(), 'oh-my-feishu-monitor-registry-'));
+    process.env.OH_MY_FEISHU_SERVICE_REGISTRY_PATH = join(registryDir, 'services.json');
+  });
 
   afterEach(() => {
     monitor.stop();
+    vi.unstubAllGlobals();
     // Clean up test services
     for (const s of listServices()) {
       if (s.name.startsWith('test-tb-')) {
         removeService(s.name);
       }
     }
+    delete process.env.OH_MY_FEISHU_SERVICE_REGISTRY_PATH;
+    rmSync(registryDir, { recursive: true, force: true });
+    registryDir = '';
   });
 
   it('starts and stops without error', () => {
@@ -69,5 +82,54 @@ describe('TracebackMonitor', () => {
         currentHash: 'new-hash',
       },
     });
+  });
+
+  it('caches latest traceback preview after polling', async () => {
+    addService({
+      name: 'test-tb-preview',
+      githubOwner: 'myorg',
+      githubRepo: 'my-api',
+      tracebackUrl: 'https://example.com/traceback-preview',
+      notifyChatId: 'oc_test',
+      tracebackUrlType: 'json',
+      enabled: true,
+      addedAt: new Date().toISOString(),
+      addedBy: 'test',
+    });
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      text: async () => 'Traceback preview content',
+    })));
+
+    const service = getService('test-tb-preview');
+    await (monitor as any).pollService(service);
+
+    const updated = getService('test-tb-preview');
+    expect(updated?.lastTracebackPreview).toBe('Traceback preview content');
+    expect(updated?.lastTracebackAt).toEqual(expect.any(String));
+  });
+
+  it('caches the tail of long traceback logs as latest preview', async () => {
+    addService({
+      name: 'test-tb-preview-tail',
+      githubOwner: 'myorg',
+      githubRepo: 'my-api',
+      tracebackUrl: 'https://example.com/traceback-preview-tail',
+      notifyChatId: 'oc_test',
+      tracebackUrlType: 'json',
+      enabled: true,
+      addedAt: new Date().toISOString(),
+      addedBy: 'test',
+    });
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      text: async () => `${'old log\n'.repeat(300)}LATEST_TRACEBACK`,
+    })));
+
+    const service = getService('test-tb-preview-tail');
+    await (monitor as any).pollService(service);
+
+    const updated = getService('test-tb-preview-tail');
+    expect(updated?.lastTracebackPreview).toContain('LATEST_TRACEBACK');
   });
 });

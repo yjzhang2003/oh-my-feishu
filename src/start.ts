@@ -36,10 +36,10 @@ async function main() {
   // Check lark-cli config
   const larkStatus = await checkLarkConfig();
   if (!larkStatus.configured) {
-    console.error('❌ lark-cli not configured. Please run:');
-    console.error('   lark-cli config init --new\n');
+    console.error('❌ Feishu credentials not configured. Please run:');
+    console.error('   oh-my-feishu\n');
     console.error('Waiting for configuration... (service will auto-connect when ready)');
-    console.error('Run "oh-my-feishu" to configure, then restart this service.\n');
+    console.error('Complete QR auth in the CLI, then restart this service.\n');
     keepAlive();
     return;
   }

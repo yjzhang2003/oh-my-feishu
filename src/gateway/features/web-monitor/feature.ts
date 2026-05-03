@@ -1,14 +1,20 @@
 import type { GatewayEvent, GatewayFeature, GatewayRuntime } from '../types.js';
-import { formatWebMonitorResultMessage } from './cards.js';
+import { createWebMonitorResultCard, formatWebMonitorResultMessage } from './cards.js';
+import { updateWebMonitorClaudeRun } from './registry.js';
 import { buildWebMonitorClaudeTask } from './service-actions.js';
 
 export interface TracebackDetectedPayload {
   serviceName: string;
   githubOwner: string;
   githubRepo: string;
+  localRepoPath?: string;
   tracebackUrl: string;
   tracebackContent: string;
   notifyChatId?: string;
+  autoPr?: boolean;
+  prBaseBranch?: string;
+  prDraft?: boolean;
+  prBranchPrefix?: string;
   previousHash?: string;
   currentHash?: string;
 }
@@ -36,12 +42,35 @@ export const webMonitorFeature: GatewayFeature = {
     });
 
     const claude = await runtime.invokeMainClaude(buildWebMonitorClaudeTask(event, payload));
+    updateWebMonitorClaudeRun(payload.serviceName, {
+      success: claude.success,
+      summary: summarizeClaudeResult(claude),
+      finishedAt: new Date().toISOString(),
+    });
 
     if (payload.notifyChatId) {
-      await runtime.sendFeishuMessage({
-        chatId: payload.notifyChatId,
-        content: formatWebMonitorResultMessage(claude),
-      });
+      const content = formatWebMonitorResultMessage(claude);
+      if (runtime.sendFeishuCard) {
+        await runtime.sendFeishuCard({
+          chatId: payload.notifyChatId,
+          card: createWebMonitorResultCard({
+            serviceName: payload.serviceName,
+            repo: `${payload.githubOwner}/${payload.githubRepo}`,
+            success: claude.success,
+            summary: content,
+            tracebackPreview: payload.tracebackContent,
+            autoPr: payload.autoPr,
+            prBaseBranch: payload.prBaseBranch,
+            prDraft: payload.prDraft,
+            prBranchPrefix: payload.prBranchPrefix,
+          }),
+        });
+      } else {
+        await runtime.sendFeishuMessage({
+          chatId: payload.notifyChatId,
+          content,
+        });
+      }
     }
 
     return {
@@ -73,4 +102,9 @@ function parseTracebackPayload(payload: unknown): TracebackDetectedPayload {
   }
 
   return value as TracebackDetectedPayload;
+}
+
+function summarizeClaudeResult(input: { success: boolean; stdout: string; stderr: string }): string {
+  const text = (input.success ? input.stdout : input.stderr || input.stdout).trim();
+  return (text || (input.success ? 'Claude Code task completed.' : 'Claude Code task failed.')).slice(0, 1200);
 }

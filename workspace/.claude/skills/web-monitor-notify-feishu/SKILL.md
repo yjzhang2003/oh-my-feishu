@@ -1,10 +1,8 @@
 ---
-name: notify-feishu
+name: web-monitor-notify-feishu
 description: >
-  Send an interactive Feishu (Lark) card message to notify developers
-  about auto-repair results. Supports service-aware notifications with
-  service name, traceback preview, and PR link.
-  Requires FEISHU_APP_ID and FEISHU_APP_SECRET env vars.
+  Web Monitor helper. Send a Feishu/Lark notification about auto-repair
+  results when the Gateway runtime is not already publishing the final result.
 allowed-tools: Bash(curl *) Bash(cat *) Read
 ---
 
@@ -22,16 +20,12 @@ allowed-tools: Bash(curl *) Bash(cat *) Read
 ## Procedure
 
 1. **Read env vars**
-   - `FEISHU_APP_ID`
-   - `FEISHU_APP_SECRET`
-   - `NOTIFY_CHAT_ID` (used as fallback if `receive_id` not provided)
+   - `NOTIFY_CHAT_ID` (used as fallback if `receive_id` is not provided)
 
-2. **Get tenant_access_token**
-   ```bash
-   curl -X POST https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal \
-     -H "Content-Type: application/json" \
-     -d '{"app_id":"'$FEISHU_APP_ID'","app_secret":"'$FEISHU_APP_SECRET'"}'
-   ```
+2. **Prefer Gateway output**
+   - In normal Web Monitor tasks, do not send a separate notification. The
+     Gateway runtime sends the final stdout/stderr to Feishu.
+   - Use this skill only when explicitly asked to send a separate card.
 
 3. **Build interactive card**
 
@@ -100,18 +94,10 @@ allowed-tools: Bash(curl *) Bash(cat *) Read
 
 4. **Send message**
    ```bash
-   curl -X POST "https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=chat_id" \
-     -H "Authorization: Bearer {token}" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "receive_id": "{receive_id}",
-       "msg_type": "interactive",
-       "content": "{escaped_card_json}"
-     }'
+   lark-cli im +messages-send --chat-id "{receive_id}" --data '{...interactive card payload...}'
    ```
 
-   Use `receive_id_type=chat_id` when `receive_id` starts with `oc_`.
-   Use `receive_id_type=open_id` when `receive_id` starts with `ou_`.
+   Prefer chat IDs that start with `oc_`.
 
 ## Output
 

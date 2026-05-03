@@ -8,6 +8,11 @@ import { SessionStore } from './session-store.js';
 import type { GatewayFeatureRunner } from '../../gateway/features/index.js';
 import { listSessions } from '../../trigger/invoker.js';
 import { install } from '../../marketplace/index.js';
+import { removeServiceRepository } from '../../service/repository.js';
+
+const registry = vi.hoisted(() => ({
+  services: [] as Array<any>,
+}));
 
 vi.mock('../../trigger/invoker.js', () => ({
   listSessions: vi.fn(),
@@ -17,6 +22,21 @@ vi.mock('../../marketplace/index.js', () => ({
   install: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock('../../service/registry.js', () => ({
+  getService: vi.fn((name: string) => registry.services.find((service) => service.name === name) ?? null),
+  listServices: vi.fn(() => registry.services),
+  removeService: vi.fn((name: string) => {
+    const index = registry.services.findIndex((service) => service.name === name);
+    if (index === -1) return false;
+    registry.services.splice(index, 1);
+    return true;
+  }),
+}));
+
+vi.mock('../../service/repository.js', () => ({
+  removeServiceRepository: vi.fn(),
+}));
+
 describe('CardDispatcher', () => {
   let sessionStore: SessionStore | null = null;
   const tempDirs: string[] = [];
@@ -24,6 +44,7 @@ describe('CardDispatcher', () => {
   afterEach(() => {
     sessionStore?.destroy();
     sessionStore = null;
+    registry.services.length = 0;
     vi.clearAllMocks();
     for (const dir of tempDirs.splice(0)) {
       rmSync(dir, { recursive: true, force: true });
@@ -35,11 +56,12 @@ describe('CardDispatcher', () => {
     tempDirs.push(tempDir);
     sessionStore = new SessionStore();
     const run = vi.fn().mockResolvedValue({ success: true, data: { title: 'Service Registered' } });
+    const sendCard = vi.fn();
     const dispatcher = new CardDispatcher(
       sessionStore,
       new SessionHistoryStore(tempDir),
       {} as any,
-      vi.fn(),
+      sendCard,
       { run } as unknown as GatewayFeatureRunner
     );
 
@@ -52,6 +74,10 @@ describe('CardDispatcher', () => {
           wm_name: 'my-api',
           wm_repo: 'owner/repo',
           wm_url: 'https://example.com/traceback',
+          wm_auto_pr: 'true',
+          wm_pr_base: 'develop',
+          wm_pr_mode: 'ready',
+          wm_pr_branch_prefix: 'bot/web-monitor',
         },
       },
     });
@@ -70,10 +96,57 @@ describe('CardDispatcher', () => {
         tracebackUrl: 'https://example.com/traceback',
         notifyChatId: 'oc_test',
         addedBy: 'ou_test',
+        autoPr: true,
+        prBaseBranch: 'develop',
+        prDraft: false,
+        prBranchPrefix: 'bot/web-monitor',
       },
     });
-    expect(response.toast).toEqual({ type: 'success', content: '已创建监控：my-api' });
-    expect(response.card?.type).toBe('raw');
+    expect(response.toast).toEqual({
+      type: 'info',
+      content: '正在创建监控：my-api，仓库克隆完成后会发送结果卡片',
+    });
+    expect(response.card).toBeUndefined();
+    await vi.waitFor(() => expect(sendCard).toHaveBeenCalledWith('oc_test', expect.objectContaining({
+      schema: '2.0',
+    })));
+  });
+
+  it('returns web monitor form submit callback before registration finishes', async () => {
+    const tempDir = mkdtempSync(join(tmpdir(), 'oh-my-feishu-dispatcher-'));
+    tempDirs.push(tempDir);
+    sessionStore = new SessionStore();
+    let resolveRun!: (value: { success: boolean; data: { title: string } }) => void;
+    const run = vi.fn(() => new Promise<{ success: boolean; data: { title: string } }>((resolve) => {
+      resolveRun = resolve;
+    }));
+    const sendCard = vi.fn();
+    const dispatcher = new CardDispatcher(
+      sessionStore,
+      new SessionHistoryStore(tempDir),
+      {} as any,
+      sendCard,
+      { run } as unknown as GatewayFeatureRunner
+    );
+
+    const response = await dispatcher.dispatch({
+      operator: { open_id: 'ou_test' },
+      context: { open_chat_id: 'oc_test' },
+      action: {
+        tag: 'button',
+        form_value: {
+          wm_name: 'slow-api',
+          wm_repo: 'owner/repo',
+          wm_url: 'https://example.com/traceback',
+        },
+      },
+    });
+
+    expect(response.toast?.content).toContain('正在创建监控：slow-api');
+    expect(sendCard).not.toHaveBeenCalled();
+
+    resolveRun({ success: true, data: { title: 'Service Registered' } });
+    await vi.waitFor(() => expect(sendCard).toHaveBeenCalledTimes(1));
   });
 
   it('returns a clickable session selection card when a directory has Claude sessions', async () => {
@@ -191,5 +264,85 @@ describe('CardDispatcher', () => {
       mode: 'directory',
       data: { directory: tempDir },
     });
+  });
+
+  it('creates a directory session from a web monitor service detail action', async () => {
+    const tempDir = mkdtempSync(join(tmpdir(), 'oh-my-feishu-service-'));
+    tempDirs.push(tempDir);
+    registry.services.push({
+      name: 'api',
+      githubOwner: 'org',
+      githubRepo: 'api',
+      localRepoPath: tempDir,
+      tracebackUrl: 'https://logs.example.com/api',
+      notifyChatId: 'oc_test',
+      tracebackUrlType: 'json',
+      enabled: true,
+      addedAt: '2026-05-01T10:00:00.000Z',
+      addedBy: 'ou_test',
+    });
+    sessionStore = new SessionStore();
+    const historyStore = new SessionHistoryStore(tempDir);
+    const dispatcher = new CardDispatcher(
+      sessionStore,
+      historyStore,
+      {} as any,
+      vi.fn()
+    );
+
+    const response = await dispatcher.dispatch({
+      operator: { open_id: 'ou_test' },
+      context: { open_chat_id: 'oc_test' },
+      action: {
+        value: { action: 'menu:web-monitor-session:api' },
+      },
+    });
+
+    expect(sessionStore.get('oc_test')).toMatchObject({
+      mode: 'directory',
+      flow: 'none',
+      data: { directory: tempDir },
+    });
+    expect(historyStore.listHistory('oc_test')[0]).toMatchObject({
+      directory: tempDir,
+      sessionId: null,
+    });
+    expect(response.toast).toEqual({ type: 'success', content: `已切换到目录会话：${tempDir}` });
+  });
+
+  it('deletes a web monitor service and its local repository', async () => {
+    registry.services.push({
+      name: 'api',
+      githubOwner: 'org',
+      githubRepo: 'api',
+      localRepoPath: '/tmp/workspace/services/api',
+      tracebackUrl: 'https://logs.example.com/api',
+      notifyChatId: 'oc_test',
+      tracebackUrlType: 'json',
+      enabled: true,
+      addedAt: '2026-05-01T10:00:00.000Z',
+      addedBy: 'ou_test',
+    });
+    sessionStore = new SessionStore();
+    const historyDir = mkdtempSync(join(tmpdir(), 'oh-my-feishu-history-'));
+    tempDirs.push(historyDir);
+    const dispatcher = new CardDispatcher(
+      sessionStore,
+      new SessionHistoryStore(historyDir),
+      {} as any,
+      vi.fn()
+    );
+
+    const response = await dispatcher.dispatch({
+      operator: { open_id: 'ou_test' },
+      context: { open_chat_id: 'oc_test' },
+      action: {
+        value: { action: 'menu:web-monitor-delete:api' },
+      },
+    });
+
+    expect(registry.services).toHaveLength(0);
+    expect(removeServiceRepository).toHaveBeenCalledWith('api');
+    expect(response.toast).toEqual({ type: 'success', content: '已删除监控：api' });
   });
 });
