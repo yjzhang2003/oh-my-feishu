@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.6.0] - 2026-05-03
+
+### Added
+
+- **自动化服务菜单**：将原 Gateway 入口调整为面向用户的“自动化技能”，在飞书菜单中展示可扩展的自动化服务。
+- **Web 服务监控卡片管理**：Web 服务监控支持服务列表、详情页、新建监控、删除监控，以及“以此目录新建会话”。
+- **本地服务仓库工作区**：注册 Web 监控服务时会浅克隆 GitHub 仓库到 `workspace/services/<serviceName>`，后台任务在服务目录中执行。
+- **Web Monitor CLI**：新增 `oh-my-feishu web-monitor` 命令，支持 list、add、get、update、remove 等服务管理操作。
+- **Web Monitor workspace skills**：新增面向 workspace Claude Code 的 Web Monitor 服务管理和自动修复技能，主 agent 可以通过技能增删改查监控服务。
+- **自动 PR 配置**：Web Monitor 服务支持配置是否自动创建 PR、目标分支、Draft/Ready 模式和修复分支前缀。
+
+### Changed
+
+- **Web Monitor 修复流程模块化**：服务监控任务改为 Gateway feature 流程，触发后静默调用 Claude Code，只返回最终处理结果。
+- **Web Monitor 结果卡片化**：自动修复完成后优先以飞书卡片返回结果，不再只发送纯文本。
+- **服务详情卡片重构**：Web 服务监控详情页改为纵向信息块，统一展示仓库、本地目录、Traceback URL、通知会话、PR 设置、最近日志和最近一次 Claude Code 介入。
+- **技能边界调整**：Web Monitor 专用技能移动到 workspace，只服务于 oh-my-feishu 主工作区，不再和用户项目技能混在一起。
+- **安装与运行路径整理**：workspace 路径从包根目录解析，fresh clone 后自动创建运行所需目录，仓库不再保留运行时 `.claude` 数据。
+
+### Fixed
+
+- 修复新建监控卡片在飞书中不更新的问题，对齐 Card JSON 2.0 表单结构。
+- 修复 Web Monitor 注册回调超时风险，耗时仓库克隆改为后台执行，回调先返回创建中提示。
+- 修复测试后服务注册表和本地服务仓库可能残留脏数据的问题。
+- 修复 Web Monitor 详情页日志预览显示最老内容的问题，累积日志现在展示最近片段。
+- 移除状态检查中不必要的 GitHub 检测，避免误导用户。
+
 ## [0.5.0] - 2026-04-30
 
 ### Added
