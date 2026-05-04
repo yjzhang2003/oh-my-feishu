@@ -482,11 +482,13 @@ export class CardDispatcher {
     }
 
     // Try to read from analysis file first
-    const analysisFilePath = pending.payload.localRepoPath
-      ? `${pending.payload.localRepoPath}/.claude/triggers/analysis.json`
+    // Skills run in workspace, check workspace triggers first, then repo triggers
+    const workspaceTriggersDir = '/Users/chihayaanon/IdeaProjects/feishu-agent/workspace/.claude/triggers';
+    const repoTriggersDir = pending.payload.localRepoPath
+      ? `${pending.payload.localRepoPath}/.claude/triggers`
       : undefined;
 
-    let analysisResult: string;
+    let analysisResult: string = '';
     try {
       let parsed: {
         root_cause?: string;
@@ -497,24 +499,51 @@ export class CardDispatcher {
         verification_command?: string;
       } | null = null;
 
-      // Try file first
-      if (analysisFilePath) {
-        const fs = await import('fs');
-        if (fs.existsSync(analysisFilePath)) {
-          const fileContent = fs.readFileSync(analysisFilePath, 'utf-8');
+      const fs = await import('fs');
+
+      // Try JSON file in workspace first, then repo
+      const dirsToCheck = [workspaceTriggersDir, repoTriggersDir].filter(Boolean) as string[];
+      for (const dir of dirsToCheck) {
+        if (fs.existsSync(`${dir}/analysis.json`)) {
+          const fileContent = fs.readFileSync(`${dir}/analysis.json`, 'utf-8');
           parsed = JSON.parse(fileContent);
+          break;
+        }
+      }
+
+      // Try result.md markdown file as fallback
+      if (!parsed) {
+        for (const dir of dirsToCheck) {
+          if (fs.existsSync(`${dir}/result.md`)) {
+            const mdContent = fs.readFileSync(`${dir}/result.md`, 'utf-8');
+            // Parse markdown sections
+            const rootCauseMatch = mdContent.match(/## Root Cause\s*\n([\s\S]*?)(?=\n##|$)/i);
+            const changesMatch = mdContent.match(/## Changes\s*\n([\s\S]*?)(?=\n##|$)/i);
+            const verificationMatch = mdContent.match(/## Verification\s*\n([\s\S]*?)(?=\n##|$)/i);
+            const followUpMatch = mdContent.match(/## Follow-up\s*\n([\s\S]*?)(?=\n##|$)/i);
+
+            if (rootCauseMatch || changesMatch) {
+              analysisResult = [
+                rootCauseMatch ? `**根本原因**:\n${rootCauseMatch[1].trim()}` : '',
+                changesMatch ? `**代码变更**:\n${changesMatch[1].trim()}` : '',
+                verificationMatch ? `**验证结果**:\n${verificationMatch[1].trim()}` : '',
+                followUpMatch ? `**后续操作**:\n${followUpMatch[1].trim()}` : '',
+              ].filter(Boolean).join('\n\n');
+              break;
+            }
+          }
         }
       }
 
       // Fallback to stdout JSON
-      if (!parsed) {
+      if (!parsed && !analysisResult) {
         const jsonMatch = result.stdout.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           parsed = JSON.parse(jsonMatch[0]);
         }
       }
 
-      if (parsed) {
+      if (parsed && !analysisResult) {
         analysisResult = [
           `**根本原因**: ${parsed.root_cause || '未识别'}`,
           `**风险等级**: ${parsed.risk_level || '未知'} (${parsed.risk_reason || ''})`,
@@ -522,7 +551,10 @@ export class CardDispatcher {
           `**修复方案**: ${parsed.proposed_fix || '未提供'}`,
           `**验证命令**: ${parsed.verification_command || '未提供'}`,
         ].join('\n\n');
-      } else {
+      }
+
+      // Final fallback: use stdout directly
+      if (!analysisResult) {
         analysisResult = result.stdout.slice(0, 3000);
       }
     } catch {
@@ -609,14 +641,15 @@ export class CardDispatcher {
     const { parseClaudeOutput } = await import('../../gateway/features/web-monitor/feature.js');
     type ParsedRepairResult = import('../../gateway/features/web-monitor/feature.js').ParsedRepairResult;
 
-    // Result file path in the target repo
-    const resultFilePath = pending.payload.localRepoPath
-      ? `${pending.payload.localRepoPath}/.claude/triggers/result.json`
+    // Result file path - skills run in workspace, so check there first
+    const workspaceTriggersDir = '/Users/chihayaanon/IdeaProjects/feishu-agent/workspace/.claude/triggers';
+    const repoTriggersDir = pending.payload.localRepoPath
+      ? `${pending.payload.localRepoPath}/.claude/triggers`
       : undefined;
 
     const claudeResult = result.claude as { stdout: string; stderr: string } | undefined;
     const parsed: ParsedRepairResult = claudeResult
-      ? parseClaudeOutput(claudeResult.stdout || claudeResult.stderr || '', resultFilePath)
+      ? parseClaudeOutput(claudeResult.stdout || claudeResult.stderr || '', workspaceTriggersDir, repoTriggersDir)
       : {
           status: 'unknown',
           rootCause: result.message || '未知结果',

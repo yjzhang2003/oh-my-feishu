@@ -137,10 +137,12 @@ async function handleAutoRepair(
   }
 
   if (payload.notifyChatId) {
-    const resultFilePath = payload.localRepoPath
-      ? `${payload.localRepoPath}/.claude/triggers/result.json`
+    // Skills run in workspace, check workspace triggers first, then repo triggers
+    const workspaceTriggersDir = '/Users/chihayaanon/IdeaProjects/feishu-agent/workspace/.claude/triggers';
+    const repoTriggersDir = payload.localRepoPath
+      ? `${payload.localRepoPath}/.claude/triggers`
       : undefined;
-    const parsed = parseClaudeOutput(claude.stdout, resultFilePath);
+    const parsed = parseClaudeOutput(claude.stdout, workspaceTriggersDir, repoTriggersDir);
     if (runtime.sendFeishuCard) {
       await runtime.sendFeishuCard({
         chatId: payload.notifyChatId,
@@ -215,13 +217,29 @@ export interface ParsedRepairResult {
 }
 
 import fs from 'fs';
+import path from 'path';
 
-export function parseClaudeOutput(stdout: string, resultFilePath?: string): ParsedRepairResult {
-  // Try to read from result file first
-  if (resultFilePath) {
+export function parseClaudeOutput(
+  stdout: string,
+  workspaceTriggersDir?: string,
+  repoTriggersDir?: string
+): ParsedRepairResult {
+  // Directories to check in order (workspace first, then repo)
+  const dirsToCheck: string[] = [];
+  if (workspaceTriggersDir) {
+    dirsToCheck.push(workspaceTriggersDir);
+  }
+  if (repoTriggersDir && repoTriggersDir !== workspaceTriggersDir) {
+    dirsToCheck.push(repoTriggersDir);
+  }
+
+  // Try each directory for result files
+  for (const triggersDir of dirsToCheck) {
     try {
-      if (fs.existsSync(resultFilePath)) {
-        const fileContent = fs.readFileSync(resultFilePath, 'utf-8');
+      // Try JSON file
+      const jsonPath = path.join(triggersDir, 'result.json');
+      if (fs.existsSync(jsonPath)) {
+        const fileContent = fs.readFileSync(jsonPath, 'utf-8');
         const parsed = JSON.parse(fileContent);
         return {
           status: parsed.status || 'unknown',
@@ -232,8 +250,31 @@ export function parseClaudeOutput(stdout: string, resultFilePath?: string): Pars
           followUp: parsed.follow_up || '无',
         };
       }
+
+      // Try markdown file (result.md)
+      const mdPath = path.join(triggersDir, 'result.md');
+      if (fs.existsSync(mdPath)) {
+        const mdContent = fs.readFileSync(mdPath, 'utf-8');
+
+        // Parse markdown sections
+        const statusMatch = mdContent.match(/## Status:\s*(\w+)/i);
+        const rootCauseMatch = mdContent.match(/## Root Cause\s*\n([\s\S]*?)(?=\n##|$)/i);
+        const changesMatch = mdContent.match(/## Changes\s*\n([\s\S]*?)(?=\n##|$)/i);
+        const verificationMatch = mdContent.match(/## Verification\s*\n([\s\S]*?)(?=\n##|$)/i);
+        const prMatch = mdContent.match(/## PR\s*\n([\s\S]*?)(?=\n##|$)/i);
+        const followUpMatch = mdContent.match(/## Follow-up\s*\n([\s\S]*?)(?=\n##|$)/i);
+
+        return {
+          status: (statusMatch?.[1]?.toLowerCase() as ParsedRepairResult['status']) || 'unknown',
+          rootCause: rootCauseMatch?.[1]?.trim() || '未识别',
+          changes: changesMatch?.[1]?.trim() || '无变更',
+          verification: verificationMatch?.[1]?.trim() || '未执行',
+          pr: prMatch?.[1]?.trim() || '未创建',
+          followUp: followUpMatch?.[1]?.trim() || '无',
+        };
+      }
     } catch {
-      // Fall through to stdout parsing
+      // Continue to next directory
     }
   }
 

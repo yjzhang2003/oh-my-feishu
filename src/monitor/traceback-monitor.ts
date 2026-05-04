@@ -184,29 +184,19 @@ export class TracebackMonitor {
 
       const { traceback, hash: currentHash } = extracted;
 
-      // Dedup: skip if same hash as last time
-      if (currentHash === service.lastErrorHash) {
-        updateWebMonitorServiceHash(service.name, currentHash, now);
-        return;
-      }
-
-      // Update snapshot only when traceback actually changed
+      // Update snapshot
       updateWebMonitorTracebackSnapshot(
         service.name,
         tailPreview(traceback, MAX_TRACEBACK_PREVIEW_SIZE),
         now
       );
 
-      // Skip on first check — just record the hash without triggering
-      if (!service.lastErrorHash) {
-        log.info('monitor', `Initial hash recorded for ${service.name}`);
-        updateWebMonitorServiceHash(service.name, currentHash, now);
-        return;
-      }
+      // Update hash for tracking (but don't skip on duplicate)
+      updateWebMonitorServiceHash(service.name, currentHash, now);
 
       // New traceback detected — trigger repair
       log.info('monitor', `New traceback detected for ${service.name}`, {
-        previousHash: service.lastErrorHash.slice(0, 12),
+        previousHash: service.lastErrorHash?.slice(0, 12) ?? 'none',
         currentHash: currentHash.slice(0, 12),
         tracebackPreview: traceback.slice(0, 200),
       });
