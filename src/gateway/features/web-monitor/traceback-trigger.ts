@@ -26,6 +26,7 @@ export function createTracebackDetectedEvent(input: {
       prBaseBranch: service.prBaseBranch || 'main',
       prDraft: service.prDraft ?? true,
       prBranchPrefix: service.prBranchPrefix || 'oh-my-feishu/web-monitor',
+      requireConfirmation: service.requireConfirmation ?? false,
       previousHash,
       currentHash,
     },

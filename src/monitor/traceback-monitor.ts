@@ -16,11 +16,75 @@ const MAX_CONTENT_SIZE = 10240; // 10KB — truncate before hashing
 const DEFAULT_GLOBAL_INTERVAL_SEC = 60;
 const MAX_TRACEBACK_PREVIEW_SIZE = 1200;
 
+interface JsonLogEntry {
+  timestamp?: string;
+  level?: string;
+  message?: string;
+  traceback?: string;
+  error?: string;
+  [key: string]: unknown;
+}
+
 function tailPreview(content: string, maxLength: number): string {
   if (content.length <= maxLength) {
     return content;
   }
   return content.slice(content.length - maxLength);
+}
+
+function extractLatestTraceback(
+  content: string,
+  urlType: 'json' | 'text' | 'html'
+): { traceback: string; hash: string } | null {
+  if (urlType === 'json') {
+    try {
+      const parsed = JSON.parse(content);
+      const entries = Array.isArray(parsed) ? parsed : parsed.logs ?? parsed.entries ?? [parsed];
+
+      // Iterate in reverse to find the latest entry with traceback
+      for (let i = entries.length - 1; i >= 0; i--) {
+        const entry = entries[i] as JsonLogEntry;
+        const tracebackText =
+          entry.traceback ??
+          entry.error ??
+          entry.message ??
+          (typeof entry === 'string' ? entry : null);
+
+        if (tracebackText && typeof tracebackText === 'string') {
+          const trimmed = tracebackText.trim();
+          if (trimmed) {
+            return {
+              traceback: trimmed,
+              hash: hashTracebackContent(trimmed),
+            };
+          }
+        }
+      }
+    } catch {
+      // Fall through to text handling
+    }
+  }
+
+  // For text/html, extract the last traceback block if present
+  const tracebackMatch = content.match(/Traceback \(most recent call last\):[\s\S]*?(?=\n\d{4}-\d{2}-\d{2}|$)/g);
+  if (tracebackMatch && tracebackMatch.length > 0) {
+    const lastTraceback = tracebackMatch[tracebackMatch.length - 1].trim();
+    return {
+      traceback: lastTraceback,
+      hash: hashTracebackContent(lastTraceback),
+    };
+  }
+
+  // Fallback: return entire content if no traceback pattern found
+  const trimmed = content.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  return {
+    traceback: trimmed,
+    hash: hashTracebackContent(trimmed),
+  };
 }
 
 export class TracebackMonitor {
@@ -104,19 +168,34 @@ export class TracebackMonitor {
 
       let content = await response.text();
 
-      // Truncate large content before hashing
+      // Truncate large content before processing
       if (content.length > MAX_CONTENT_SIZE) {
         content = content.slice(0, MAX_CONTENT_SIZE);
       }
-      updateWebMonitorTracebackSnapshot(service.name, tailPreview(content, MAX_TRACEBACK_PREVIEW_SIZE), now);
 
-      const currentHash = hashTracebackContent(content);
+      const urlType = service.tracebackUrlType ?? 'text';
+      const extracted = extractLatestTraceback(content, urlType);
+
+      if (!extracted) {
+        log.debug('monitor', `No traceback content for ${service.name}`);
+        updateWebMonitorServiceHash(service.name, service.lastErrorHash ?? '', now);
+        return;
+      }
+
+      const { traceback, hash: currentHash } = extracted;
 
       // Dedup: skip if same hash as last time
       if (currentHash === service.lastErrorHash) {
         updateWebMonitorServiceHash(service.name, currentHash, now);
         return;
       }
+
+      // Update snapshot only when traceback actually changed
+      updateWebMonitorTracebackSnapshot(
+        service.name,
+        tailPreview(traceback, MAX_TRACEBACK_PREVIEW_SIZE),
+        now
+      );
 
       // Skip on first check — just record the hash without triggering
       if (!service.lastErrorHash) {
@@ -129,12 +208,13 @@ export class TracebackMonitor {
       log.info('monitor', `New traceback detected for ${service.name}`, {
         previousHash: service.lastErrorHash.slice(0, 12),
         currentHash: currentHash.slice(0, 12),
+        tracebackPreview: traceback.slice(0, 200),
       });
 
       const previousHash = service.lastErrorHash;
       updateWebMonitorServiceHash(service.name, currentHash, now);
 
-      await this.triggerRepair(service, content, previousHash, currentHash);
+      await this.triggerRepair(service, traceback, previousHash, currentHash);
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unknown error';
       log.warn('monitor', `Traceback poll error for ${service.name}`, { error: msg });

@@ -110,14 +110,32 @@ Before applying any edit:
 
 ## Output
 
-Always return a concise final report on stdout:
+At the end of the repair flow, write a JSON result file and a brief summary to stdout.
 
-- `status`: `success` | `failed` | `blocked`
-- `service`: service name if known
-- `root_cause`: one concise paragraph
-- `changes`: files changed and why
-- `verification`: command run and result
-- `pr`: PR URL if created, otherwise `not_created` with reason
-- `follow_up`: anything the user must do
+### Step 1: Write Result File
 
-Also write the same report to `.claude/triggers/result.md` when possible.
+Write a JSON file to `.claude/triggers/result.json` (create the directory if needed).
+
+**IMPORTANT**: All string values MUST be in Chinese (中文) for better readability in Feishu cards.
+
+```json
+{
+  "status": "success|failed|blocked",
+  "service": "<服务名称>",
+  "root_cause": "<用中文解释错误发生的根本原因>",
+  "changes": "<修改了哪些文件以及为什么，例如：'app/store.py: 添加了对空 borrowers 列表的检查'>",
+  "verification": "<运行的验证命令及结果，例如：'pytest 通过 (3个测试)'>",
+  "pr": "<PR链接，如未创建则填写原因>",
+  "follow_up": "<用户需要手动执行的后续步骤，如无则填'无'>"
+}
+```
+
+### Step 2: Print Summary
+
+After writing the file, print a one-line summary to stdout:
+
+```
+Repair completed. Status: <status>. See result file for details.
+```
+
+The Gateway will read the JSON file to build the result card. Do NOT rely on stdout JSON parsing.

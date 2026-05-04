@@ -41,3 +41,33 @@ export function buildWebMonitorClaudeTask(
     },
   };
 }
+
+export function buildWebMonitorAnalyzeTask(
+  event: GatewayEvent,
+  payload: TracebackDetectedPayload
+): ClaudeTaskInput {
+  return {
+    feature: 'web-monitor',
+    skillCommand: '/web-monitor-analyze-only',
+    instruction: [
+      '分析一个 Web 服务 traceback。',
+      '使用 web-monitor-analyze-only 工作流分析错误，只输出分析结果 JSON。',
+      '不要修改任何文件，只返回结构化的分析结果。',
+    ].join('\n'),
+    context: {
+      eventId: event.id,
+      serviceName: payload.serviceName,
+      repo: `${payload.githubOwner}/${payload.githubRepo}`,
+      localRepoPath: payload.localRepoPath,
+      tracebackUrl: payload.tracebackUrl,
+      tracebackContent: payload.tracebackContent,
+    },
+    env: {
+      SERVICE_NAME: payload.serviceName,
+      GITHUB_REPO_OWNER: payload.githubOwner,
+      GITHUB_REPO_NAME: payload.githubRepo,
+      TRACEBACK_URL: payload.tracebackUrl,
+      TARGET_REPO_PATH: payload.localRepoPath || '',
+    },
+  };
+}

@@ -19,6 +19,7 @@ export interface ServiceEntry {
   prBaseBranch?: string;
   prDraft?: boolean;
   prBranchPrefix?: string;
+  requireConfirmation?: boolean;
   enabled: boolean;
   addedAt: string;
   addedBy: string;

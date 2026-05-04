@@ -119,6 +119,10 @@ export class CardDispatcher {
         return this.handleSessionAction(actionValue, chatId, operatorOpenId);
       }
 
+      if (actionValue.startsWith('web-monitor-')) {
+        return await this.handleWebMonitorRepairAction(action?.value || {}, chatId);
+      }
+
       return { toast: { type: 'error', content: '未知操作' } };
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unknown error';
@@ -290,6 +294,7 @@ export class CardDispatcher {
     const prDraft = String(formValue.wm_pr_mode || 'draft') !== 'ready';
     const prBranchPrefix = String(formValue.wm_pr_branch_prefix || 'oh-my-feishu/web-monitor').trim()
       || 'oh-my-feishu/web-monitor';
+    const requireConfirmation = String(formValue.wm_require_confirmation || 'false') === 'true';
 
     if (!name || !repo || !tracebackUrl) {
       return { toast: { type: 'error', content: '请填写服务名称、仓库和 Traceback URL' } };
@@ -312,6 +317,7 @@ export class CardDispatcher {
         prBaseBranch,
         prDraft,
         prBranchPrefix,
+        requireConfirmation,
       },
     });
 
@@ -373,6 +379,267 @@ export class CardDispatcher {
         ],
       },
     };
+  }
+
+  private async handleWebMonitorRepairAction(
+    actionValue: Record<string, unknown>,
+    chatId: string
+  ): Promise<CardActionResponse> {
+    const action = actionValue.action as string || '';
+    const serviceName = actionValue.serviceName as string || '';
+
+    if (!serviceName) {
+      return { toast: { type: 'error', content: '缺少服务名称' } };
+    }
+
+    switch (action) {
+      case 'web-monitor-skip': {
+        const { removePendingRepair } = await import('../../gateway/features/web-monitor/feature.js');
+        removePendingRepair(serviceName);
+        return { toast: { type: 'info', content: `已跳过 ${serviceName} 的修复` } };
+      }
+
+      case 'web-monitor-analyze': {
+        const { getPendingRepair, setPendingRepair } = await import('../../gateway/features/web-monitor/feature.js');
+        const pending = getPendingRepair(serviceName);
+
+        if (!pending) {
+          return { toast: { type: 'error', content: '未找到待修复记录，可能已过期' } };
+        }
+
+        // Prevent duplicate clicks - mark as analyzing
+        if (pending.analyzing) {
+          return { toast: { type: 'info', content: '分析已在进行中...' } };
+        }
+
+        setPendingRepair(serviceName, { ...pending, analyzing: true });
+        void this.runAnalysis(serviceName, pending, chatId);
+        return { toast: { type: 'info', content: `正在分析 ${serviceName} 的问题...` } };
+      }
+
+      case 'web-monitor-confirm-repair': {
+        const { getPendingRepair, removePendingRepair } = await import('../../gateway/features/web-monitor/feature.js');
+        const pending = getPendingRepair(serviceName);
+
+        if (!pending) {
+          return { toast: { type: 'error', content: '未找到待修复记录，可能已过期' } };
+        }
+
+        removePendingRepair(serviceName);
+        void this.executeRepair(serviceName, pending, chatId);
+        return { toast: { type: 'info', content: `正在执行 ${serviceName} 的修复...` } };
+      }
+
+      default:
+        return { toast: { type: 'error', content: '未知的修复操作' } };
+    }
+  }
+
+  private async runAnalysis(
+    serviceName: string,
+    pending: { eventId: string; payload: import('../../gateway/features/web-monitor/feature.js').TracebackDetectedPayload },
+    chatId: string
+  ): Promise<void> {
+    if (!this.gatewayFeatureRunner) {
+      await this.sendCard(chatId, this.createWebMonitorRegistrationResultCard(
+        '分析失败',
+        'Gateway feature runner 未配置',
+        'red'
+      ));
+      return;
+    }
+
+    const { buildWebMonitorAnalyzeTask } = await import('../../gateway/features/web-monitor/service-actions.js');
+    const { createRepairConfirmCard } = await import('../../gateway/features/web-monitor/cards.js');
+    const runtime = this.gatewayFeatureRunner['options']?.runtime;
+
+    if (!runtime) {
+      await this.sendCard(chatId, this.createWebMonitorRegistrationResultCard(
+        '分析失败',
+        'Runtime 未配置',
+        'red'
+      ));
+      return;
+    }
+
+    const event = createGatewayEvent({
+      id: pending.eventId,
+      type: 'traceback.analyze',
+      source: 'internal',
+      payload: pending.payload,
+    });
+
+    const task = buildWebMonitorAnalyzeTask(event, pending.payload);
+    const result = await runtime.invokeMainClaude(task);
+
+    if (!result.success) {
+      await this.sendCard(chatId, this.createWebMonitorRegistrationResultCard(
+        '分析失败',
+        result.stderr || result.stdout || '未知错误',
+        'red'
+      ));
+      return;
+    }
+
+    // Try to read from analysis file first
+    const analysisFilePath = pending.payload.localRepoPath
+      ? `${pending.payload.localRepoPath}/.claude/triggers/analysis.json`
+      : undefined;
+
+    let analysisResult: string;
+    try {
+      let parsed: {
+        root_cause?: string;
+        risk_level?: string;
+        risk_reason?: string;
+        affected_files?: Array<{ path: string }>;
+        proposed_fix?: string;
+        verification_command?: string;
+      } | null = null;
+
+      // Try file first
+      if (analysisFilePath) {
+        const fs = await import('fs');
+        if (fs.existsSync(analysisFilePath)) {
+          const fileContent = fs.readFileSync(analysisFilePath, 'utf-8');
+          parsed = JSON.parse(fileContent);
+        }
+      }
+
+      // Fallback to stdout JSON
+      if (!parsed) {
+        const jsonMatch = result.stdout.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          parsed = JSON.parse(jsonMatch[0]);
+        }
+      }
+
+      if (parsed) {
+        analysisResult = [
+          `**根本原因**: ${parsed.root_cause || '未识别'}`,
+          `**风险等级**: ${parsed.risk_level || '未知'} (${parsed.risk_reason || ''})`,
+          `**涉及文件**: ${(parsed.affected_files || []).map((f) => f.path).join(', ') || '未识别'}`,
+          `**修复方案**: ${parsed.proposed_fix || '未提供'}`,
+          `**验证命令**: ${parsed.verification_command || '未提供'}`,
+        ].join('\n\n');
+      } else {
+        analysisResult = result.stdout.slice(0, 3000);
+      }
+    } catch {
+      analysisResult = result.stdout.slice(0, 3000);
+    }
+
+    await this.sendCard(chatId, {
+      card: createRepairConfirmCard({
+        serviceName,
+        repo: `${pending.payload.githubOwner}/${pending.payload.githubRepo}`,
+        analysisResult,
+        eventId: pending.eventId,
+        autoPr: pending.payload.autoPr,
+        prBaseBranch: pending.payload.prBaseBranch,
+        prDraft: pending.payload.prDraft,
+      }),
+      elementIds: [],
+    }.card);
+  }
+
+  private async runRepair(
+    serviceName: string,
+    pending: { eventId: string; payload: import('../../gateway/features/web-monitor/feature.js').TracebackDetectedPayload },
+    chatId: string
+  ): Promise<void> {
+    if (!this.gatewayFeatureRunner) {
+      await this.sendCard(chatId, this.createWebMonitorRegistrationResultCard(
+        '修复失败',
+        'Gateway feature runner 未配置',
+        'red'
+      ));
+      return;
+    }
+
+    const event = createGatewayEvent({
+      id: pending.eventId,
+      type: 'traceback.detected',
+      source: 'internal',
+      payload: pending.payload,
+    });
+
+    const result = await this.gatewayFeatureRunner.run(event);
+
+    if (result.success) {
+      await this.sendCard(chatId, this.createWebMonitorRegistrationResultCard(
+        '修复完成',
+        result.message || `${serviceName} 修复完成`,
+        'green'
+      ));
+    } else {
+      await this.sendCard(chatId, this.createWebMonitorRegistrationResultCard(
+        '修复失败',
+        result.message || `${serviceName} 修复失败`,
+        'red'
+      ));
+    }
+  }
+
+  private async executeRepair(
+    serviceName: string,
+    pending: { eventId: string; payload: import('../../gateway/features/web-monitor/feature.js').TracebackDetectedPayload },
+    chatId: string
+  ): Promise<void> {
+    if (!this.gatewayFeatureRunner) {
+      await this.sendCard(chatId, this.createWebMonitorRegistrationResultCard(
+        '修复失败',
+        'Gateway feature runner 未配置',
+        'red'
+      ));
+      return;
+    }
+
+    const event = createGatewayEvent({
+      id: pending.eventId,
+      type: 'traceback.detected',
+      source: 'internal',
+      payload: { ...pending.payload, requireConfirmation: false },
+    });
+
+    const result = await this.gatewayFeatureRunner.run(event);
+
+    // Parse the Claude output and send a structured result card
+    const { createWebMonitorResultCard } = await import('../../gateway/features/web-monitor/cards.js');
+    const { parseClaudeOutput } = await import('../../gateway/features/web-monitor/feature.js');
+    type ParsedRepairResult = import('../../gateway/features/web-monitor/feature.js').ParsedRepairResult;
+
+    // Result file path in the target repo
+    const resultFilePath = pending.payload.localRepoPath
+      ? `${pending.payload.localRepoPath}/.claude/triggers/result.json`
+      : undefined;
+
+    const claudeResult = result.claude as { stdout: string; stderr: string } | undefined;
+    const parsed: ParsedRepairResult = claudeResult
+      ? parseClaudeOutput(claudeResult.stdout || claudeResult.stderr || '', resultFilePath)
+      : {
+          status: 'unknown',
+          rootCause: result.message || '未知结果',
+          changes: '无法解析',
+          verification: '无法解析',
+          pr: '无法解析',
+          followUp: '无法解析',
+        };
+
+    await this.sendCard(chatId, {
+      card: createWebMonitorResultCard({
+        serviceName,
+        repo: `${pending.payload.githubOwner}/${pending.payload.githubRepo}`,
+        success: result.success,
+        summary: parsed,
+        tracebackPreview: pending.payload.tracebackContent,
+        autoPr: pending.payload.autoPr,
+        prBaseBranch: pending.payload.prBaseBranch,
+        prDraft: pending.payload.prDraft,
+        prBranchPrefix: pending.payload.prBranchPrefix,
+      }),
+      elementIds: [],
+    }.card);
   }
 
   private handleNavAction(action: string, chatId: string): CardActionResponse {

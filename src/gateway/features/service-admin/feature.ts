@@ -23,6 +23,7 @@ interface ServiceAdminPayload {
   prBaseBranch?: string;
   prDraft?: boolean;
   prBranchPrefix?: string;
+  requireConfirmation?: boolean;
 }
 
 export const serviceAdminFeature: GatewayFeature = {
@@ -126,6 +127,7 @@ async function handleAdd(payload: ServiceAdminPayload) {
       prBaseBranch: payload.prBaseBranch || 'main',
       prDraft: payload.prDraft ?? true,
       prBranchPrefix: payload.prBranchPrefix || 'oh-my-feishu/web-monitor',
+      requireConfirmation: payload.requireConfirmation ?? false,
     });
 
     const prConfig = formatPrConfig({
@@ -423,5 +425,6 @@ function parsePayload(payload: unknown): ServiceAdminPayload {
     prBaseBranch: value.prBaseBranch,
     prDraft: value.prDraft,
     prBranchPrefix: value.prBranchPrefix,
+    requireConfirmation: value.requireConfirmation,
   };
 }

@@ -446,6 +446,10 @@ export function createWebMonitorDetailCard(service: ServiceEntry): CardBuildResu
     ? `自动创建 PR\nbase: \`${service.prBaseBranch || 'main'}\`\nmode: ${service.prDraft === false ? 'ready' : 'draft'}\nbranch: \`${service.prBranchPrefix || 'oh-my-feishu/web-monitor'}/*\``
     : '关闭。修复后只保留本地改动并返回结果卡片。';
 
+  const confirmConfig = service.requireConfirmation
+    ? '开启。发现问题时先发送确认卡片，等待用户确认后再执行修复。'
+    : '关闭。发现问题时自动执行修复并返回结果。';
+
   return createCardV2({
     title: service.name,
     subtitle: 'Web 服务监控详情',
@@ -485,6 +489,12 @@ export function createWebMonitorDetailCard(service: ServiceEntry): CardBuildResu
         content: prConfig,
         icon: 'command_outlined',
         color: service.autoPr ? 'green' : 'grey',
+      }),
+      displayBox({
+        title: '确认模式',
+        content: confirmConfig,
+        icon: 'confirm_outlined',
+        color: service.requireConfirmation ? 'blue' : 'grey',
       }),
       displayBox({
         title: '最近日志片段',
@@ -670,6 +680,47 @@ export function createWebMonitorInputCard(): object {
               default_value: 'oh-my-feishu/web-monitor',
               label: { tag: 'plain_text', content: 'PR 分支前缀' },
               placeholder: { tag: 'plain_text', content: 'oh-my-feishu/web-monitor' },
+            },
+            {
+              tag: 'column_set',
+              horizontal_spacing: '8px',
+              horizontal_align: 'left',
+              columns: [
+                {
+                  tag: 'column',
+                  width: 'weighted',
+                  weight: 1,
+                  elements: [
+                    md('**确认模式**'),
+                  ],
+                },
+                {
+                  tag: 'column',
+                  width: 'weighted',
+                  weight: 3,
+                  elements: [
+                    {
+                      tag: 'select_static',
+                      element_id: 'wm_require_confirmation',
+                      name: 'wm_require_confirmation',
+                      required: false,
+                      width: 'fill',
+                      type: 'default',
+                      placeholder: { tag: 'plain_text', content: '默认关闭' },
+                      options: [
+                        {
+                          text: { tag: 'plain_text', content: '关闭：自动修复' },
+                          value: 'false',
+                        },
+                        {
+                          text: { tag: 'plain_text', content: '开启：修复前确认' },
+                          value: 'true',
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
             },
             {
               tag: 'column_set',
