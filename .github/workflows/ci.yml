@@ -14,8 +14,37 @@ permissions:
   contents: read
 
 jobs:
-  verify:
-    name: Verify on Node ${{ matrix.node-version }}
+  static-checks:
+    name: Static checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.x
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Check package contents
+        run: npm pack --dry-run
+
+  test:
+    name: Test on Node ${{ matrix.node-version }}
     runs-on: ubuntu-latest
 
     strategy:
@@ -23,8 +52,6 @@ jobs:
       matrix:
         node-version:
           - 18.x
-          - 20.x
-          - 22.x
           - 24.x
 
     steps:
@@ -40,14 +67,5 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint
-        run: npm run lint
-
-      - name: Type check
-        run: npm run typecheck
-
       - name: Test
         run: npm run test:run
-
-      - name: Build
-        run: npm run build

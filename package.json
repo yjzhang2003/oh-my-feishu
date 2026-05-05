@@ -13,7 +13,8 @@
     "oh-my-feishu-plugin/",
     ".claude-plugin/",
     "README.md",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "LICENSE"
   ],
   "scripts": {
     "cli": "tsx src/cli/index.tsx",
@@ -31,7 +32,7 @@
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
     "prepack": "npm run build",
-    "prepublishOnly": "npm run lint && npm run typecheck && npm run test:run && npm run build",
+    "prepublishOnly": "npm run lint && npm run typecheck && npm run test:run",
     "pack:dry-run": "npm pack --dry-run"
   },
   "repository": {
