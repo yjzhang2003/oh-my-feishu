@@ -109,12 +109,12 @@ describe('TracebackMonitor', () => {
     expect(updated?.lastTracebackAt).toEqual(expect.any(String));
   });
 
-  it('caches the tail of long traceback logs as latest preview', async () => {
+  it('caches the head of long traceback logs as latest preview', async () => {
     addService({
-      name: 'test-tb-preview-tail',
+      name: 'test-tb-preview-head',
       githubOwner: 'myorg',
       githubRepo: 'my-api',
-      tracebackUrl: 'https://example.com/traceback-preview-tail',
+      tracebackUrl: 'https://example.com/traceback-preview-head',
       notifyChatId: 'oc_test',
       tracebackUrlType: 'json',
       enabled: true,
@@ -123,13 +123,14 @@ describe('TracebackMonitor', () => {
     });
     vi.stubGlobal('fetch', vi.fn(async () => ({
       ok: true,
-      text: async () => `${'old log\n'.repeat(300)}LATEST_TRACEBACK`,
+      text: async () => `FIRST_LOG\n${'old log\n'.repeat(300)}`,
     })));
 
-    const service = getService('test-tb-preview-tail');
+    const service = getService('test-tb-preview-head');
     await (monitor as any).pollService(service);
 
-    const updated = getService('test-tb-preview-tail');
-    expect(updated?.lastTracebackPreview).toContain('LATEST_TRACEBACK');
+    const updated = getService('test-tb-preview-head');
+    expect(updated?.lastTracebackPreview).toContain('FIRST_LOG');
+    expect(updated?.lastTracebackPreview?.length).toBeLessThanOrEqual(1300);
   });
 });
