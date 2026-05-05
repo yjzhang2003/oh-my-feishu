@@ -440,7 +440,7 @@ export function createWebMonitorDetailCard(service: ServiceEntry): CardBuildResu
     ? codeBlock(service.lastTracebackPreview.slice(0, 800))
     : '暂无日志缓存';
   const claudeRun = service.lastClaudeRunAt
-    ? `${service.lastClaudeRunSuccess ? '✅ 成功' : '❌ 失败'} · ${relativeTime(service.lastClaudeRunAt)}`
+    ? `${service.lastClaudeRunSuccess ? '✅ 成功' : '❌ 失败'} · ${relativeTime(service.lastClaudeRunAt)}\n${service.lastClaudeRunSummary || ''}`
     : '暂无记录';
   const prConfig = service.autoPr
     ? `自动 PR · base: \`${service.prBaseBranch || 'main'}\` · ${service.prDraft === false ? 'ready' : 'draft'}`

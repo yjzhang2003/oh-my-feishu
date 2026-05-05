@@ -153,7 +153,7 @@ describe('CardBuilder', () => {
     expect(elements.slice(0, 7).every((element) => element.tag === 'interactive_container')).toBe(true);
     expect(elements.some((element) => (
       element.tag === 'interactive_container'
-      && JSON.stringify(element).includes('最近一次 Claude Code 介入')
+      && JSON.stringify(element).includes('最近 Claude Code 介入')
     ))).toBe(true);
   });
 
