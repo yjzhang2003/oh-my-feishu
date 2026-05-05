@@ -2,7 +2,7 @@
  * CardKit API manager for creating and updating card entities
  * Uses Feishu cardkit v1 API for card-in-place updates
  */
-
+import * as crypto from 'crypto'
 import * as lark from '@larksuiteoapi/node-sdk';
 import { log } from '../utils/logger.js';
 
