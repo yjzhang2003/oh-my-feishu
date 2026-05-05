@@ -5,6 +5,7 @@ import {
   updateServiceErrorHash,
   updateServiceTracebackSnapshot,
   type ServiceEntry,
+  type ClaudeRunResult,
 } from '../../../service/registry.js';
 
 export type WebMonitorService = ServiceEntry;
@@ -23,7 +24,7 @@ export function updateWebMonitorTracebackSnapshot(name: string, preview: string,
 
 export function updateWebMonitorClaudeRun(
   name: string,
-  input: { success: boolean; summary: string; finishedAt: string }
+  input: { success: boolean; result: ClaudeRunResult; finishedAt: string }
 ): void {
   updateServiceClaudeRun(name, input);
 }

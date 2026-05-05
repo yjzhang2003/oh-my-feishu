@@ -141,7 +141,14 @@ describe('CardBuilder', () => {
       lastTracebackPreview: 'Traceback...',
       lastClaudeRunAt: '2026-05-01T10:05:00.000Z',
       lastClaudeRunSuccess: true,
-      lastClaudeRunSummary: 'fixed',
+      lastClaudeRunResult: {
+        status: 'success',
+        rootCause: 'fixed root cause',
+        changes: 'app/store.py: fixed',
+        verification: 'tests passed',
+        pr: 'https://github.com/org/api/pull/1',
+        followUp: 'none',
+      },
     });
     const cardJson = JSON.stringify(card);
     const elements = ((card as any).body.elements ?? []) as any[];
@@ -149,7 +156,7 @@ describe('CardBuilder', () => {
     expect(cardJson).toContain('menu:web-monitor-session:api');
     expect(cardJson).toContain('menu:web-monitor-delete:api');
     expect(cardJson).toContain('Traceback...');
-    expect(cardJson).toContain('fixed');
+    expect(cardJson).toContain('fixed root cause');
     expect(elements.slice(0, 7).every((element) => element.tag === 'interactive_container')).toBe(true);
     expect(elements.some((element) => (
       element.tag === 'interactive_container'

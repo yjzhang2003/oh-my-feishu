@@ -6,6 +6,15 @@ import { log } from '../utils/logger.js';
 
 const DEFAULT_REGISTRY_PATH = resolve(env.REPO_ROOT, 'workspace', '.claude', 'services.json');
 
+export interface ClaudeRunResult {
+  status: 'success' | 'failed' | 'blocked' | 'unknown';
+  rootCause: string;
+  changes: string;
+  verification: string;
+  pr: string;
+  followUp: string;
+}
+
 export interface ServiceEntry {
   name: string;
   githubOwner: string;
@@ -29,7 +38,7 @@ export interface ServiceEntry {
   lastTracebackPreview?: string;
   lastClaudeRunAt?: string;
   lastClaudeRunSuccess?: boolean;
-  lastClaudeRunSummary?: string;
+  lastClaudeRunResult?: ClaudeRunResult;
 }
 
 export interface ServiceRegistry {
@@ -143,12 +152,12 @@ export function updateServiceTracebackSnapshot(name: string, preview: string, ch
 
 export function updateServiceClaudeRun(
   name: string,
-  input: { success: boolean; summary: string; finishedAt: string }
+  input: { success: boolean; result: ClaudeRunResult; finishedAt: string }
 ): void {
   updateService(name, {
     lastClaudeRunAt: input.finishedAt,
     lastClaudeRunSuccess: input.success,
-    lastClaudeRunSummary: input.summary,
+    lastClaudeRunResult: input.result,
   });
 }
 

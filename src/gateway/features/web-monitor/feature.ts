@@ -120,9 +120,17 @@ async function handleAutoRepair(
   runtime: GatewayRuntime
 ): Promise<{ success: boolean; message: string; claude?: unknown }> {
   const claude = await runtime.invokeMainClaude(buildWebMonitorClaudeTask(event, payload));
+
+  // Parse result for storage and display
+  const workspaceTriggersDir = '/Users/chihayaanon/IdeaProjects/feishu-agent/workspace/.claude/triggers';
+  const repoTriggersDir = payload.localRepoPath
+    ? `${payload.localRepoPath}/.claude/triggers`
+    : undefined;
+  const parsed = parseClaudeOutput(claude.stdout, workspaceTriggersDir, repoTriggersDir);
+
   updateWebMonitorClaudeRun(payload.serviceName, {
     success: claude.success,
-    summary: summarizeClaudeResult(claude),
+    result: parsed,
     finishedAt: new Date().toISOString(),
   });
 
@@ -137,12 +145,6 @@ async function handleAutoRepair(
   }
 
   if (payload.notifyChatId) {
-    // Skills run in workspace, check workspace triggers first, then repo triggers
-    const workspaceTriggersDir = '/Users/chihayaanon/IdeaProjects/feishu-agent/workspace/.claude/triggers';
-    const repoTriggersDir = payload.localRepoPath
-      ? `${payload.localRepoPath}/.claude/triggers`
-      : undefined;
-    const parsed = parseClaudeOutput(claude.stdout, workspaceTriggersDir, repoTriggersDir);
     if (runtime.sendFeishuCard) {
       await runtime.sendFeishuCard({
         chatId: payload.notifyChatId,
@@ -194,17 +196,6 @@ function parseTracebackPayload(payload: unknown): TracebackDetectedPayload {
   }
 
   return value as TracebackDetectedPayload;
-}
-
-function summarizeClaudeResult(input: {
-  success: boolean;
-  stdout: string;
-  stderr: string;
-}): string {
-  const text = (input.success ? input.stdout : input.stderr || input.stdout).trim();
-  return (
-    text || (input.success ? 'Claude Code task completed.' : 'Claude Code task failed.')
-  ).slice(0, 1200);
 }
 
 export interface ParsedRepairResult {

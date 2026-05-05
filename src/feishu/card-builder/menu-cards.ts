@@ -439,9 +439,24 @@ export function createWebMonitorDetailCard(service: ServiceEntry): CardBuildResu
   const latestLog = service.lastTracebackPreview
     ? codeBlock(service.lastTracebackPreview.slice(0, 800))
     : '暂无日志缓存';
-  const claudeRun = service.lastClaudeRunAt
-    ? `${service.lastClaudeRunSuccess ? '✅ 成功' : '❌ 失败'} · ${relativeTime(service.lastClaudeRunAt)}\n${service.lastClaudeRunSummary || ''}`
-    : '暂无记录';
+
+  // Build Claude run status from structured result
+  let claudeRunStatus = '暂无记录';
+  if (service.lastClaudeRunAt) {
+    const statusIcon = service.lastClaudeRunSuccess ? '✅' : '❌';
+    const statusText = service.lastClaudeRunSuccess ? '成功' : '失败';
+    claudeRunStatus = `${statusIcon} ${statusText} · ${relativeTime(service.lastClaudeRunAt)}`;
+
+    if (service.lastClaudeRunResult) {
+      const r = service.lastClaudeRunResult;
+      const parts = [`**根因**: ${r.rootCause.slice(0, 100)}${r.rootCause.length > 100 ? '...' : ''}`];
+      if (r.changes && r.changes !== '无变更') {
+        parts.push(`**变更**: ${r.changes.slice(0, 100)}${r.changes.length > 100 ? '...' : ''}`);
+      }
+      claudeRunStatus += '\n\n' + parts.join('\n');
+    }
+  }
+
   const prConfig = service.autoPr
     ? `自动 PR · base: \`${service.prBaseBranch || 'main'}\` · ${service.prDraft === false ? 'ready' : 'draft'}`
     : '关闭';
@@ -504,7 +519,7 @@ export function createWebMonitorDetailCard(service: ServiceEntry): CardBuildResu
       }),
       displayBox({
         title: '最近 Claude Code 介入',
-        content: claudeRun,
+        content: claudeRunStatus,
         icon: 'robot_outlined',
         color: service.lastClaudeRunSuccess === false ? 'red' : 'blue',
       }),

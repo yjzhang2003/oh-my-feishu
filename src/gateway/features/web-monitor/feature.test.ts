@@ -73,7 +73,9 @@ describe('webMonitorFeature', () => {
     }));
     expect(updateWebMonitorClaudeRun).toHaveBeenCalledWith('api', expect.objectContaining({
       success: true,
-      summary: 'fixed traceback',
+      result: expect.objectContaining({
+        rootCause: 'fixed traceback',
+      }),
       finishedAt: expect.any(String),
     }));
     expect(rt.sendFeishuCard).toHaveBeenCalledWith({
