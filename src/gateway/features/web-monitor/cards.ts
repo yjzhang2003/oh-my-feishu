@@ -103,7 +103,7 @@ export function createWebMonitorResultCard(input: {
       displayBox({
         title: 'Pull Request',
         content: truncate(input.summary.pr, 500),
-        icon: 'git_branch_outlined',
+        icon: 'version_outlined',
         color: 'green',
       })
     );
@@ -115,7 +115,7 @@ export function createWebMonitorResultCard(input: {
       displayBox({
         title: '后续操作',
         content: truncate(input.summary.followUp, 1000),
-        icon: 'alert_outlined',
+        icon: 'warning_outlined',
         color: 'orange',
       })
     );
@@ -157,7 +157,7 @@ export function createWebMonitorResultCard(input: {
       ],
       icon: {
         tag: 'standard_icon',
-        token: input.success ? 'check-circle_outlined' : 'warning_outlined',
+        token: input.success ? 'check_outlined' : 'warning_outlined',
         color: statusColor,
       },
       template,
@@ -290,7 +290,7 @@ export function createRepairConfirmCard(input: {
       ],
       icon: {
         tag: 'standard_icon',
-        token: 'confirm_outlined',
+        token: 'check_outlined',
         color: 'blue',
       },
       template: 'blue',

@@ -508,13 +508,13 @@ export function createWebMonitorDetailCard(service: ServiceEntry): CardBuildResu
       displayBox({
         title: '确认模式',
         content: confirmConfig,
-        icon: 'confirm_outlined',
+        icon: 'check_outlined',
         color: service.requireConfirmation ? 'blue' : 'grey',
       }),
       displayBox({
         title: 'PR 设置',
         content: prConfig,
-        icon: 'git_branch_outlined',
+        icon: 'version_outlined',
         color: service.autoPr ? 'green' : 'grey',
       }),
       displayBox({
