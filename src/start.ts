@@ -12,6 +12,7 @@ import { loadRegistry } from './service/registry.js';
 import { TracebackMonitor } from './monitor/traceback-monitor.js';
 import { install as installMarketplace } from './marketplace/index.js';
 import { resolve } from 'path';
+import { ensureWorkspaceDirs, getRepoRoot } from './config/paths.js';
 
 function keepAlive(): void {
   // Keep the process alive with a no-op interval
@@ -19,7 +20,11 @@ function keepAlive(): void {
 }
 
 async function main() {
+  // Ensure workspace directories exist (especially important for npm installs)
+  ensureWorkspaceDirs();
+
   console.log('🚀 Starting oh-my-feishu...\n');
+  console.log(`📁 Data directory: ${getRepoRoot()}\n`);
 
   // Check Claude CLI
   const claudeStatus = await checkClaudeCli();

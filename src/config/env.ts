@@ -14,8 +14,7 @@ const envSchema = z.object({
   MONITOR_INTERVAL_SEC: z.string().default('60'),
   MONITOR_TIMEOUT_MS: z.string().default('5000'),
 
-  // Agent
-  REPO_ROOT: z.string().default(getRepoRoot()),
+  // Agent - REPO_ROOT is computed at runtime, not read from env by default
   AGENT_LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
   AGENT_MAX_DIFF_FILES: z.string().default('10'),
   AGENT_MAX_DIFF_LINES: z.string().default('500'),
@@ -31,4 +30,12 @@ export function loadEnv(): Env {
   return result.success ? result.data : envSchema.parse({});
 }
 
-export const env = loadEnv();
+const baseEnv = loadEnv();
+
+// Create env object with dynamic REPO_ROOT getter
+export const env: Env & { REPO_ROOT: string } = {
+  ...baseEnv,
+  get REPO_ROOT(): string {
+    return getRepoRoot();
+  },
+};
