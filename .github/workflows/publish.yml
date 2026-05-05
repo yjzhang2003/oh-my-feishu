@@ -53,3 +53,5 @@ jobs:
       - name: Publish package
         if: github.event_name == 'push' || inputs.dry-run == false
         run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
