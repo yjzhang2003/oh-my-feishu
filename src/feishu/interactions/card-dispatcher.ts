@@ -181,6 +181,20 @@ export class CardDispatcher {
         });
       }
 
+      case 'web-monitor-clear-hash': {
+        const service = getService(param);
+        if (!service) {
+          return { toast: { type: 'error', content: '监控服务不存在' } };
+        }
+        // Clear hash to allow re-detection of the same traceback
+        const { updateService } = await import('../../service/registry.js');
+        updateService(param, { lastErrorHash: undefined });
+        return this.updateMenuCard(createWebMonitorDetailCard(getService(param)!), {
+          type: 'success',
+          content: '已清除 Hash，下次轮询将重新检测',
+        });
+      }
+
       case 'web-monitor-session': {
         const service = getService(param);
         if (!service) {

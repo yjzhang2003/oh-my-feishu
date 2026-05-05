@@ -25,11 +25,12 @@ interface JsonLogEntry {
   [key: string]: unknown;
 }
 
-function tailPreview(content: string, maxLength: number): string {
+function truncateTraceback(content: string, maxLength: number): string {
   if (content.length <= maxLength) {
     return content;
   }
-  return content.slice(content.length - maxLength);
+  // For tracebacks, show the beginning (error context) and truncate
+  return content.slice(0, maxLength);
 }
 
 function extractLatestTraceback(
@@ -184,19 +185,29 @@ export class TracebackMonitor {
 
       const { traceback, hash: currentHash } = extracted;
 
+      // Dedup: skip if same hash as last time
+      if (currentHash === service.lastErrorHash) {
+        updateWebMonitorServiceHash(service.name, currentHash, now);
+        return;
+      }
+
       // Update snapshot
       updateWebMonitorTracebackSnapshot(
         service.name,
-        tailPreview(traceback, MAX_TRACEBACK_PREVIEW_SIZE),
+        truncateTraceback(traceback, MAX_TRACEBACK_PREVIEW_SIZE),
         now
       );
 
-      // Update hash for tracking (but don't skip on duplicate)
-      updateWebMonitorServiceHash(service.name, currentHash, now);
+      // Skip on first check — just record the hash without triggering
+      if (!service.lastErrorHash) {
+        log.info('monitor', `Initial hash recorded for ${service.name}`);
+        updateWebMonitorServiceHash(service.name, currentHash, now);
+        return;
+      }
 
       // New traceback detected — trigger repair
       log.info('monitor', `New traceback detected for ${service.name}`, {
-        previousHash: service.lastErrorHash?.slice(0, 12) ?? 'none',
+        previousHash: service.lastErrorHash.slice(0, 12),
         currentHash: currentHash.slice(0, 12),
         tracebackPreview: traceback.slice(0, 200),
       });

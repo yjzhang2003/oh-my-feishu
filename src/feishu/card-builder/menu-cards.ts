@@ -437,18 +437,18 @@ export function createWebMonitorMenuCard(services: ServiceEntry[] = listServices
 
 export function createWebMonitorDetailCard(service: ServiceEntry): CardBuildResult {
   const latestLog = service.lastTracebackPreview
-    ? codeBlock(service.lastTracebackPreview.slice(0, 1200))
-    : '暂无日志缓存。等待下一次轮询后会显示最近日志片段。';
+    ? codeBlock(service.lastTracebackPreview.slice(0, 800))
+    : '暂无日志缓存';
   const claudeRun = service.lastClaudeRunAt
-    ? `${service.lastClaudeRunSuccess ? '成功' : '失败'} · ${relativeTime(service.lastClaudeRunAt)}\n${service.lastClaudeRunSummary || '无摘要'}`
-    : '暂无 Claude Code 介入记录。';
+    ? `${service.lastClaudeRunSuccess ? '✅ 成功' : '❌ 失败'} · ${relativeTime(service.lastClaudeRunAt)}`
+    : '暂无记录';
   const prConfig = service.autoPr
-    ? `自动创建 PR\nbase: \`${service.prBaseBranch || 'main'}\`\nmode: ${service.prDraft === false ? 'ready' : 'draft'}\nbranch: \`${service.prBranchPrefix || 'oh-my-feishu/web-monitor'}/*\``
-    : '关闭。修复后只保留本地改动并返回结果卡片。';
+    ? `自动 PR · base: \`${service.prBaseBranch || 'main'}\` · ${service.prDraft === false ? 'ready' : 'draft'}`
+    : '关闭';
 
-  const confirmConfig = service.requireConfirmation
-    ? '开启。发现问题时先发送确认卡片，等待用户确认后再执行修复。'
-    : '关闭。发现问题时自动执行修复并返回结果。';
+  const confirmConfig = service.requireConfirmation ? '开启' : '关闭';
+  const pollInterval = service.pollIntervalSec ? `${service.pollIntervalSec}秒` : '60秒（默认）';
+  const lastChecked = service.lastCheckedAt ? relativeTime(service.lastCheckedAt) : '未检查';
 
   return createCardV2({
     title: service.name,
@@ -479,16 +479,16 @@ export function createWebMonitorDetailCard(service: ServiceEntry): CardBuildResu
         color: 'green',
       }),
       displayBox({
-        title: '通知会话',
-        content: service.notifyChatId || '未设置',
-        icon: 'chatbox_outlined',
-        color: service.notifyChatId ? 'green' : 'grey',
+        title: '轮询间隔',
+        content: pollInterval,
+        icon: 'time_outlined',
+        color: 'blue',
       }),
       displayBox({
-        title: 'PR 设置',
-        content: prConfig,
-        icon: 'command_outlined',
-        color: service.autoPr ? 'green' : 'grey',
+        title: '最后检查',
+        content: lastChecked,
+        icon: 'refresh_outlined',
+        color: 'grey',
       }),
       displayBox({
         title: '确认模式',
@@ -497,22 +497,29 @@ export function createWebMonitorDetailCard(service: ServiceEntry): CardBuildResu
         color: service.requireConfirmation ? 'blue' : 'grey',
       }),
       displayBox({
+        title: 'PR 设置',
+        content: prConfig,
+        icon: 'git_branch_outlined',
+        color: service.autoPr ? 'green' : 'grey',
+      }),
+      displayBox({
+        title: '最近 Claude Code 介入',
+        content: claudeRun,
+        icon: 'robot_outlined',
+        color: service.lastClaudeRunSuccess === false ? 'red' : 'blue',
+      }),
+      displayBox({
         title: '最近日志片段',
         content: latestLog,
         icon: 'doc-search_outlined',
         color: 'orange',
       }),
-      displayBox({
-        title: '最近一次 Claude Code 介入',
-        content: claudeRun,
-        icon: 'robot_outlined',
-        color: service.lastClaudeRunSuccess === false ? 'red' : 'blue',
-      }),
     ],
     buttons: [
       { text: '以此目录新建会话', action: `menu:web-monitor-session:${service.name}` },
+      { text: '清除 Hash', action: `menu:web-monitor-clear-hash:${service.name}` },
       { text: '删除监控', action: `menu:web-monitor-delete:${service.name}` },
-      { text: '返回 Web 服务监控', action: 'menu:gateway-web-monitor' },
+      { text: '返回', action: 'menu:gateway-web-monitor' },
     ],
   });
 }

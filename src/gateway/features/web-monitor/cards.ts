@@ -10,6 +10,10 @@ export function formatWebMonitorResultMessage(input: {
   return `Web monitor task failed:\n${input.stderr || input.stdout || 'Unknown error'}`;
 }
 
+function codeBlock(content: string): string {
+  return `\`\`\`text\n${content.replace(/```/g, '`​``')}\n\`\`\``;
+}
+
 function displayBox(options: {
   title: string;
   content: string;
@@ -132,7 +136,7 @@ export function createWebMonitorResultCard(input: {
     elements.push(
       displayBox({
         title: 'Traceback 摘要',
-        content: `\`\`\`text\n${truncate(input.tracebackPreview, 800)}\n\`\`\``,
+        content: codeBlock(truncate(input.tracebackPreview, 800)),
         icon: 'doc-search_outlined',
         color: 'grey',
       })
@@ -214,7 +218,7 @@ export function createTracebackDetectedCard(input: {
         }),
         displayBox({
           title: 'Traceback 预览',
-          content: `\`\`\`text\n${truncate(input.tracebackPreview, 1000)}\n\`\`\``,
+          content: codeBlock(truncate(input.tracebackPreview, 1000)),
           icon: 'doc-search_outlined',
           color: 'orange',
         }),
