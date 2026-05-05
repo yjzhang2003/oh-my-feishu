@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.6.5] - 2026-05-05
+
+### Added
+
+- **两阶段确认流程**：Web Monitor 自动修复前新增确认卡片，用户可点击"开始分析"才执行修复，支持重复点击保护。
+- **清除 Hash 按钮**：Web Monitor 详情页支持手动清除 traceback 哈希，允许用户主动重新触发相同错误的修复。
+- **结构化 Claude 结果存储**：`lastClaudeRunResult` 替代 `lastClaudeRunSummary`，以结构化 JSON 存储 rootCause、changes、verification、pr 等字段。
+
+### Changed
+
+- **npm 包开箱可用**：全局安装时 workspace 目录默认使用 `~/.oh-my-feishu`，服务启动时自动创建所需目录。
+- **Web Monitor 详情卡片优化**：使用 interactive_container 替代 table 展示服务信息，结构化展示 Claude Code 介入结果。
+- **Traceback 预览截断方向**：长日志从头部截取（保留最早的异常堆栈），而非尾部。
+
+### Fixed
+
+- 修复 npm 全局安装后 workspace 目录指向 npm 包目录导致无法写入的问题。
+- 修复 Claude Code 结果文件读取路径错误，现在从 workspace 触发器目录读取。
+- 修复重复点击"确认修复"或"开始分析"可能导致的并发问题。
+
 ## [0.6.0] - 2026-05-03
 
 ### Added
