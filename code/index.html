@@ -1,0 +1,161 @@
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="oh-my-feishu 作品展示"><title>核心代码展示 | oh-my-feishu</title><link rel="stylesheet" href="/oh-my-feishu/_astro/Layout.C3YY_4iX.css"></head> <body> <header class="site-header"> <a class="brand" href="/oh-my-feishu/"> <span class="brand-mark">omf</span> <span>oh-my-feishu</span> </a> <nav class="top-nav" aria-label="展示页面"> <a class href="/oh-my-feishu/"> <span>Overview</span> 首页 </a><a class="active" href="/oh-my-feishu/code/"> <span>Core Code</span> 代码展示 </a><a class href="/oh-my-feishu/value/"> <span>Product</span> 产品亮点 </a><a class href="/oh-my-feishu/gateway/"> <span>Gateway</span> 自动化 </a><a class href="/oh-my-feishu/ai/"> <span>AI</span> AI 亮点 </a><a class href="/oh-my-feishu/skill/"> <span>Skills</span> SKILLS </a> </nav> <a class="github-link" href="https://github.com/yjzhang2003/oh-my-feishu" target="_blank" rel="noreferrer" aria-label="打开 GitHub 仓库"> <svg viewBox="0 0 16 16" aria-hidden="true"> <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38v-1.33c-2.23.48-2.69-1.07-2.69-1.07-.36-.92-.89-1.17-.89-1.17-.73-.5.06-.49.06-.49.8.06 1.22.82 1.22.82.71 1.22 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82A7.65 7.65 0 0 1 8 3.89c.68 0 1.36.09 2 .27 1.53-1.03 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.19c0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"></path> </svg> </a> </header> <main class="slide-deck" id="slide-deck" tabindex="0">  <section class="code-doc-page"> <aside class="code-sidebar" aria-label="核心代码目录"> <p class="eyebrow">Core code</p> <h2>核心代码展示</h2> <nav> <a href="#architecture">总览</a><a href="#cli">CLI 启动</a><a href="#feishu-entry">飞书入口</a><a href="#session">会话绑定</a><a href="#claude-invoker">Claude 调用</a><a href="#streaming-card">流式卡片</a><a href="#gateway">Gateway</a><a href="#traceback-monitor">Web Monitor</a><a href="#plugin-skills">Skills</a> </nav> </aside> <article class="markdown-reader"> <header class="doc-intro"> <h1>核心部分代码展示</h1> </header> <section class="doc-section" id="architecture"> <div class="doc-heading"> <p class="eyebrow">总览</p> <h2>核心代码展示总览</h2> </div> <div class="doc-copy"> <p class="overview-copy">这部分展示项目里最关键的工程代码，以及这些代码如何从飞书入口、会话绑定、Claude Code 调用、流式卡片、Gateway 自动化一路串成可运行的系统。</p> <h3>链路结构</h3> <ul> <li>CLI onboarding：<code>oh-my-feishu</code> 一条命令启动交互式配置。</li><li>飞书 WebSocket 负责用户入口，MessageRouter 把输入路由到命令、流程或 Claude 会话。</li><li>Session 绑定让 Claude Code 拿到本地目录和历史会话，实现有上下文的仓库级工作。</li><li>流式卡片让长时间 AI 执行过程可见，120ms 节流更新确保实时性又不过载。</li><li>Gateway 与 Web Monitor 让 AI 从被动响应扩展为事件驱动自动化。</li> </ul> </div> <div class="doc-files"> <h3>相关文件</h3> <div class="file-link-grid"> <span class="file-link-card muted"> <span>src/cli</span> <small>目录</small> </span><span class="file-link-card muted"> <span>src/feishu</span> <small>目录</small> </span><span class="file-link-card muted"> <span>src/trigger</span> <small>目录</small> </span><span class="file-link-card muted"> <span>src/gateway</span> <small>目录</small> </span><span class="file-link-card muted"> <span>src/monitor</span> <small>目录</small> </span><span class="file-link-card muted"> <span>oh-my-feishu-plugin</span> <small>目录</small> </span> </div> </div> <div class="snippet-block"> <div class="snippet-title"> <span>展示链路</span> </div> <pre><code>Feishu message / card action
+  → FeishuWebSocket (WebSocket 长连接)
+  → MessageRouter / CardDispatcher (路由分发)
+  → SessionStore + SessionHistoryStore (会话绑定)
+  → invokeClaudeChat / invokeClaudeTask (AI 执行)
+  → CardKit streaming update (实时卡片)
+  → Feishu result card (结果回传)</code></pre> </div> </section><section class="doc-section" id="cli"> <div class="doc-heading"> <p class="eyebrow">CLI 启动</p> <h2>CLI 启动与交互式配置</h2> </div> <div class="doc-copy">  <h3>代码作用</h3> <p>项目要落地，第一步是让用户能稳定启动服务。CLI 入口同时支持交互式 TUI 和命令模式，把安装检查、飞书注册、服务管理、Web Monitor 管理收敛到统一入口。</p>  <h3>拆解要点</h3> <ul> <li>无子命令时进入 Ink TUI，适合首次配置和交互式引导。</li><li><code>session</code>、<code>gateway</code>、<code>web-monitor</code> 子命令保留脚本化能力，适合演示和自动化。</li><li>QR onboarding 使用飞书设备码注册流程，扫码后自动写入 lark-cli 兼容配置。</li><li>PM2 配置支撑后台进程稳定运行和日志持久化。</li> </ul> </div> <div class="doc-files"> <h3>相关文件</h3> <div class="file-link-grid"> <a class="file-link-card" href="https://github.com/yjzhang2003/oh-my-feishu/blob/main/src/cli/cli.ts" target="_blank" rel="noreferrer"> <span>src/cli/cli.ts</span> <small>GitHub</small> </a><a class="file-link-card" href="https://github.com/yjzhang2003/oh-my-feishu/blob/main/src/cli/index.tsx" target="_blank" rel="noreferrer"> <span>src/cli/index.tsx</span> <small>GitHub</small> </a><a class="file-link-card" href="https://github.com/yjzhang2003/oh-my-feishu/blob/main/src/feishu/qr-onboarding.ts" target="_blank" rel="noreferrer"> <span>src/feishu/qr-onboarding.ts</span> <small>GitHub</small> </a><a class="file-link-card" href="https://github.com/yjzhang2003/oh-my-feishu/blob/main/src/start.ts" target="_blank" rel="noreferrer"> <span>src/start.ts</span> <small>GitHub</small> </a> </div> </div> <div class="snippet-block"> <div class="snippet-title"> <span>src/cli/cli.ts — 命令分发</span> </div> <pre><code>const args = process.argv.slice(2);
+const command = args[0];
+
+if (!command) {
+  // 无参数时启动交互式 TUI
+  await import(&#39;./index.js&#39;);
+  return;
+}
+
+if (command === &#39;session&#39;) {
+  const action = args[1] as SessionCommandOptions[&#39;action&#39;];
+  const opts: SessionCommandOptions = { action };
+  if (action === &#39;new&#39; &amp;&amp; subArgs[0]) {
+    opts.directory = subArgs[0];
+  }
+  await handleSessionCommand(opts);
+  return;
+}
+
+if (command === &#39;web-monitor&#39;) {
+  await handleWebMonitorCommand(parseWebMonitorArgs(args.slice(1)));
+  return;
+}</code></pre> </div> </section><section class="doc-section" id="feishu-entry"> <div class="doc-heading"> <p class="eyebrow">飞书入口</p> <h2>飞书 WebSocket、消息路由与卡片交互</h2> </div> <div class="doc-copy">  <h3>代码作用</h3> <p>飞书侧入口需要同时处理普通消息、slash command、卡片按钮和交互流程。代码把 WebSocket 接入、命令注册、卡片分发、Gateway runtime 初始化集中在 FeishuWebSocket 中，再把文本消息交给 MessageRouter。</p>  <h3>拆解要点</h3> <ul> <li>EventDispatcher 注册 <code>im.message.receive_v1</code> 和 <code>card.action.trigger</code> 事件。</li><li><code>processedMessageIds</code> 做消息去重，避免飞书重复推送导致重复执行。</li><li>MessageRouter 先处理 active flow（如目录输入），再处理 slash command，最后进入 Claude 对话。</li><li>CommandRegistry 注册 <code>/repair</code>、<code>/status</code>、<code>/service</code>、<code>/help</code>、<code>/menu</code>、<code>/claude</code> 等命令。</li><li>CardDispatcher 统一处理卡片按钮回调，支持确认流程、服务管理等复杂交互。</li> </ul> </div> <div class="doc-files"> <h3>相关文件</h3> <div class="file-link-grid"> <a class="file-link-card" href="https://github.com/yjzhang2003/oh-my-feishu/blob/main/src/feishu/websocket-connector.ts" target="_blank" rel="noreferrer"> <span>src/feishu/websocket-connector.ts</span> <small>GitHub</small> </a><a class="file-link-card" href="https://github.com/yjzhang2003/oh-my-feishu/blob/main/src/feishu/message-router.ts" target="_blank" rel="noreferrer"> <span>src/feishu/message-router.ts</span> <small>GitHub</small> </a><a class="file-link-card" href="https://github.com/yjzhang2003/oh-my-feishu/blob/main/src/feishu/commands/command-registry.ts" target="_blank" rel="noreferrer"> <span>src/feishu/commands/command-registry.ts</span> <small>GitHub</small> </a><a class="file-link-card" href="https://github.com/yjzhang2003/oh-my-feishu/blob/main/src/feishu/interactions/card-dispatcher.ts" target="_blank" rel="noreferrer"> <span>src/feishu/interactions/card-dispatcher.ts</span> <small>GitHub</small> </a> </div> </div> <div class="snippet-block"> <div class="snippet-title"> <span>src/feishu/message-router.ts — 消息路由</span> </div> <pre><code>// 1. 先检查交互流程（如目录输入）
+const session = this.sessionStore.get(chatId);
+if (session.flow !== &#39;none&#39;) {
+  await this.handleFlowInput(chatId, text, senderOpenId, session.flow);
+  return;
+}
+
+// 2. 再检查 slash command
+const commandMatch = text.match(/^(\/\S+)(?:\s+(.*))?$/s);
+if (commandMatch) {
+  const command = commandMatch[1];
+  const args = commandMatch[2]?.trim().split(/\s+/) || [];
+  await this.handleCommand(command, args, chatId, chatType, senderOpenId, messageId);
+  return;
+}
+
+// 3. 默认进入 Claude 对话
+await this.handleChat(chatId, chatType, text, senderOpenId, messageId);</code></pre> </div> </section><section class="doc-section" id="session"> <div class="doc-heading"> <p class="eyebrow">会话绑定</p> <h2>Claude Code 会话创建与目录绑定</h2> </div> <div class="doc-copy">  <h3>代码作用</h3> <p>普通聊天机器人通常只知道聊天文本，不知道本地项目。目录会话让飞书 chatId 绑定到本地目录和 Claude sessionId，Claude Code 可以在真实 cwd 中继续历史工作。</p>  <h3>拆解要点</h3> <ul> <li>SessionAddFlow 校验目录路径，列出该目录已有 Claude Code session。</li><li>用户可以选择已有 session 继续，也可以新建目录会话。</li><li><code>completeSession</code> 把 directory 和 sessionId 写入当前 chat 的 SessionStore。</li><li>SessionHistoryStore 记录历史绑定，方便后续恢复和查看。</li><li><code>chatIdToSessionId</code> 生成稳定的 session ID，支持同一聊天持续上下文。</li> </ul> </div> <div class="doc-files"> <h3>相关文件</h3> <div class="file-link-grid"> <a class="file-link-card" href="https://github.com/yjzhang2003/oh-my-feishu/blob/main/src/feishu/interactions/flows/session-add-flow.ts" target="_blank" rel="noreferrer"> <span>src/feishu/interactions/flows/session-add-flow.ts</span> <small>GitHub</small> </a><a class="file-link-card" href="https://github.com/yjzhang2003/oh-my-feishu/blob/main/src/feishu/interactions/session-store.ts" target="_blank" rel="noreferrer"> <span>src/feishu/interactions/session-store.ts</span> <small>GitHub</small> </a><a class="file-link-card" href="https://github.com/yjzhang2003/oh-my-feishu/blob/main/src/feishu/interactions/session-history-store.ts" target="_blank" rel="noreferrer"> <span>src/feishu/interactions/session-history-store.ts</span> <small>GitHub</small> </a><a class="file-link-card" href="https://github.com/yjzhang2003/oh-my-feishu/blob/main/src/utils/chat-id.ts" target="_blank" rel="noreferrer"> <span>src/utils/chat-id.ts</span> <small>GitHub</small> </a> </div> </div> <div class="snippet-block"> <div class="snippet-title"> <span>src/feishu/interactions/flows/session-add-flow.ts</span> </div> <pre><code>// 获取目录下已有的 Claude Code sessions
+const sessions = await listSessions(trimmedDir);
+
+if (sessions.length &gt; 0) {
+  // 已有历史会话，让用户选择
+  return {
+    card: createDirectorySessionSelectCard(trimmedDir, sessions).card,
+    toast: &#39;请选择要连接的 Claude Code 会话&#39;,
+  };
+} else {
+  // 首次绑定，直接创建新会话
+  await this.completeSession(chatId, trimmedDir, null);
+  return {
+    card: createDirectorySessionSuccessCard(trimmedDir, null).card,
+    toast: &#39;目录会话已创建&#39;,
+  };
+}</code></pre> </div> </section><section class="doc-section" id="claude-invoker"> <div class="doc-heading"> <p class="eyebrow">Claude 调用</p> <h2>Claude Code 调用与流式输出</h2> </div> <div class="doc-copy">  <h3>代码作用</h3> <p>Claude Code 是项目的 AI 执行核心。invoker 负责设置 cwd、恢复 session、注入飞书上下文环境变量，并解析 Claude stream-json 输出。</p>  <h3>拆解要点</h3> <ul> <li><code>directory</code> 存在时用用户绑定目录作为 cwd，否则回到 workspace 默认目录。</li><li>用 <code>chatIdToSessionId</code> 生成稳定 session，支持同一聊天持续上下文。</li><li>使用 <code>--output-format stream-json</code>、<code>--include-partial-messages</code> 获取增量事件。</li><li>如果 <code>--resume</code> 找不到历史会话，自动用 <code>--session-id</code> 重试创建新会话。</li><li><code>buildFeishuContextEnv</code> 注入飞书上下文环境变量，让 Claude 知道发送者和聊天信息。</li> </ul> </div> <div class="doc-files"> <h3>相关文件</h3> <div class="file-link-grid"> <a class="file-link-card" href="https://github.com/yjzhang2003/oh-my-feishu/blob/main/src/trigger/invoker.ts" target="_blank" rel="noreferrer"> <span>src/trigger/invoker.ts</span> <small>GitHub</small> </a><a class="file-link-card" href="https://github.com/yjzhang2003/oh-my-feishu/blob/main/src/utils/chat-id.ts" target="_blank" rel="noreferrer"> <span>src/utils/chat-id.ts</span> <small>GitHub</small> </a><a class="file-link-card" href="https://github.com/yjzhang2003/oh-my-feishu/blob/main/workspace/.claude/.env" target="_blank" rel="noreferrer"> <span>workspace/.claude/.env</span> <small>GitHub</small> </a> </div> </div> <div class="snippet-block"> <div class="snippet-title"> <span>src/trigger/invoker.ts — Claude 调用参数</span> </div> <pre><code>// 确定工作目录
+const cwd = context.directory
+  ? resolve(context.directory)
+  : resolve(env.REPO_ROOT, &#39;workspace&#39;);
+
+// 构建飞书上下文环境变量
+const contextEnv = buildFeishuContextEnv(context);
+
+// 生成稳定的 session ID
+const sessionId = context.sessionId || chatIdToSessionId(context.chatId);
+
+// 构建 Claude CLI 参数
+const claudeArgs: string[] = [
+  &#39;-p&#39;,
+  &#39;--dangerously-skip-permissions&#39;,
+  &#39;--output-format&#39;, &#39;stream-json&#39;,
+  &#39;--include-partial-messages&#39;,
+  &#39;--verbose&#39;,
+  &#39;--resume&#39;, sessionId,
+  prompt
+];</code></pre> </div> </section><section class="doc-section" id="streaming-card"> <div class="doc-heading"> <p class="eyebrow">流式卡片</p> <h2>Claude Code 流式输出到飞书卡片</h2> </div> <div class="doc-copy">  <h3>代码作用</h3> <p>AI coding 任务经常耗时较长。如果只等待最终文本，飞书用户会觉得无反馈。流式卡片把等待、思考、工具调用和正文输出持续展示出来。</p>  <h3>拆解要点</h3> <ul> <li>先通过 CardKit API 创建 <code>streaming_mode</code> 卡片，立即发送到飞书。</li><li>正文和思考分别进入不同 markdown 元素，思考内容放入折叠面板。</li><li>用 <code>accumulated</code> Map 维护每个元素的完整内容，因为 <code>updateCardContent</code> 发送的是全文。</li><li>120ms 节流更新，控制飞书卡片更新频率，避免 API 过载。</li><li>CardKitManager 封装 <code>createCard</code>、<code>updateCardContent</code>、<code>updateCardProps</code> 等操作。</li> </ul> </div> <div class="doc-files"> <h3>相关文件</h3> <div class="file-link-grid"> <a class="file-link-card" href="https://github.com/yjzhang2003/oh-my-feishu/blob/main/src/feishu/message-router.ts" target="_blank" rel="noreferrer"> <span>src/feishu/message-router.ts</span> <small>GitHub</small> </a><a class="file-link-card" href="https://github.com/yjzhang2003/oh-my-feishu/blob/main/src/feishu/card-kit.ts" target="_blank" rel="noreferrer"> <span>src/feishu/card-kit.ts</span> <small>GitHub</small> </a><a class="file-link-card" href="https://github.com/yjzhang2003/oh-my-feishu/blob/main/src/trigger/invoker.ts" target="_blank" rel="noreferrer"> <span>src/trigger/invoker.ts</span> <small>GitHub</small> </a> </div> </div> <div class="snippet-block"> <div class="snippet-title"> <span>src/feishu/message-router.ts — 流式更新节流</span> </div> <pre><code>// 节流更新，避免 API 过载
+const scheduleTextFlush = () =&gt; {
+  if (textFlushTimer) return;
+  textFlushTimer = setTimeout(async () =&gt; {
+    textFlushTimer = null;
+    await doFlushText().catch(() =&gt; {});
+    // 如果还有待处理的 delta，继续调度
+    if (pendingTextDeltas.length &gt; 0) scheduleTextFlush();
+  }, 120); // 120ms 节流
+};
+
+// 处理文本增量
+for (const delta of pendingTextDeltas) {
+  accumulatedText += delta;
+}
+// 更新卡片内容
+await this.cardKitManager.updateCardContent(
+  cardId,
+  &#39;streaming-content&#39;,
+  accumulatedText,
+  sequence++
+);</code></pre> </div> </section><section class="doc-section" id="gateway"> <div class="doc-heading"> <p class="eyebrow">Gateway</p> <h2>Gateway feature runner 与事件驱动自动化</h2> </div> <div class="doc-copy">  <h3>代码作用</h3> <p>Gateway 把飞书命令、timer、webhook、internal 事件统一成 GatewayEvent，再由 feature registry 匹配处理器。Web Monitor 基于 traceback hash 变化触发 AI 分析或修复。</p>  <h3>拆解要点</h3> <ul> <li><code>GatewayFeatureRunner</code> 负责 feature 匹配、日志、异常兜底和统一返回结构。</li><li><code>GatewayRuntime</code> 向 feature 注入 <code>invokeMainClaude</code>、<code>sendFeishuMessage</code>、<code>sendFeishuCard</code>、<code>updateCard</code> 等能力。</li><li>Web Monitor 支持 <code>requireConfirmation</code>，必要时先发确认卡片，保留 human-in-the-loop。</li><li><code>TracebackMonitor</code> 支持 json/text/html traceback 提取，并用 SHA-256 hash 去重。</li><li>自动 PR 配置支持设置目标分支、Draft 模式和分支前缀。</li> </ul> </div> <div class="doc-files"> <h3>相关文件</h3> <div class="file-link-grid"> <a class="file-link-card" href="https://github.com/yjzhang2003/oh-my-feishu/blob/main/src/gateway/features/runner.ts" target="_blank" rel="noreferrer"> <span>src/gateway/features/runner.ts</span> <small>GitHub</small> </a><a class="file-link-card" href="https://github.com/yjzhang2003/oh-my-feishu/blob/main/src/gateway/features/runtime.ts" target="_blank" rel="noreferrer"> <span>src/gateway/features/runtime.ts</span> <small>GitHub</small> </a><a class="file-link-card" href="https://github.com/yjzhang2003/oh-my-feishu/blob/main/src/gateway/features/web-monitor/feature.ts" target="_blank" rel="noreferrer"> <span>src/gateway/features/web-monitor/feature.ts</span> <small>GitHub</small> </a><a class="file-link-card" href="https://github.com/yjzhang2003/oh-my-feishu/blob/main/src/monitor/traceback-monitor.ts" target="_blank" rel="noreferrer"> <span>src/monitor/traceback-monitor.ts</span> <small>GitHub</small> </a> </div> </div> <div class="snippet-block"> <div class="snippet-title"> <span>src/gateway/features/runner.ts — Feature 匹配与执行</span> </div> <pre><code>async run(event: GatewayEvent): Promise&lt;GatewayResult&gt; {
+  // 根据 event type 匹配 feature
+  const feature = this.options.registry.match(event);
+  if (!feature) {
+    return {
+      success: false,
+      message: `No Gateway feature matched event &quot;${event.type}&quot;`,
+    };
+  }
+
+  try {
+    // 执行 feature handler
+    return await feature.handle(event, this.options.runtime);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    // 异常兜底，返回统一错误结构
+    return { success: false, message };
+  }
+}</code></pre> </div> </section><section class="doc-section" id="traceback-monitor"> <div class="doc-heading"> <p class="eyebrow">Web Monitor</p> <h2>Traceback Monitor 日志监控与 AI 触发</h2> </div> <div class="doc-copy">  <h3>代码作用</h3> <p>Web Monitor 是自动化的核心组件。它定时轮询服务的日志端点，检测新的 traceback，并触发 Claude Code 进行分析或修复。</p>  <h3>拆解要点</h3> <ul> <li>支持 json、text、html 三种日志格式，自动提取 traceback 内容。</li><li>SHA-256 hash 去重，只有新的 traceback 才会触发 AI。</li><li>可配置轮询间隔，默认 60 秒检查一次。</li><li>触发时通过 Gateway event 分发，复用 feature runner 的能力注入。</li><li>支持 <code>requireConfirmation</code> 模式，先发确认卡片让用户决定是否执行。</li> </ul> </div> <div class="doc-files"> <h3>相关文件</h3> <div class="file-link-grid"> <a class="file-link-card" href="https://github.com/yjzhang2003/oh-my-feishu/blob/main/src/monitor/traceback-monitor.ts" target="_blank" rel="noreferrer"> <span>src/monitor/traceback-monitor.ts</span> <small>GitHub</small> </a><a class="file-link-card" href="https://github.com/yjzhang2003/oh-my-feishu/blob/main/src/gateway/features/web-monitor/traceback-trigger.ts" target="_blank" rel="noreferrer"> <span>src/gateway/features/web-monitor/traceback-trigger.ts</span> <small>GitHub</small> </a> </div> </div> <div class="snippet-block"> <div class="snippet-title"> <span>src/monitor/traceback-monitor.ts — Traceback 提取</span> </div> <pre><code>function extractLatestTraceback(
+  content: string,
+  urlType: &#39;json&#39; | &#39;text&#39; | &#39;html&#39;
+): { traceback: string; hash: string } | null {
+  if (urlType === &#39;json&#39;) {
+    try {
+      const parsed = JSON.parse(content);
+      const entries = Array.isArray(parsed) ? parsed : parsed.logs ?? [parsed];
+
+      // 反向遍历找最新的 traceback
+      for (let i = entries.length - 1; i &gt;= 0; i--) {
+        const entry = entries[i];
+        const tracebackText = entry.traceback ?? entry.error ?? entry.message;
+
+        if (tracebackText &amp;&amp; typeof tracebackText === &#39;string&#39;) {
+          const trimmed = tracebackText.trim();
+          if (trimmed) {
+            return {
+              traceback: trimmed,
+              hash: hashTracebackContent(trimmed), // SHA-256
+            };
+          }
+        }
+      }
+    } catch { /* fall through */ }
+  }
+  // text/html 格式处理...
+}</code></pre> </div> </section><section class="doc-section" id="plugin-skills"> <div class="doc-heading"> <p class="eyebrow">Skills</p> <h2>Claude plugin、skills 与飞书能力扩展</h2> </div> <div class="doc-copy">  <h3>代码作用</h3> <p>Claude Code 擅长代码仓库任务，但不知道飞书 API 的调用规则。项目用 plugin 和 skills 把飞书业务域、lark-cli 命令、安全约束和 Gateway 协议交给 Claude。</p>  <h3>拆解要点</h3> <ul> <li><code>marketplace.json</code> 声明本仓库作为 Claude plugin marketplace，支持 <code>claude plugin add</code>。</li><li><code>lark-chat-guide</code> 规定普通聊天直接输出，飞书操作走 <code>lark-cli</code> 命令行。</li><li><code>gateway-guide</code> 让 Claude 能通过 <code>oh-my-feishu gateway</code> 触发后台 feature。</li><li>Web Monitor skills 定义自动分析、修复、通知、服务管理和安全检查协议。</li><li>技能文件使用 Markdown 格式，易于维护和扩展。</li> </ul> </div> <div class="doc-files"> <h3>相关文件</h3> <div class="file-link-grid"> <a class="file-link-card" href="https://github.com/yjzhang2003/oh-my-feishu/blob/main/src/marketplace/index.ts" target="_blank" rel="noreferrer"> <span>src/marketplace/index.ts</span> <small>GitHub</small> </a><a class="file-link-card" href="https://github.com/yjzhang2003/oh-my-feishu/blob/main/.claude-plugin/marketplace.json" target="_blank" rel="noreferrer"> <span>.claude-plugin/marketplace.json</span> <small>GitHub</small> </a><a class="file-link-card" href="https://github.com/yjzhang2003/oh-my-feishu/blob/main/oh-my-feishu-plugin/.claude-plugin/plugin.json" target="_blank" rel="noreferrer"> <span>oh-my-feishu-plugin/.claude-plugin/plugin.json</span> <small>GitHub</small> </a><a class="file-link-card" href="https://github.com/yjzhang2003/oh-my-feishu/blob/main/oh-my-feishu-plugin/skills/lark-chat-guide/SKILL.md" target="_blank" rel="noreferrer"> <span>oh-my-feishu-plugin/skills/lark-chat-guide/SKILL.md</span> <small>GitHub</small> </a><a class="file-link-card" href="https://github.com/yjzhang2003/oh-my-feishu/blob/main/oh-my-feishu-plugin/skills/gateway-guide/SKILL.md" target="_blank" rel="noreferrer"> <span>oh-my-feishu-plugin/skills/gateway-guide/SKILL.md</span> <small>GitHub</small> </a> </div> </div> <div class="snippet-block"> <div class="snippet-title"> <span>oh-my-feishu-plugin/skills/lark-chat-guide/SKILL.md</span> </div> <pre><code>## 核心规则
+
+当用户只是普通聊天（提问、编程帮助、分析讨论、闲聊等），
+直接将回复内容输出到 stdout。
+
+当用户请求涉及飞书平台操作（发消息、查日程、创建文档、管理群聊等），
+使用对应的 lark 技能通过 lark-cli 执行操作，
+然后通过 lark-cli im +messages-send 将操作结果发送给用户。
+
+## 安全约束
+
+- 永远不要在回复中暴露 app_id、app_secret 或用户敏感信息
+- 群操作前检查 bot 是否在群内
+- 文档操作前检查是否有读写权限</code></pre> </div> </section> </article> </section>  </main> <div class="deck-controls" aria-label="页面切换"> <button type="button" data-deck-prev aria-label="上一屏">‹</button> <span data-deck-status>1</span> <button type="button" data-deck-next aria-label="下一屏">›</button> </div> <footer class="site-footer"> <span>Claude Code x Feishu x lark-cli</span> <span>静态作品展示</span> </footer> <script type="module">const e=document.querySelector("[data-deck]")||document.getElementById("slide-deck"),s=document.querySelector("[data-deck-prev]"),i=document.querySelector("[data-deck-next]"),d=document.querySelector("[data-deck-status]"),n=e?Array.from(e.children):[],c=()=>!e||n.length===0?0:Math.round(e.scrollLeft/e.clientWidth),o=()=>{if(!d||n.length===0)return;d.textContent=`${c()+1}/${n.length}`;const t=document.querySelector(".deck-controls");t&&t.toggleAttribute("hidden",n.length<=1)},r=t=>{e&&e.scrollTo({left:(c()+t)*e.clientWidth,behavior:"smooth"})};s?.addEventListener("click",()=>r(-1));i?.addEventListener("click",()=>r(1));e?.addEventListener("scroll",()=>window.requestAnimationFrame(o),{passive:!0});window.addEventListener("resize",o);window.addEventListener("keydown",t=>{t.key==="ArrowLeft"&&r(-1),t.key==="ArrowRight"&&r(1)});o();</script> </body> </html>
