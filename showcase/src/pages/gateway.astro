@@ -1,0 +1,191 @@
+---
+import Layout from '@/components/Layout.astro';
+
+const asset = (name: string) => `${import.meta.env.BASE_URL}pics/gateway-doc/${name}`;
+
+const nav = [
+  ['overview', '模块概述'],
+  ['files', '相关代码'],
+  ['entry', '1 创建服务'],
+  ['traceback', '2 监控去重'],
+  ['repair-modes', '3 分析修复'],
+  ['session', '4 结果协作'],
+  ['summary', '技术价值'],
+];
+
+const relatedFiles = [
+  'GATEWAY_FEATURES.md',
+  'src/gateway/features/types.ts',
+  'src/gateway/features/registry.ts',
+  'src/gateway/features/runner.ts',
+  'src/gateway/features/runtime.ts',
+  'src/gateway/features/web-monitor/feature.ts',
+  'src/gateway/features/web-monitor/service-actions.ts',
+  'src/gateway/features/web-monitor/traceback-trigger.ts',
+  'src/gateway/features/web-monitor/cards.ts',
+  'src/gateway/features/service-admin/feature.ts',
+  'src/monitor/traceback-monitor.ts',
+  'src/service/registry.ts',
+  'src/cli/commands/web-monitor.ts',
+  'src/feishu/interactions/card-dispatcher.ts',
+  'src/feishu/card-builder/menu-cards.ts',
+  'workspace/.claude/skills/web-monitor-auto-repair/SKILL.md',
+  'workspace/.claude/skills/web-monitor-analyze-only/SKILL.md',
+  'workspace/.claude/skills/web-monitor-service-manager/SKILL.md',
+];
+
+const githubBase = 'https://github.com/yjzhang2003/oh-my-feishu/blob/main/';
+
+const entryMethods = [
+  ['飞书卡片管理', '在飞书中发送 /menu，进入自动化技能菜单，选择 Web 服务监控，通过卡片表单创建、查看和管理服务。适合移动端操作，不需要记命令。'],
+  ['自然语言管理', '用户可以直接让 Claude Code 查询或创建监控服务，Claude 通过 web-monitor-service-manager skill 执行 oh-my-feishu web-monitor 命令。'],
+  ['CLI 命令管理', '终端中使用 oh-my-feishu web-monitor，适合脚本化或 CI/CD 场景。CLI 最终进入 Gateway IPC 和 service-admin feature。'],
+];
+
+const configFields = [
+  ['服务名称', '监控服务唯一标识'],
+  ['GitHub 仓库', 'owner/repo 格式'],
+  ['Traceback URL', '日志或错误端点'],
+  ['自动 PR', '修复后是否自动创建 PR'],
+  ['PR 目标分支', '默认 main'],
+  ['PR 模式', 'draft 或 ready'],
+  ['PR 分支前缀', '默认 oh-my-feishu/web-monitor'],
+  ['确认模式', '修复前是否等待人工确认'],
+];
+
+const skillRules = [
+  ['PathGuard', '只能修改 TARGET_REPO_PATH/localRepoPath 下的文件'],
+  ['DiffGuard', '修改超过 10 个文件或 500 行时停止并请求人工审批'],
+  ['TestGuard', '修改后必须运行相关验证命令'],
+  ['No Secrets', '不能写入任何密钥或敏感信息'],
+  ['Git 安全', '不能执行 git reset --hard'],
+  ['PR 控制', '除非 WEB_MONITOR_AUTO_PR=true，否则不能 push 或创建 PR'],
+];
+---
+
+<Layout title="Gateway 与 Web Monitor">
+  <section class="gateway-doc-page">
+    <aside class="gateway-sidebar" aria-label="Gateway 文档目录">
+      <p class="eyebrow">Gateway</p>
+      <h2>Web Monitor 自动化服务</h2>
+      <nav>
+        {nav.map(([id, label]) => <a href={`#${id}`}>{label}</a>)}
+      </nav>
+    </aside>
+
+    <article class="gateway-reader">
+      <header class="gateway-intro" id="overview">
+        <p class="eyebrow">Gateway & Web Monitor</p>
+        <h1>后台事件驱动 AI 自动化</h1>
+        <p>Gateway 与 Web Monitor 是 oh-my-feishu 从“飞书中调用 Claude Code”扩展到“后台事件驱动 AI 自动化”的核心模块。用户注册 Web 服务的 traceback 地址后，后台服务会定时轮询，发现新异常时自动触发 Claude Code 分析或修复，并把处理结果通过飞书卡片返回。</p>
+        <figure class="gateway-wide-media">
+          <img src={asset('image0.png')} alt="Gateway 与 Web Monitor 架构概述图" loading="lazy" />
+        </figure>
+      </header>
+
+      <section class="gateway-section" id="files">
+        <p class="eyebrow">Files</p>
+        <h2>相关代码文件</h2>
+        <div class="gateway-file-grid">
+          {relatedFiles.map((file) => (
+            <a href={`${githubBase}${file}`} target="_blank" rel="noreferrer">{file}</a>
+          ))}
+        </div>
+      </section>
+
+      <section class="gateway-section" id="entry">
+        <p class="eyebrow">Service creation</p>
+        <h2><span>1</span>创建与管理监控服务</h2>
+        <div class="gateway-story-block">
+          <div class="gateway-copy-block">
+            <p>首先是用户如何把一个 Web 服务接入后台监控。入口可以是飞书卡片、自然语言，也可以是 CLI；最终都会写入服务注册表，形成后续轮询和修复所需的上下文。</p>
+            <ul>
+              {entryMethods.map(([title, text]) => <li><strong>{title}</strong><span>{text}</span></li>)}
+            </ul>
+          </div>
+          <figure><img src={asset('image4.gif')} alt="通过自然语言新建监控服务" loading="lazy" /><figcaption>自然语言新建监控服务</figcaption></figure>
+        </div>
+
+        <h3>飞书卡片表单配置项</h3>
+        <div class="config-grid">
+          {configFields.map(([field, desc]) => (
+            <div><strong>{field}</strong><span>{desc}</span></div>
+          ))}
+        </div>
+      </section>
+
+      <section class="gateway-section" id="traceback">
+        <p class="eyebrow">Traceback monitor</p>
+        <h2><span>2</span>Traceback 监控与去重</h2>
+        <div class="gateway-story-block">
+          <div class="gateway-copy-block">
+            <p>服务创建后，TracebackMonitor 会按配置轮询日志端点。它不把每次请求都交给 AI，而是先提取错误内容、计算 hash，并用基线和上一次 hash 控制触发频率。</p>
+            <ul>
+              <li><strong>多格式提取</strong><span>支持 JSON、文本和 HTML 内容格式。</span></li>
+              <li><strong>首次建立基线</strong><span>第一次检查只记录状态，避免把历史错误当作新事件。</span></li>
+              <li><strong>Hash 去重</strong><span>同一错误不重复触发，只有 traceback 变化时才进入下一步。</span></li>
+              <li><strong>事件化输出</strong><span>新错误被转换成 traceback.detected，交给 Gateway feature 处理。</span></li>
+            </ul>
+          </div>
+          <figure><img src={asset('image6.png')} alt="手动新建监控服务" loading="lazy" /><figcaption>手动新建监控服务</figcaption></figure>
+        </div>
+      </section>
+
+      <section class="gateway-section" id="repair-modes">
+        <p class="eyebrow">Repair modes</p>
+        <h2><span>3</span>分析与修复模式</h2>
+        <div class="gateway-story-block">
+          <div class="gateway-copy-block">
+            <p>Gateway 收到新 traceback 事件后，根据服务配置选择自动修复或修复前确认。这里的重点不是“让 AI 自动改一切”，而是把风险控制和协作确认放进流程里。</p>
+            <ul>
+              <li><strong>自动修复</strong><span>未开启确认时，直接调用 Claude Code 进入 auto-repair 工作流。</span></li>
+              <li><strong>修复前确认</strong><span>先发送“发现新问题”卡片，用户点击后才进入只读分析。</span></li>
+              <li><strong>二次确认</strong><span>分析完成后，再由用户决定是否执行实际代码修复。</span></li>
+              <li><strong>Skill 约束</strong><span>{skillRules.map(([name]) => name).join('、')} 控制路径、变更规模、验证和 Git 行为。</span></li>
+            </ul>
+          </div>
+          <div class="gateway-image-stack">
+            <figure><img src={asset('image9.png')} alt="发现新问题卡片" loading="lazy" /><figcaption>发现新问题卡片</figcaption></figure>
+            <figure><img src={asset('image10.jpeg')} alt="分析结果卡片" loading="lazy" /><figcaption>分析结果确认卡片</figcaption></figure>
+          </div>
+        </div>
+      </section>
+
+      <section class="gateway-section" id="session">
+        <p class="eyebrow">Directory session</p>
+        <h2><span>4</span>结果回传与继续协作</h2>
+        <div class="gateway-story-block">
+          <div class="gateway-copy-block">
+            <p>AI 处理完成后，结果不会停留在本地终端，而是回到飞书卡片。用户可以查看修复结果，也可以从监控详情页切换到该服务的目录会话，继续排查、补测试或做后续重构。</p>
+            <ul>
+              <li><strong>结构化结果</strong><span>分析结论、修复状态和后续动作以飞书卡片返回。</span></li>
+              <li><strong>本地仓库上下文</strong><span>服务注册时保存本地路径，Claude Code 修复时进入真实项目目录。</span></li>
+              <li><strong>目录会话</strong><span>监控详情页可以直接新建该目录下的 Claude Code 会话。</span></li>
+              <li><strong>协作闭环</strong><span>发现问题、分析方案、确认修复、结果回传、继续协作都在飞书中完成。</span></li>
+            </ul>
+          </div>
+          <div class="gateway-image-stack">
+            <figure><img src={asset('image11.jpeg')} alt="Web Monitor 修复结果卡片" loading="lazy" /><figcaption>修复结果回传</figcaption></figure>
+          </div>
+        </div>
+      </section>
+
+      <section class="gateway-section" id="summary">
+        <p class="eyebrow">Technical value</p>
+        <h2>技术价值总结</h2>
+        <div class="gateway-story-block">
+          <div class="gateway-copy-block">
+            <p>Gateway 的价值在于把 Web 服务异常处理从人工复制日志、切换终端、手动同步结果，改造成飞书里的事件驱动闭环。</p>
+            <ul>
+              <li><strong>事件驱动</strong><span>TracebackMonitor 和 Gateway feature 把 traceback 变化转换成可执行事件。</span></li>
+              <li><strong>上下文完整</strong><span>服务注册时记录本地仓库路径，Claude Code 修复时进入真实代码目录。</span></li>
+              <li><strong>安全可控</strong><span>支持修复前确认，并在 skill 中约束修改范围、变更规模、验证命令和 PR 行为。</span></li>
+              <li><strong>协作闭环</strong><span>发现问题、分析方案、确认修复、结果回传、继续目录会话都在飞书中完成。</span></li>
+            </ul>
+          </div>
+          <figure><img src={asset('image12.jpeg')} alt="继续在飞书里深入操作" loading="lazy" /><figcaption>继续在飞书里深入操作</figcaption></figure>
+        </div>
+      </section>
+    </article>
+  </section>
+</Layout>
