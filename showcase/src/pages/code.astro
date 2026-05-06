@@ -1,0 +1,9 @@
+---
+import Layout from '@/components/Layout.astro';
+import CodeDocs from '@/components/CodeDocs.astro';
+import { codeDocs } from '@/data/codeDocs';
+---
+
+<Layout title="核心代码展示">
+  <CodeDocs docs={codeDocs} />
+</Layout>

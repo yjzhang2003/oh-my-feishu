@@ -1,0 +1,13 @@
+---
+const { cards } = Astro.props;
+---
+
+<div class="route-grid">
+  {cards.map((card: { href: string; title: string; text: string; meta: string }) => (
+    <a class="route-card" href={card.href}>
+      <span>{card.meta}</span>
+      <strong>{card.title}</strong>
+      <p>{card.text}</p>
+    </a>
+  ))}
+</div>

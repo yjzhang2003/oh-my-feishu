@@ -30,9 +30,11 @@ coverage/
 
 # TypeScript cache
 *.tsbuildinfo
+.astro/
 
 # Claude Code internals
 /.claude/
+.superpowers/
 
 # Docs (keep local, don't track)
 docs/
