@@ -1,0 +1,14 @@
+{
+  "name": "oh-my-feishu",
+  "short_name": "OMF",
+  "icons": [
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#1f8cff",
+  "background_color": "#f5f0e8",
+  "display": "standalone"
+}

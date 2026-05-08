@@ -3,6 +3,7 @@ export const routes = [
   { href: '/code/', label: '代码展示', eyebrow: 'Core Code' },
   { href: '/value/', label: '产品亮点', eyebrow: 'Product' },
   { href: '/gateway/', label: '自动化', eyebrow: 'Gateway' },
+  { href: '/docs/', label: '文档', eyebrow: 'Docs' },
   { href: '/ai/', label: 'AI 亮点', eyebrow: 'AI' },
   { href: '/skill/', label: 'SKILLS', eyebrow: 'Skills' },
 ];

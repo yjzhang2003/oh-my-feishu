@@ -9,6 +9,7 @@
     "preview": "astro preview --host 127.0.0.1"
   },
   "dependencies": {
+    "@astrojs/vercel": "^10.0.6",
     "astro": "^6.2.2"
   },
   "devDependencies": {

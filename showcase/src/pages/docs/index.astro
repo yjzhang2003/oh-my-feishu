@@ -1,0 +1,37 @@
+---
+import DocsLayout from '@/components/DocsLayout.astro';
+import { getCollection } from 'astro:content';
+import { docHref, sortDocs, toDocNavItem } from '@/data/docs';
+
+const docs = sortDocs(await getCollection('docs'));
+const navDocs = docs.map(toDocNavItem);
+---
+
+<DocsLayout title="文档" activeSlug="" docs={navDocs}>
+  <header class="docs-hero">
+    <p class="eyebrow">Docs</p>
+    <h1>把 Claude Code 接进飞书工作流</h1>
+    <p>从安装、飞书配置、目录会话到 Web Monitor 自动化，按实际接入顺序整理 oh-my-feishu 的核心用法。</p>
+  </header>
+
+  <div class="docs-card-grid">
+    {docs.map((doc) => (
+      <a class="docs-card" href={docHref(doc.id)}>
+        <span>{doc.data.eyebrow}</span>
+        <strong>{doc.data.title}</strong>
+        <p>{doc.data.summary}</p>
+      </a>
+    ))}
+  </div>
+
+  <section class="docs-section">
+    <p class="eyebrow">Workflow</p>
+    <h2>推荐阅读顺序</h2>
+    <ol class="docs-steps">
+      <li><strong>先完成安装与启动</strong><span>确认 Claude Code、lark-cli 和后台服务都能运行。</span></li>
+      <li><strong>再配置飞书入口</strong><span>让机器人、事件订阅和卡片交互进入可用状态。</span></li>
+      <li><strong>绑定目录会话</strong><span>把聊天和本地项目目录连起来，进入项目级协作。</span></li>
+      <li><strong>接入 Web Monitor</strong><span>把 traceback 监控和 AI 分析修复串成自动化闭环。</span></li>
+    </ol>
+  </section>
+</DocsLayout>

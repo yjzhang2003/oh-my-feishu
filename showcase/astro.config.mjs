@@ -1,4 +1,5 @@
 import { defineConfig } from 'astro/config';
+import vercel from '@astrojs/vercel';
 
 const base = process.env.SITE_BASE || '/';
 const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
@@ -8,5 +9,6 @@ export default defineConfig({
   site,
   base,
   output: 'static',
-  trailingSlash: 'always',
+  adapter: vercel(),
+  trailingSlash: 'ignore',
 });

@@ -42,8 +42,8 @@ Showcase 站点托管在 Vercel，源码位于 `showcase/`。Vercel 项目应使
 
 - Framework Preset: Astro
 - Install Command: `npm ci --prefix showcase`
-- Build Command: `npm run build --prefix showcase`
-- Output Directory: `showcase/dist`
+- Build Command: `npm run build --prefix showcase && rm -rf .vercel/output && mkdir -p .vercel && cp -R showcase/.vercel/output .vercel/output`
+- Output Directory: 留空，使用 Astro Vercel adapter 生成的 `.vercel/output`
 
 不要选择 Vite，也不要把 Root Directory 改成 `showcase`。GitHub Pages workflow 已移除，旧 Pages 地址不会继续更新。
 

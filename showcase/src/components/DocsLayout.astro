@@ -1,0 +1,81 @@
+---
+import Layout from '@/components/Layout.astro';
+import { docHref, type DocNavItem } from '@/data/docs';
+
+const { title, description = 'oh-my-feishu 文档', activeSlug = '' } = Astro.props as {
+  title: string;
+  description?: string;
+  activeSlug?: string;
+  docs: DocNavItem[];
+};
+const docs = Astro.props.docs as DocNavItem[];
+---
+
+<Layout title={title} description={description} deckControls={false}>
+  <section class="docs-shell">
+    <aside class="docs-sidebar" aria-label="文档目录">
+      <p class="eyebrow">Documentation</p>
+      <h2>oh-my-feishu 文档</h2>
+      <label class="docs-search" for="docs-search-input">
+        <span>Search</span>
+        <input id="docs-search-input" type="search" placeholder="搜索飞书、Web Monitor、Claude" autocomplete="off" />
+      </label>
+      <div class="docs-search-results" data-docs-search-results aria-live="polite"></div>
+      <nav>
+        <a class={activeSlug === '' ? 'active' : ''} href="/docs/">文档首页</a>
+        {docs.map((doc) => <a class={activeSlug === doc.slug ? 'active' : ''} href={docHref(doc.slug)}>{doc.title}</a>)}
+      </nav>
+    </aside>
+
+    <article class="docs-reader">
+      <slot />
+    </article>
+  </section>
+
+  <script>
+    const input = document.getElementById('docs-search-input');
+    const results = document.querySelector('[data-docs-search-results]');
+    let timer;
+
+    const renderEmpty = (text) => {
+      if (!results) return;
+      results.innerHTML = `<p>${text}</p>`;
+    };
+
+    const renderResults = (items) => {
+      if (!results) return;
+      if (!items.length) {
+        renderEmpty('没有匹配文档');
+        return;
+      }
+      results.innerHTML = items
+        .map((item) => `
+          <a href="${item.href}">
+            <strong>${item.title}</strong>
+            <span>${item.excerpt}</span>
+          </a>
+        `)
+        .join('');
+    };
+
+    input?.addEventListener('input', () => {
+      window.clearTimeout(timer);
+      const query = input.value.trim();
+      if (!query) {
+        if (results) results.innerHTML = '';
+        return;
+      }
+
+      timer = window.setTimeout(async () => {
+        try {
+          const response = await fetch(`/api/docs/search/?q=${encodeURIComponent(query)}&limit=6`);
+          if (!response.ok) throw new Error('Search failed');
+          const payload = await response.json();
+          renderResults(payload.results || []);
+        } catch {
+          renderEmpty('搜索暂时不可用');
+        }
+      }, 160);
+    });
+  </script>
+</Layout>

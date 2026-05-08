@@ -2,7 +2,7 @@
 import { routes } from '@/data/showcase';
 import '@/styles/global.css';
 
-const { title, description = 'oh-my-feishu 作品展示' } = Astro.props;
+const { title, description = 'oh-my-feishu 作品展示', deckControls = true } = Astro.props;
 const baseUrl = import.meta.env.BASE_URL || '/';
 const basePath = baseUrl.endsWith('/') && baseUrl !== '/' ? baseUrl.slice(0, -1) : baseUrl === '/' ? '' : baseUrl;
 const currentPath = Astro.url.pathname.replace(basePath, '') || '/';
@@ -15,6 +15,11 @@ const withBase = (href: string) => `${basePath}${href}`.replace(/\/{2,}/g, '/');
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
+    <meta name="theme-color" content="#1f8cff" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
     <title>{title} | oh-my-feishu</title>
   </head>
   <body>
@@ -40,11 +45,13 @@ const withBase = (href: string) => `${basePath}${href}`.replace(/\/{2,}/g, '/');
     <main class="slide-deck" id="slide-deck" tabindex="0">
       <slot />
     </main>
-    <div class="deck-controls" aria-label="页面切换">
-      <button type="button" data-deck-prev aria-label="上一屏">‹</button>
-      <span data-deck-status>1</span>
-      <button type="button" data-deck-next aria-label="下一屏">›</button>
-    </div>
+    {deckControls && (
+      <div class="deck-controls" aria-label="页面切换">
+        <button type="button" data-deck-prev aria-label="上一屏">‹</button>
+        <span data-deck-status>1</span>
+        <button type="button" data-deck-next aria-label="下一屏">›</button>
+      </div>
+    )}
     <footer class="site-footer">
       <span>Claude Code x Feishu x lark-cli</span>
       <span>静态作品展示</span>

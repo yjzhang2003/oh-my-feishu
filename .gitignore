@@ -31,6 +31,7 @@ coverage/
 # TypeScript cache
 *.tsbuildinfo
 .astro/
+.vercel/
 
 # Claude Code internals
 /.claude/
@@ -38,6 +39,12 @@ coverage/
 
 # Docs (keep local, don't track)
 docs/
+!showcase/src/pages/docs/
+!showcase/src/pages/docs/**
+!showcase/src/pages/api/docs/
+!showcase/src/pages/api/docs/**
+!showcase/src/content/docs/
+!showcase/src/content/docs/**
 
 # Workspace runtime data
 workspace/.claude/*
