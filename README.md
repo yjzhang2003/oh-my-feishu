@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://yjzhang2003.github.io/oh-my-feishu/"><img alt="Showcase" src="https://img.shields.io/badge/Showcase-online-8B5CF6?style=flat-square"></a>
+  <a href="https://oh-my-feishu.vercel.app/"><img alt="Showcase" src="https://img.shields.io/badge/Showcase-online-8B5CF6?style=flat-square"></a>
   <a href="https://docs.anthropic.com/en/docs/claude-code"><img alt="Claude Code" src="https://img.shields.io/badge/Claude%20Code-ready-FF6F61?style=flat-square"></a>
   <a href="https://www.feishu.cn/"><img alt="Feishu" src="https://img.shields.io/badge/Feishu%20%2F%20Lark-ready-00A1E9?style=flat-square"></a>
   <img alt="Version" src="https://img.shields.io/badge/version-0.6.0-black?style=flat-square">
@@ -35,6 +35,17 @@
 - lark-cli：确保终端里可以运行 `lark-cli --version`
 
 Claude Code 负责对话和执行任务，lark-cli 负责让 Claude Code 调用飞书能力。
+
+## Showcase 部署
+
+Showcase 站点托管在 Vercel，源码位于 `showcase/`。Vercel 项目应使用仓库根目录，并由根目录的 `vercel.json` 指定构建：
+
+- Framework Preset: Astro
+- Install Command: `npm ci --prefix showcase`
+- Build Command: `npm run build --prefix showcase`
+- Output Directory: `showcase/dist`
+
+不要选择 Vite，也不要把 Root Directory 改成 `showcase`。GitHub Pages workflow 已移除，旧 Pages 地址不会继续更新。
 
 ### 全局安装（推荐）
 

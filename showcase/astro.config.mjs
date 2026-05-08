@@ -1,7 +1,8 @@
 import { defineConfig } from 'astro/config';
 
 const base = process.env.SITE_BASE || '/';
-const site = process.env.SITE_URL || 'https://yjzhang2003.github.io';
+const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+const site = process.env.SITE_URL || (vercelHost ? `https://${vercelHost}` : 'http://localhost:4321');
 
 export default defineConfig({
   site,
