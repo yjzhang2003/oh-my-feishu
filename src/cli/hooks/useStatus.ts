@@ -2,6 +2,7 @@ import { spawnSync } from 'child_process';
 import { existsSync, readFileSync } from 'fs';
 import { homedir } from 'os';
 import { resolve } from 'path';
+import { buildToolPathEnv, resolveLarkCliBin, resolvePm2Bin } from '../../utils/tool-paths.js';
 
 export interface ServiceStatus {
   name: string;
@@ -57,6 +58,7 @@ function runCommand(cmd: string, args: string[] = [], timeoutMs: number = CHECK_
     const result = spawnSync(cmd, args, {
       encoding: 'utf-8',
       timeout: timeoutMs,
+      env: buildToolPathEnv(),
     });
     return {
       stdout: result.stdout || '',
@@ -80,10 +82,10 @@ export function checkClaudeCode(): ComponentStatus {
 
 // Feishu/Lark status - require QR-compatible credentials with a usable appSecret.
 export function checkFeishu(): ComponentStatus {
-  // First check if lark-cli is installed
-  const larkResult = runCommand('lark-cli', ['--version']);
+  // First check if package-managed lark-cli is available.
+  const larkResult = runCommand(resolveLarkCliBin(), ['--version']);
   if (!larkResult || !larkResult.success) {
-    return { name: 'Feishu', configured: false, message: 'lark-cli not installed' };
+    return { name: 'Feishu', configured: false, message: 'lark-cli unavailable' };
   }
 
   const config = readUsableFeishuConfig();
@@ -122,7 +124,7 @@ export function getAllStatuses(): Record<string, ComponentStatus> {
 
 // Check if PM2 is installed
 export function checkPM2(): boolean {
-  const result = runCommand('pm2', ['--version']);
+  const result = runCommand(resolvePm2Bin(), ['--version']);
   return result !== null && result.success;
 }
 
@@ -138,7 +140,7 @@ export function checkService(): ServiceStatus {
   }
 
   // Use pm2 jlist for JSON output
-  const result = runCommand('pm2', ['jlist']);
+  const result = runCommand(resolvePm2Bin(), ['jlist']);
   if (!result || !result.success) {
     return {
       name: 'oh-my-feishu',

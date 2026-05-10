@@ -1,6 +1,6 @@
 import * as lark from '@larksuiteoapi/node-sdk';
 import { resolve } from 'path';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import { log } from '../utils/logger.js';
 import { env } from '../config/env.js';
 import { MessageRouter, type MessageData, type SendMessageFn } from './message-router.js';
@@ -23,6 +23,7 @@ import {
   createGatewayRuntime,
   GatewayFeatureRunner,
 } from '../gateway/features/index.js';
+import { buildToolPathEnv, resolveLarkCliBin } from '../utils/tool-paths.js';
 
 export interface FeishuWebSocketConfig {
   appId: string;
@@ -487,10 +488,11 @@ export async function loadLarkCliConfig(): Promise<FeishuWebSocketConfig | null>
   const fs = await import('fs');
 
   try {
-    const output = execSync('lark-cli config show', {
+    const output = execFileSync(resolveLarkCliBin(), ['config', 'show'], {
       encoding: 'utf-8',
       timeout: 5000,
       stdio: ['pipe', 'pipe', 'pipe'],
+      env: buildToolPathEnv(),
     });
     const jsonStart = output.indexOf('{');
     const jsonEnd = output.lastIndexOf('}');

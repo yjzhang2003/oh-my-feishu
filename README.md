@@ -12,7 +12,7 @@
   <a href="https://oh-my-feishu.vercel.app/"><img alt="Showcase" src="https://img.shields.io/badge/Showcase-online-8B5CF6?style=flat-square"></a>
   <a href="https://docs.anthropic.com/en/docs/claude-code"><img alt="Claude Code" src="https://img.shields.io/badge/Claude%20Code-ready-FF6F61?style=flat-square"></a>
   <a href="https://www.feishu.cn/"><img alt="Feishu" src="https://img.shields.io/badge/Feishu%20%2F%20Lark-ready-00A1E9?style=flat-square"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.6.0-black?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.7.0-black?style=flat-square">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-black?style=flat-square">
 </p>
 
@@ -32,9 +32,8 @@
 开始之前，请先安装并配置好：
 
 - Claude Code：确保终端里可以运行 `claude --version`
-- lark-cli：确保终端里可以运行 `lark-cli --version`
 
-Claude Code 负责对话和执行任务，lark-cli 负责让 Claude Code 调用飞书能力。
+Claude Code 负责对话和执行任务。`oh-my-feishu` 会随包提供 lark-cli 和 PM2，并在 CLI 中引导你完成飞书绑定和授权。
 
 ## Showcase 部署
 
@@ -81,6 +80,12 @@ npm link
 oh-my-feishu
 ```
 CLI 会带你完成检查、扫码和服务启动。你不需要记住复杂步骤，只需要跟随界面操作。
+
+推荐顺序：
+
+1. 在 Feishu 配置页选择 `Bind App with QR Code`，扫码绑定应用凭证。
+2. 选择 `Login lark-cli Auth`，按提示完成 `lark-cli auth login --recommend`。
+3. 回到 Service 配置页启动后台服务。
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/yjzhang2003/oh-my-feishu/main/pics/cli-demo.png" alt="CLI onboarding with QR code" width="600">

@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url';
 import { existsSync, mkdirSync, cpSync, readFileSync, writeFileSync, readdirSync } from 'fs';
 import { execa } from 'execa';
 import { log } from '../utils/logger.js';
+import { buildToolPathEnv } from '../utils/tool-paths.js';
 
 // Resolve REPO_ROOT from the package location (where this module resides)
 const __filename = fileURLToPath(import.meta.url);
@@ -41,6 +42,7 @@ export async function install(options: MarketplaceOptions): Promise<void> {
       cwd: options.targetDir,
       timeout: 30000,
       reject: false,
+      env: buildToolPathEnv(),
     });
 
     // Install the plugin
@@ -52,6 +54,7 @@ export async function install(options: MarketplaceOptions): Promise<void> {
       cwd: options.targetDir,
       timeout: 30000,
       reject: false,
+      env: buildToolPathEnv(),
     });
 
     if (result.exitCode === 0) {

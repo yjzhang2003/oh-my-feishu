@@ -1,6 +1,6 @@
 {
   "name": "oh-my-feishu",
-  "version": "0.6.5",
+  "version": "0.7.0",
   "description": "The best way to use Claude Code on Feishu",
   "type": "module",
   "main": "./dist/index.js",
@@ -12,13 +12,15 @@
     "dist/",
     "oh-my-feishu-plugin/",
     ".claude-plugin/",
+    "ecosystem.config.cjs",
     "README.md",
     "CHANGELOG.md",
     "LICENSE"
   ],
   "scripts": {
     "cli": "tsx src/cli/index.tsx",
-    "start": "tsx src/start.ts",
+    "start": "node dist/start.js",
+    "start:source": "tsx src/start.ts",
     "start:dev": "pm2 start ecosystem.config.cjs --env development",
     "start:prod": "pm2 start ecosystem.config.cjs",
     "stop": "pm2 stop oh-my-feishu",
@@ -46,6 +48,7 @@
   "dependencies": {
     "@hono/node-server": "^1.11.0",
     "@inquirer/prompts": "^5.0.0",
+    "@larksuite/cli": "^1.0.27",
     "@larksuiteoapi/node-sdk": "^1.62.0",
     "@types/qrcode": "^1.5.6",
     "chalk": "^5.3.0",
@@ -54,10 +57,16 @@
     "ink": "^4.4.1",
     "ink-select-input": "^5.0.0",
     "ink-text-input": "^5.0.1",
+    "pm2": "^6.0.14",
     "qrcode": "^1.5.4",
     "react": "^18.2.0",
     "yaml": "^2.4.0",
     "zod": "^3.23.0"
+  },
+  "overrides": {
+    "@larksuite/cli": {
+      "@clack/prompts": "1.2.0"
+    }
   },
   "devDependencies": {
     "@types/node": "^20.12.0",
@@ -65,7 +74,6 @@
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
     "eslint": "^8.57.0",
-    "pm2": "^6.0.0",
     "tsx": "^4.7.0",
     "typescript": "^5.4.0",
     "vitest": "^1.5.0"

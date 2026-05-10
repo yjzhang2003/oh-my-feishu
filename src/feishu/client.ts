@@ -1,7 +1,8 @@
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 import { homedir } from 'os';
+import { buildToolPathEnv, resolveLarkCliBin } from '../utils/tool-paths.js';
 
 const FEISHU_BASE_URL = 'https://open.feishu.cn/open-apis';
 
@@ -61,10 +62,11 @@ function getCredentials(): { appId: string; appSecret: string } | null {
 function loadLarkCliConfig(): LarkCliConfig | null {
   // Try to get config via lark-cli command
   try {
-    const result = execSync('lark-cli config show', {
+    const result = execFileSync(resolveLarkCliBin(), ['config', 'show'], {
       encoding: 'utf-8',
       timeout: 5000,
       stdio: ['pipe', 'pipe', 'pipe'],
+      env: buildToolPathEnv(),
     });
 
     // Output may have extra lines after JSON, extract JSON part

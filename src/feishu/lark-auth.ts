@@ -2,6 +2,7 @@ import { spawn } from 'child_process';
 import { existsSync, readFileSync } from 'fs';
 import { homedir } from 'os';
 import { resolve } from 'path';
+import { buildToolPathEnv, resolveLarkCliBin } from '../utils/tool-paths.js';
 
 export interface LarkConfigStatus {
   configured: boolean;
@@ -49,8 +50,9 @@ export async function checkLarkConfig(): Promise<LarkConfigStatus> {
  */
 export async function removeLarkConfig(): Promise<{ success: boolean; error?: string }> {
   return new Promise((resolve) => {
-    const proc = spawn('lark-cli', ['config', 'remove'], {
+    const proc = spawn(resolveLarkCliBin(), ['config', 'remove'], {
       stdio: ['ignore', 'pipe', 'pipe'],
+      env: buildToolPathEnv(),
     });
 
     let stderr = '';

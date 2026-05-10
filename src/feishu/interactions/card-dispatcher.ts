@@ -25,6 +25,8 @@ import { CardKitManager } from '../card-kit.js';
 import { createGatewayEvent, type GatewayFeatureRunner } from '../../gateway/features/index.js';
 import { getService, listServices, removeService } from '../../service/registry.js';
 import { removeServiceRepository } from '../../service/repository.js';
+import { getWorkspaceDir } from '../../config/paths.js';
+import { resolve } from 'path';
 
 export interface CardActionPayload {
   schema?: string;
@@ -102,7 +104,7 @@ export class CardDispatcher {
       }
 
       if (actionValue.startsWith('menu:')) {
-        return await this.handleMenuAction(actionValue, chatId, operatorOpenId);
+        return await this.handleMenuAction(actionValue, chatId);
       }
 
       if (actionValue.startsWith('nav:')) {
@@ -131,7 +133,7 @@ export class CardDispatcher {
     }
   }
 
-  private async handleMenuAction(actionValue: string, chatId: string, operatorOpenId: string): Promise<CardActionResponse> {
+  private async handleMenuAction(actionValue: string, chatId: string): Promise<CardActionResponse> {
     const parts = actionValue.split(':');
     const subAction = parts[1];
     const param = parts[2];
@@ -497,7 +499,7 @@ export class CardDispatcher {
 
     // Try to read from analysis file first
     // Skills run in workspace, check workspace triggers first, then repo triggers
-    const workspaceTriggersDir = '/Users/chihayaanon/IdeaProjects/feishu-agent/workspace/.claude/triggers';
+    const workspaceTriggersDir = resolve(getWorkspaceDir(), '.claude', 'triggers');
     const repoTriggersDir = pending.payload.localRepoPath
       ? `${pending.payload.localRepoPath}/.claude/triggers`
       : undefined;
@@ -656,7 +658,7 @@ export class CardDispatcher {
     type ParsedRepairResult = import('../../gateway/features/web-monitor/feature.js').ParsedRepairResult;
 
     // Result file path - skills run in workspace, so check there first
-    const workspaceTriggersDir = '/Users/chihayaanon/IdeaProjects/feishu-agent/workspace/.claude/triggers';
+    const workspaceTriggersDir = resolve(getWorkspaceDir(), '.claude', 'triggers');
     const repoTriggersDir = pending.payload.localRepoPath
       ? `${pending.payload.localRepoPath}/.claude/triggers`
       : undefined;

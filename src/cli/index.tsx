@@ -12,15 +12,21 @@ import {
   beginRegistration,
   continueQRPolling,
   renderQRAscii,
-  type QRBeginResult,
 } from '../feishu/qr-onboarding.js';
 import { ServiceManageScreen } from './components/ServiceManageScreen.js';
-import { getWorkspaceDir } from '../config/paths.js';
+import { ensureWorkspaceDirs, getRepoRoot, getWorkspaceDir, PACKAGE_ROOT } from '../config/paths.js';
+import { join } from 'path';
+import { buildToolPathEnv, resolveLarkCliBin, resolvePm2Bin } from '../utils/tool-paths.js';
 
 type Screen = 'main' | 'claude' | 'feishu' | 'service' | 'service-manage' | 'logs' | 'qr';
 
 const components = ['claude', 'feishu', 'service'] as const;
 const componentNames = ['Claude Code', 'Feishu (Lark)', 'Service'];
+const ecosystemConfigPath = join(PACKAGE_ROOT, 'ecosystem.config.cjs');
+const pm2OutLogPath = join(getRepoRoot(), 'logs', 'pm2-out.log');
+const pm2ErrorLogPath = join(getRepoRoot(), 'logs', 'pm2-error.log');
+const pm2Bin = resolvePm2Bin();
+const larkCliBin = resolveLarkCliBin();
 
 function App() {
   const { exit } = useApp();
@@ -39,7 +45,7 @@ function App() {
   const [qrUrl, setQrUrl] = useState('');
   const [qrUserCode, setQrUserCode] = useState('');
   const [qrStatus, setQrStatus] = useState('Waiting for scan...');
-  const [qrDeviceCode, setQrDeviceCode] = useState('');
+  const [, setQrDeviceCode] = useState('');
 
   useEffect(() => {
     setStatuses(getAllStatuses());
@@ -298,11 +304,13 @@ function getScreenConfig(screen: Screen, statuses: Record<string, ComponentStatu
       options: configured
         ? [
             { key: 'reconfigure', label: 'Re-auth with QR', description: 'Scan QR code to re-authenticate' },
+            { key: 'lark-login', label: 'Login lark-cli Auth', description: 'Run lark-cli auth login --recommend for Feishu tool scopes' },
             { key: 'reset', label: 'Reset', description: 'Remove lark-cli config' },
             { key: 'back', label: 'Back', description: 'Return to main menu' },
           ]
         : [
-            { key: 'qr', label: 'Auth with QR Code', description: 'Scan QR code with Feishu App (Recommended)', status: '★', statusColor: 'yellow' as const },
+            { key: 'qr', label: 'Bind App with QR Code', description: 'Scan QR code with Feishu App (Recommended)', status: '★', statusColor: 'yellow' as const },
+            { key: 'lark-login', label: 'Login lark-cli Auth', description: 'Run after QR binding to authorize Feishu tool scopes' },
             { key: 'back', label: 'Back', description: 'Return to main menu' },
           ],
     };
@@ -405,11 +413,12 @@ async function executeAction(
           refreshStatuses();
           // Restart service to pick up new credentials
           try {
-            await execa('pm2', ['restart', 'oh-my-feishu']);
+            await execa(pm2Bin, ['restart', 'oh-my-feishu'], { env: buildToolPathEnv() });
           } catch {
             // Service might not be running, try start instead
             try {
-              await execa('pm2', ['start', 'ecosystem.config.cjs']);
+              ensureWorkspaceDirs();
+              await execa(pm2Bin, ['start', ecosystemConfigPath], { env: buildToolPathEnv() });
             } catch {
               // Ignore - service might not exist yet
             }
@@ -441,6 +450,18 @@ async function executeAction(
         setMessage(chalk.red(`✗ ${result.error || 'Failed to remove config'}`));
       }
       refreshStatuses();
+    } else if (option.key === 'lark-login') {
+      setMessage(chalk.cyan('Opening lark-cli auth login...'));
+      try {
+        await execa(larkCliBin, ['auth', 'login', '--recommend'], {
+          stdio: 'inherit',
+          env: buildToolPathEnv(),
+        });
+        setMessage(chalk.green('✓ lark-cli auth login completed'));
+        refreshStatuses();
+      } catch (error) {
+        setMessage(chalk.red(`✗ lark-cli auth failed: ${error instanceof Error ? error.message : 'Unknown error'}`));
+      }
     }
   }
 
@@ -449,7 +470,8 @@ async function executeAction(
     if (option.key === 'start') {
       setMessage(chalk.cyan('Starting oh-my-feishu service...'));
       try {
-        await execa('pm2', ['start', 'ecosystem.config.cjs']);
+        ensureWorkspaceDirs();
+        await execa(pm2Bin, ['start', ecosystemConfigPath], { env: buildToolPathEnv() });
         setMessage(chalk.green('✓ Service started'));
         refreshStatuses();
       } catch (error) {
@@ -458,7 +480,7 @@ async function executeAction(
     } else if (option.key === 'stop') {
       setMessage(chalk.cyan('Stopping oh-my-feishu service...'));
       try {
-        await execa('pm2', ['stop', 'oh-my-feishu']);
+        await execa(pm2Bin, ['stop', 'oh-my-feishu'], { env: buildToolPathEnv() });
         setMessage(chalk.green('✓ Service stopped'));
         refreshStatuses();
       } catch (error) {
@@ -467,7 +489,7 @@ async function executeAction(
     } else if (option.key === 'restart') {
       setMessage(chalk.cyan('Restarting oh-my-feishu service...'));
       try {
-        await execa('pm2', ['restart', 'oh-my-feishu']);
+        await execa(pm2Bin, ['restart', 'oh-my-feishu'], { env: buildToolPathEnv() });
         setMessage(chalk.green('✓ Service restarted'));
         refreshStatuses();
       } catch (error) {
@@ -476,14 +498,12 @@ async function executeAction(
     } else if (option.key === 'logs') {
       // Load logs from PM2 log files
       const { readFileSync, existsSync } = await import('fs');
-      const logPath = './logs/pm2-out.log';
-      const errLogPath = './logs/pm2-error.log';
 
       // Load stdout logs
       let logContent = '';
       try {
-        if (existsSync(logPath)) {
-          logContent = readFileSync(logPath, 'utf-8');
+        if (existsSync(pm2OutLogPath)) {
+          logContent = readFileSync(pm2OutLogPath, 'utf-8');
         }
       } catch {
         // Ignore read errors
@@ -492,8 +512,8 @@ async function executeAction(
       // Load stderr logs
       let errLogContent = '';
       try {
-        if (existsSync(errLogPath)) {
-          errLogContent = readFileSync(errLogPath, 'utf-8');
+        if (existsSync(pm2ErrorLogPath)) {
+          errLogContent = readFileSync(pm2ErrorLogPath, 'utf-8');
         }
       } catch {
         // Ignore read errors

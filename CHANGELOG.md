@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.7.0] - 2026-05-10
+
+### Added
+
+- **内置 lark-cli 与 PM2**：npm 包随安装提供 `@larksuite/cli` 和 PM2，减少用户手动安装步骤。
+- **lark-cli 授权入口**：CLI 配置页新增 `Login lark-cli Auth`，引导用户完成 QR code 绑定后再执行 lark-cli 授权。
+- **工具路径解析测试**：新增 package-managed tool resolver，覆盖 npm hoisting、Windows `.cmd` 和 PATH 注入场景。
+
+### Changed
+
+- **服务管理使用包内 PM2**：Start/Stop/Restart/Status 优先调用当前 npm 包解析到的 PM2。
+- **Claude 子进程继承包内工具路径**：触发器、marketplace、Claude process manager 统一注入 package `.bin`，让 workspace 侧也能找到 lark-cli。
+- **安装文档简化**：README 改为说明 oh-my-feishu 自带 lark-cli/PM2，并明确先飞书 QR 绑定、再 lark-cli 授权、最后启动服务的顺序。
+
+### Fixed
+
+- 修复 npm 包未发布 `ecosystem.config.cjs` 导致 PM2 service 模式找不到配置的问题。
+- 修复 PM2 配置在全局 npm 安装场景指向 `src/start.ts`，实际包内只有 `dist/start.js` 的问题。
+- 修复 npm 依赖 hoisting 后 `pm2` 与 `lark-cli` 二进制路径解析失败的问题。
+- 修复发布包中残留 `tsx` 源码启动假设的问题，npm `start` 现在使用编译后的 `dist/start.js`。
+- 修复部分 Web Monitor 触发路径硬编码到本地开发目录的问题。
+
 ## [0.6.5] - 2026-05-05
 
 ### Added

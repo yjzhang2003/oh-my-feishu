@@ -1,4 +1,5 @@
 import { execa } from 'execa';
+import { buildToolPathEnv } from '../utils/tool-paths.js';
 
 export interface ClaudeCliCommandInput {
   args: string[];
@@ -59,6 +60,7 @@ export async function runAllowedClaudePluginCommand(input: ClaudeCliCommandInput
       timeout: input.timeout ?? 120000,
       reject: false,
       stdin: 'ignore',
+      env: buildToolPathEnv(),
     });
 
     return {

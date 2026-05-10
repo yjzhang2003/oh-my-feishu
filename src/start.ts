@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * oh-my-feishu - Main entry point
  * Starts WebSocket connection for direct Feishu ↔ Claude Code chat

@@ -4,8 +4,6 @@ import { env } from '../config/env.js';
 import {
   readFileSync,
   existsSync,
-  mkdirSync,
-  writeFileSync,
   readdirSync,
   statSync,
   openSync,
@@ -16,6 +14,7 @@ import { homedir } from 'os';
 import { chatIdToSessionId } from '../utils/chat-id.js';
 import { readTrigger } from './trigger.js';
 import { getService } from '../service/registry.js';
+import { buildToolPathEnv } from '../utils/tool-paths.js';
 
 export interface InvokeOptions {
   skill: string;
@@ -138,7 +137,7 @@ export async function invokeClaudeSkill(options: InvokeOptions): Promise<InvokeR
       timeout,
       reject: false,
       stdin: 'ignore',
-      env: { ...process.env, ...workspaceEnv, ...serviceEnv },
+      env: { ...buildToolPathEnv(), ...workspaceEnv, ...serviceEnv },
     });
 
     return {
@@ -199,7 +198,7 @@ export async function invokeClaudeTask(input: ClaudeTaskInput): Promise<InvokeRe
       timeout,
       reject: false,
       stdin: 'ignore',
-      env: { ...process.env, ...workspaceEnv, ...input.env },
+      env: { ...buildToolPathEnv(), ...workspaceEnv, ...input.env },
     });
 
     return {
@@ -265,7 +264,7 @@ export async function invokeClaudeChat(
       reject: false,
       stdin: 'ignore',
       stdout: 'pipe',
-      env: { ...process.env, ...workspaceEnv, ...contextEnv },
+      env: { ...buildToolPathEnv(), ...workspaceEnv, ...contextEnv },
     });
 
     let fullStdout = '';
@@ -334,7 +333,7 @@ export async function invokeClaudeChat(
         reject: false,
         stdin: 'ignore',
         stdout: 'pipe',
-        env: { ...process.env, ...workspaceEnv, ...contextEnv },
+        env: { ...buildToolPathEnv(), ...workspaceEnv, ...contextEnv },
       });
 
       let retryStdout = '';

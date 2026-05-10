@@ -7,6 +7,7 @@ import { execa, type ExecaChildProcess } from 'execa';
 import { resolve } from 'path';
 import { chatIdToSessionId } from '../utils/chat-id.js';
 import { log } from '../utils/logger.js';
+import { buildToolPathEnv } from '../utils/tool-paths.js';
 
 export interface ClaudeProcessOptions {
   directory: string;
@@ -50,7 +51,7 @@ export class ClaudeProcessManager {
       stdin: 'pipe',
       stdout: 'pipe',
       stderr: 'pipe',
-      env: { ...process.env, ...contextEnv },
+      env: { ...buildToolPathEnv(), ...contextEnv },
     });
 
     this.processes.set(opts.chatId, proc);

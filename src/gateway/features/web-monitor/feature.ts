@@ -6,6 +6,8 @@ import {
 } from './cards.js';
 import { updateWebMonitorClaudeRun } from './registry.js';
 import { buildWebMonitorClaudeTask } from './service-actions.js';
+import { getWorkspaceDir } from '../../../config/paths.js';
+import { resolve } from 'path';
 
 export interface TracebackDetectedPayload {
   serviceName: string;
@@ -122,7 +124,7 @@ async function handleAutoRepair(
   const claude = await runtime.invokeMainClaude(buildWebMonitorClaudeTask(event, payload));
 
   // Parse result for storage and display
-  const workspaceTriggersDir = '/Users/chihayaanon/IdeaProjects/feishu-agent/workspace/.claude/triggers';
+  const workspaceTriggersDir = resolve(getWorkspaceDir(), '.claude', 'triggers');
   const repoTriggersDir = payload.localRepoPath
     ? `${payload.localRepoPath}/.claude/triggers`
     : undefined;
