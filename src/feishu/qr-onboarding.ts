@@ -7,7 +7,6 @@
  * Reference: Hermes gateway/platforms/feishu.py
  */
 
-import { spawn } from 'child_process';
 import { writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
@@ -15,11 +14,6 @@ import { homedir } from 'os';
 const ACCOUNTS_URLS = {
   feishu: 'https://accounts.feishu.cn',
   lark: 'https://accounts.larksuite.com',
-};
-
-const OPEN_URLS = {
-  feishu: 'https://open.feishu.cn',
-  lark: 'https://open.larksuite.com',
 };
 
 const REGISTRATION_PATH = '/oauth/v1/app/registration';
@@ -168,8 +162,7 @@ export async function pollRegistration(
  */
 export async function qrRegister(
   domain: string = 'feishu',
-  onProgress: (status: string) => void,
-  timeoutSeconds: number = 600
+  onProgress: (status: string) => void
 ): Promise<QRRegistrationResult> {
   try {
     // Step 1: Initialize
@@ -207,12 +200,17 @@ export async function continueQRPolling(
   domain: string = 'feishu',
   intervalSeconds: number = 5,
   timeoutSeconds: number = 600,
-  onPoll?: (attempt: number) => void
+  onPoll?: (attempt: number) => void,
+  signal?: AbortSignal
 ): Promise<QRRegistrationResult> {
   const deadline = Date.now() + timeoutSeconds * 1000;
   let attempt = 0;
 
   while (Date.now() < deadline) {
+    if (signal?.aborted) {
+      return { success: false, error: 'cancelled' };
+    }
+
     attempt++;
     onPoll?.(attempt);
 
@@ -229,7 +227,13 @@ export async function continueQRPolling(
     }
 
     // Wait for interval
-    await new Promise((resolve) => setTimeout(resolve, intervalSeconds * 1000));
+    await new Promise<void>((resolve) => {
+      const timeout = setTimeout(resolve, intervalSeconds * 1000);
+      signal?.addEventListener('abort', () => {
+        clearTimeout(timeout);
+        resolve();
+      }, { once: true });
+    });
   }
 
   return { success: false, error: 'Timeout waiting for QR scan' };
@@ -277,10 +281,12 @@ export async function renderQRAscii(url: string): Promise<string[]> {
       const modules = qr.modules;
       const size = modules.size;
 
-      for (let row = 0; row < size; row++) {
+      for (let row = 0; row < size; row += 2) {
         let line = '';
         for (let col = 0; col < size; col++) {
-          line += modules.get(row, col) ? '██' : '  ';
+          const top = modules.get(row, col);
+          const bottom = row + 1 < size ? modules.get(row + 1, col) : false;
+          line += top && bottom ? '█' : top ? '▀' : bottom ? '▄' : ' ';
         }
         lines.push(line);
       }

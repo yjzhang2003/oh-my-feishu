@@ -1,6 +1,6 @@
 {
   "name": "oh-my-feishu",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "The best way to use Claude Code on Feishu",
   "type": "module",
   "main": "./dist/index.js",

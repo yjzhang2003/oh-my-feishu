@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { render, Box, Text, useInput, useApp } from 'ink';
 import chalk from 'chalk';
 import { SelectList } from './components/SelectList.js';
@@ -46,6 +46,7 @@ function App() {
   const [qrUserCode, setQrUserCode] = useState('');
   const [qrStatus, setQrStatus] = useState('Waiting for scan...');
   const [, setQrDeviceCode] = useState('');
+  const qrAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     setStatuses(getAllStatuses());
@@ -55,6 +56,14 @@ function App() {
   const refreshStatuses = useCallback(() => {
     setStatuses(getAllStatuses());
     setServiceStatus(checkService());
+  }, []);
+
+  const clearQrState = useCallback(() => {
+    setQrLines([]);
+    setQrUrl('');
+    setQrUserCode('');
+    setQrStatus('Waiting for scan...');
+    setQrDeviceCode('');
   }, []);
 
   useInput((input, key) => {
@@ -84,6 +93,11 @@ function App() {
         setScreen('service');
         setLogs([]);
         setLogsOffset(0);
+      } else if (screen === 'qr') {
+        qrAbortRef.current?.abort();
+        qrAbortRef.current = null;
+        clearQrState();
+        setScreen('feishu');
       } else {
         const componentIndex = components.indexOf(screen as typeof components[number]);
         setScreen('main');
@@ -128,6 +142,8 @@ function App() {
         setQrUserCode,
         setQrStatus,
         setQrDeviceCode,
+        qrAbortRef,
+        clearQrState,
       });
     }
   });
@@ -267,16 +283,16 @@ function getScreenConfig(screen: Screen, statuses: Record<string, ComponentStatu
       status: statusText,
       options: running
         ? [
-            { key: 'stop', label: 'Stop Service', description: 'Stop the oh-my-feishu background service' },
-            { key: 'restart', label: 'Restart Service', description: 'Restart the oh-my-feishu service' },
-            { key: 'logs', label: 'View Logs', description: 'Open PM2 logs viewer' },
-            { key: 'manage', label: 'Manage Services', description: 'Register/unregister traceback monitoring services' },
-            { key: 'back', label: 'Back', description: 'Return to main menu' },
+            { key: 'stop', label: 'Stop Service', status: 'stop', statusColor: 'red' as const },
+            { key: 'restart', label: 'Restart Service', status: 'reload', statusColor: 'cyan' as const },
+            { key: 'logs', label: 'View Logs', status: 'logs', statusColor: 'blue' as const },
+            { key: 'manage', label: 'Manage Services', status: 'monitor', statusColor: 'magenta' as const },
+            { key: 'back', label: 'Back', status: 'main', statusColor: 'gray' as const },
           ]
         : [
-            { key: 'start', label: 'Start Service', description: 'Start oh-my-feishu as background service', status: '★', statusColor: 'yellow' as const },
-            { key: 'manage', label: 'Manage Services', description: 'Register/unregister traceback monitoring services' },
-            { key: 'back', label: 'Back', description: 'Return to main menu' },
+            { key: 'start', label: 'Start Service', status: 'start', statusColor: 'yellow' as const },
+            { key: 'manage', label: 'Manage Services', status: 'monitor', statusColor: 'magenta' as const },
+            { key: 'back', label: 'Back', status: 'main', statusColor: 'gray' as const },
           ],
     };
   }
@@ -303,15 +319,15 @@ function getScreenConfig(screen: Screen, statuses: Record<string, ComponentStatu
       status: statuses.feishu?.message,
       options: configured
         ? [
-            { key: 'reconfigure', label: 'Re-auth with QR', description: 'Scan QR code to re-authenticate' },
-            { key: 'lark-login', label: 'Login lark-cli Auth', description: 'Run lark-cli auth login --recommend for Feishu tool scopes' },
-            { key: 'reset', label: 'Reset', description: 'Remove lark-cli config' },
-            { key: 'back', label: 'Back', description: 'Return to main menu' },
+            { key: 'reconfigure', label: 'QR Binding', status: 'refresh', statusColor: 'cyan' as const },
+            { key: 'lark-login', label: 'lark-cli Auth', status: 'login', statusColor: 'blue' as const },
+            { key: 'reset', label: 'Reset', status: 'clear', statusColor: 'red' as const },
+            { key: 'back', label: 'Back', status: 'main', statusColor: 'gray' as const },
           ]
         : [
-            { key: 'qr', label: 'Bind App with QR Code', description: 'Scan QR code with Feishu App (Recommended)', status: '★', statusColor: 'yellow' as const },
-            { key: 'lark-login', label: 'Login lark-cli Auth', description: 'Run after QR binding to authorize Feishu tool scopes' },
-            { key: 'back', label: 'Back', description: 'Return to main menu' },
+            { key: 'qr', label: 'QR Binding', status: 'first', statusColor: 'yellow' as const },
+            { key: 'lark-login', label: 'lark-cli Auth', status: 'after QR', statusColor: 'blue' as const },
+            { key: 'back', label: 'Back', status: 'main', statusColor: 'gray' as const },
           ],
     };
   }
@@ -337,9 +353,11 @@ async function executeAction(
     setQrUserCode: React.Dispatch<React.SetStateAction<string>>;
     setQrStatus: React.Dispatch<React.SetStateAction<string>>;
     setQrDeviceCode: React.Dispatch<React.SetStateAction<string>>;
+    qrAbortRef: React.MutableRefObject<AbortController | null>;
+    clearQrState: () => void;
   }
 ) {
-  const { setMessage, refreshStatuses, setScreen, setLogs, setLogsErr, setLogsOffset, setLogType, setQrLines, setQrUrl, setQrUserCode, setQrStatus, setQrDeviceCode } = handlers;
+  const { setMessage, refreshStatuses, setScreen, setLogs, setLogsErr, setLogsOffset, setLogType, setQrLines, setQrUrl, setQrUserCode, setQrStatus, setQrDeviceCode, qrAbortRef, clearQrState } = handlers;
   const config = getScreenConfig(screen, statuses, serviceStatus);
   const option = config.options[index];
 
@@ -368,16 +386,19 @@ async function executeAction(
   if (screen === 'feishu') {
     if (option.key === 'qr' || option.key === 'reconfigure') {
       // QR Code authentication
+      qrAbortRef.current?.abort();
+      const abortController = new AbortController();
+      qrAbortRef.current = abortController;
+
       setScreen('qr');
-      setQrLines([]);
-      setQrUrl('');
-      setQrUserCode('');
+      clearQrState();
       setQrStatus('Connecting to Feishu...');
-      setQrDeviceCode('');
 
       try {
         // Begin QR registration
         const begin = await beginRegistration('feishu');
+        if (abortController.signal.aborted) return;
+
         setQrDeviceCode(begin.deviceCode);
         setQrUrl(begin.qrUrl);
         setQrUserCode(begin.userCode);
@@ -385,60 +406,64 @@ async function executeAction(
         // Render QR code as ASCII
         if (begin.qrUrl) {
           const lines = await renderQRAscii(begin.qrUrl);
+          if (abortController.signal.aborted) return;
           setQrLines(lines);
         }
 
         setQrStatus('Waiting for scan...');
 
-        // Start polling in background
-        const result = await continueQRPolling(
-          begin.deviceCode,
-          'feishu',
-          begin.interval,
-          begin.expireIn,
-          (attempt) => {
-            setQrStatus(`Waiting for scan... (attempt ${attempt})`);
+        void (async () => {
+          const result = await continueQRPolling(
+            begin.deviceCode,
+            'feishu',
+            begin.interval,
+            begin.expireIn,
+            (attempt) => {
+              if (!abortController.signal.aborted) {
+                setQrStatus(`Waiting for scan... (attempt ${attempt})`);
+              }
+            },
+            abortController.signal
+          );
+
+          if (abortController.signal.aborted || result.error === 'cancelled') {
+            return;
           }
-        );
 
-        // Clear QR state before navigating
-        setQrLines([]);
-        setQrUrl('');
-        setQrUserCode('');
-        setQrDeviceCode('');
+          qrAbortRef.current = null;
+          clearQrState();
 
-        if (result.success) {
-          setMessage(chalk.green('✓ Authentication successful! Restarting service...'));
-          setScreen('feishu');
-          refreshStatuses();
-          // Restart service to pick up new credentials
-          try {
-            await execa(pm2Bin, ['restart', 'oh-my-feishu'], { env: buildToolPathEnv() });
-          } catch {
-            // Service might not be running, try start instead
+          if (result.success) {
+            setMessage(chalk.green('✓ Authentication successful! Restarting service...'));
+            setScreen('feishu');
+            refreshStatuses();
+            // Restart service to pick up new credentials
             try {
-              ensureWorkspaceDirs();
-              await execa(pm2Bin, ['start', ecosystemConfigPath], { env: buildToolPathEnv() });
+              await execa(pm2Bin, ['restart', 'oh-my-feishu'], { env: buildToolPathEnv() });
             } catch {
-              // Ignore - service might not exist yet
+              // Service might not be running, try start instead
+              try {
+                ensureWorkspaceDirs();
+                await execa(pm2Bin, ['start', ecosystemConfigPath], { env: buildToolPathEnv() });
+              } catch {
+                // Ignore - service might not exist yet
+              }
             }
+          } else if (result.error === 'expired') {
+            setMessage(chalk.red('✗ QR code expired. Please try again.'));
+            setScreen('feishu');
+          } else if (result.error === 'denied') {
+            setMessage(chalk.red('✗ Authentication denied.'));
+            setScreen('feishu');
+          } else {
+            setMessage(chalk.red(`✗ ${result.error || 'Authentication failed'}`));
+            setScreen('feishu');
           }
-        } else if (result.error === 'expired') {
-          setMessage(chalk.red('✗ QR code expired. Please try again.'));
-          setScreen('feishu');
-        } else if (result.error === 'denied') {
-          setMessage(chalk.red('✗ Authentication denied.'));
-          setScreen('feishu');
-        } else {
-          setMessage(chalk.red(`✗ ${result.error || 'Authentication failed'}`));
-          setScreen('feishu');
-        }
+        })();
       } catch (error) {
         // Clear QR state on error
-        setQrLines([]);
-        setQrUrl('');
-        setQrUserCode('');
-        setQrDeviceCode('');
+        qrAbortRef.current = null;
+        clearQrState();
         setMessage(chalk.red(`✗ Error: ${error instanceof Error ? error.message : 'Unknown error'}`));
         setScreen('feishu');
       }

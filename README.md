@@ -12,7 +12,7 @@
   <a href="https://oh-my-feishu.vercel.app/"><img alt="Showcase" src="https://img.shields.io/badge/Showcase-online-8B5CF6?style=flat-square"></a>
   <a href="https://docs.anthropic.com/en/docs/claude-code"><img alt="Claude Code" src="https://img.shields.io/badge/Claude%20Code-ready-FF6F61?style=flat-square"></a>
   <a href="https://www.feishu.cn/"><img alt="Feishu" src="https://img.shields.io/badge/Feishu%20%2F%20Lark-ready-00A1E9?style=flat-square"></a>
-  <img alt="Version" src="https://img.shields.io/badge/version-0.7.0-black?style=flat-square">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.7.1-black?style=flat-square">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-black?style=flat-square">
 </p>
 
