@@ -2,7 +2,7 @@
 title: Web Monitor 自动化
 eyebrow: Automation
 summary: 轮询 traceback 地址，识别新错误，并触发 Claude Code 分析或修复。
-order: 4
+order: 40
 tags:
   - web monitor
   - traceback

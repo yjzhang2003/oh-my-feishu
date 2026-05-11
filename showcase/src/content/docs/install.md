@@ -2,7 +2,7 @@
 title: 安装与启动
 eyebrow: Getting started
 summary: 从 npm 安装 oh-my-feishu，完成本地检查，并启动连接飞书的后台服务。
-order: 1
+order: 10
 tags:
   - install
   - cli

@@ -2,7 +2,7 @@
 title: 飞书配置
 eyebrow: Feishu setup
 summary: 配置飞书应用、扫码认证和消息入口，让 Claude Code 可以在飞书中响应用户。
-order: 2
+order: 20
 tags:
   - feishu
   - lark

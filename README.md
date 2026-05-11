@@ -46,6 +46,16 @@ Showcase 站点托管在 Vercel，源码位于 `showcase/`。Vercel 项目应使
 
 不要选择 Vite，也不要把 Root Directory 改成 `showcase`。GitHub Pages workflow 已移除，旧 Pages 地址不会继续更新。
 
+## 文档管理
+
+公开文档只放在 `showcase/src/content/docs/`，这些 Markdown 会自动进入网站 `/docs/` 和文档搜索接口。
+
+根目录 `docs/` 是本地私有草稿区，用于周报、临时方案和内部记录，不会被 GitHub 或网站公开。提交前可以运行：
+
+```bash
+npm run check:private-docs
+```
+
 ### 全局安装（推荐）
 
 ```bash

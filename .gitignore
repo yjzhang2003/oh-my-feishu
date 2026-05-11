@@ -39,6 +39,8 @@ coverage/
 
 # Docs (keep local, don't track)
 docs/
+docs/QR_ONBOARDING.md
+docs/weekly-summary*.md
 !showcase/src/pages/docs/
 !showcase/src/pages/docs/**
 !showcase/src/pages/api/docs/

@@ -32,7 +32,7 @@ export const codeDocs = [
     bullets: [
       '无子命令时进入 Ink TUI，适合首次配置和交互式引导。',
       '`session`、`gateway`、`web-monitor` 子命令保留脚本化能力，适合演示和自动化。',
-      'QR onboarding 使用飞书设备码注册流程，扫码后自动写入 lark-cli 兼容配置。',
+      '扫码授权流程使用飞书设备码注册，授权后自动写入 lark-cli 兼容配置。',
       'PM2 配置支撑后台进程稳定运行和日志持久化。',
     ],
     snippetTitle: 'src/cli/cli.ts — 命令分发',

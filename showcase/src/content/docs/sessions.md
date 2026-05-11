@@ -2,7 +2,7 @@
 title: 目录会话
 eyebrow: Directory sessions
 summary: 把飞书聊天绑定到本地目录和 Claude session，支持持续的项目级协作。
-order: 3
+order: 30
 tags:
   - session
   - directory
