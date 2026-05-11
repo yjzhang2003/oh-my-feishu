@@ -3,5 +3,5 @@
   "framework": "vitepress",
   "installCommand": "npm ci --prefix showcase",
   "buildCommand": "npm run build --prefix showcase",
-  "outputDirectory": "showcase/docs/.vitepress/dist"
+  "outputDirectory": "showcase/.vitepress/dist"
 }

@@ -8,5 +8,5 @@
     "types": ["vitepress/client"],
     "skipLibCheck": true
   },
-  "include": ["docs/**/*.ts", "docs/**/*.vue"]
+  "include": [".vitepress/**/*.ts", ".vitepress/**/*.vue"]
 }

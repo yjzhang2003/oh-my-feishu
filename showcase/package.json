@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vitepress dev docs --host 127.0.0.1",
-    "build": "vitepress build docs",
-    "preview": "vitepress preview docs --host 127.0.0.1"
+    "dev": "vitepress dev . --host 127.0.0.1",
+    "build": "vitepress build .",
+    "preview": "vitepress preview . --host 127.0.0.1"
   },
   "dependencies": {
     "vitepress": "^1.6.4"

@@ -1,52 +1,43 @@
 ---
-layout: home
-
-hero:
-  name: oh-my-feishu
-  text: 在飞书中使用 Claude Code
-  tagline: 把本机 Claude Code、飞书机器人、lark-cli skills 和后台自动化接成一条可演示的协作链路。
-  image:
-    src: /icon-512.png
-    alt: oh-my-feishu
-  actions:
-    - theme: brand
-      text: 安装与启动
-      link: /docs/install/
-    - theme: alt
-      text: 飞书配置
-      link: /docs/feishu/
-    - theme: alt
-      text: GitHub
-      link: https://github.com/yjzhang2003/oh-my-feishu
-
-features:
-  - title: 飞书内使用 Claude Code
-    details: 在飞书消息里发起项目问答、代码修改、测试验证和结果总结，不必始终守在终端前。
-  - title: 目录会话与历史恢复
-    details: 把 chatId 绑定到本地项目目录和 Claude session，让移动端协作也能保留真实工程上下文。
-  - title: lark-cli skills 能力
-    details: 通过官方 lark-cli 访问 IM、Docs、Drive、Calendar、Base、Sheets 等飞书能力。
-  - title: Web Monitor 自动化
-    details: 轮询 traceback，识别新错误，触发 Claude Code 分析、确认式修复或自动 PR。
+title: 文档概览
+description: 公开文档入口，说明 oh-my-feishu 的核心使用路径和文档维护规则。
 ---
 
-## 快速开始
+# 文档概览
 
-```bash
-npm install -g oh-my-feishu
-oh-my-feishu
-```
+这组文档面向两类人：一类是使用者，想把 oh-my-feishu 装好、跑起来、接到飞书；另一类是贡献者，想了解公开文档放在哪里、怎么维护、哪些内容不应该发布到网站。
 
-第一次使用建议按这个顺序走：
+它不是 API reference，也不会逐项解释飞书开放平台的所有参数。文档重点放在真实使用路径、必要配置、常见失败原因和下一步该看什么。
 
-1. 阅读 [安装与启动](/docs/install/)，确认 Node.js、Claude Code 和全局 CLI 可用。
-2. 阅读 [飞书配置](/docs/feishu/)，完成 QR 绑定和 `lark-cli Auth`。
-3. 阅读 [目录会话](/docs/sessions/)，把飞书聊天绑定到本机项目目录。
-4. 需要后台自动化时，再配置 [Web Monitor](/docs/web-monitor/)。
+## 推荐阅读路径
 
-## 常用入口
+### 第一次安装
 
-- [产品亮点](/value/)：项目解决的问题和主要价值。
-- [Gateway 与 Web Monitor](/gateway/)：后台自动化和 traceback 监控链路。
-- [核心代码展示](/code/)：关键模块、数据流和工程实现。
-- [Claude plugin 与 skills](/skill/)：飞书能力如何交给 Claude Code 使用。
+从 [安装与启动](/docs/install/) 开始，确认 Node.js、Claude Code 和全局 npm 包都可用。然后进入 [飞书配置](/docs/feishu/)，完成 QR 绑定和 lark-cli 授权，最后启动后台服务。
+
+### 已经能收到飞书消息
+
+继续阅读 [目录会话](/docs/sessions/)。这一步会把飞书聊天和本机项目目录关联起来，让 Claude Code 在正确的代码库里读取文件、运行命令和保留上下文。
+
+### 需要后台自动化
+
+阅读 [Web Monitor 自动化](/docs/web-monitor/)。这篇说明如何注册 traceback 地址、如何去重、什么时候需要用户确认，以及自动 PR 适合放在哪些场景。
+
+## 常见入口
+
+- [安装与启动](/docs/install/)：安装、启动和本地验证。
+- [飞书配置](/docs/feishu/)：飞书应用、QR 绑定、lark-cli auth 和消息入口。
+- [目录会话](/docs/sessions/)：目录绑定、历史会话和移动端协作。
+- [Web Monitor 自动化](/docs/web-monitor/)：错误监控、确认式修复和自动 PR。
+- [插件能力概览](/docs/plugin-capabilities/)：飞书插件 skills 能力地图。
+- [部署与网站](/docs/deployment/)：showcase 网站和公开文档发布边界。
+
+## 文档维护规则
+
+公开文档放在 `showcase/docs/` 下，并由 VitePress 直接构建为静态页面。内容应该面向外部读者，避免包含内部周报、临时讨论、未公开 token、个人路径或私有部署信息。
+
+根目录 `docs/` 是本地草稿区，用来存放周报、临时方案和内部记录。它不会被网站读取，也默认不应该进入 Git 跟踪。
+
+## 下一步
+
+如果你正在第一次配置，继续读 [安装与启动](/docs/install/)。如果你已经完成服务启动，但飞书里没有响应，直接跳到 [飞书配置](/docs/feishu/) 的排查部分。需要理解 Claude Code 能调用哪些飞书能力时，再读 [插件能力概览](/docs/plugin-capabilities/)。

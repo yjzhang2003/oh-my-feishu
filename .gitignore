@@ -43,8 +43,8 @@ docs/QR_ONBOARDING.md
 docs/weekly-summary*.md
 !showcase/docs/
 !showcase/docs/**
-showcase/docs/.vitepress/cache/
-showcase/docs/.vitepress/dist/
+showcase/.vitepress/cache/
+showcase/.vitepress/dist/
 
 # Workspace runtime data
 workspace/.claude/*
