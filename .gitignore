@@ -45,6 +45,7 @@ docs/weekly-summary*.md
 !showcase/docs/**
 showcase/.vitepress/cache/
 showcase/.vitepress/dist/
+showcase/docs/.vitepress/
 
 # Workspace runtime data
 workspace/.claude/*

@@ -74,4 +74,4 @@ npm run check:private-docs
 
 ## 下一步
 
-如果你要扩写使用文档，回到 [文档概览](/docs/) 查看文档组织方式。如果你要验证产品功能，优先阅读 [安装与启动](/docs/install/) 和 [飞书配置](/docs/feishu/)。
+如果你要扩写使用文档，直接编辑 `showcase/docs/` 下对应页面。如果你要验证产品功能，优先阅读 [安装与启动](/docs/install/) 和 [飞书配置](/docs/feishu/)。

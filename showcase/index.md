@@ -36,17 +36,3 @@ features:
 npm install -g oh-my-feishu
 oh-my-feishu
 ```
-
-第一次使用建议按这个顺序走：
-
-1. 阅读 [安装与启动](/docs/install/)，确认 Node.js、Claude Code 和全局 CLI 可用。
-2. 阅读 [飞书配置](/docs/feishu/)，完成 QR 绑定和 `lark-cli Auth`。
-3. 阅读 [目录会话](/docs/sessions/)，把飞书聊天绑定到本机项目目录。
-4. 需要后台自动化时，再配置 [Web Monitor](/docs/web-monitor/)。
-
-## 常用入口
-
-- [产品亮点](/value/)：项目解决的问题和主要价值。
-- [Gateway 与 Web Monitor](/gateway/)：后台自动化和 traceback 监控链路。
-- [核心代码展示](/code/)：关键模块、数据流和工程实现。
-- [AI 亮点](/ai/)：Claude Code、飞书能力和 skills 如何组合成协作型 Agent。
