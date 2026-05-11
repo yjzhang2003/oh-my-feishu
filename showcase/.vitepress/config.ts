@@ -44,6 +44,13 @@ export default defineConfig({
           { text: '部署与网站', link: '/docs/deployment/' },
         ],
       },
+      {
+        text: '开发与排障',
+        items: [
+          { text: '卡片开发规范', link: '/docs/card-development/' },
+          { text: '日志与排障', link: '/docs/logging/' },
+        ],
+      },
     ],
     outline: {
       level: [2, 3],

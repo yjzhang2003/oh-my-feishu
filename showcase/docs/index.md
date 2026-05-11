@@ -18,3 +18,8 @@ description: oh-my-feishu 安装、飞书配置、目录会话和自动化服务
 
 - [插件能力概览](/docs/plugin-capabilities/)：了解 lark-cli、skills 和飞书 API 的能力边界。
 - [部署与网站](/docs/deployment/)：查看 showcase 网站的 VitePress 结构和 Vercel 发布配置。
+
+## 开发与排障
+
+- [卡片开发规范](/docs/card-development/)：维护飞书卡片、CardKit 局部更新和流式回复时需要遵守的约定。
+- [日志与排障](/docs/logging/)：查看 npm 全局安装后的后台日志，并安全收集 debug 信息。

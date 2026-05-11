@@ -41,7 +41,7 @@ Output Directory: showcase/.vitepress/dist
 
 ## 文档发布边界
 
-新增公开文档时，直接在 `showcase/docs/` 下新增 Markdown 文件，并填写 VitePress frontmatter：
+新增公开文档或开发文档时，直接在 `showcase/docs/` 下新增 Markdown 文件，并填写 VitePress frontmatter：
 
 ```yaml
 ---
