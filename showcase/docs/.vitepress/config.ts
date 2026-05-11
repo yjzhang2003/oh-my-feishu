@@ -23,7 +23,6 @@ export default defineConfig({
           { text: '自动化服务', link: '/gateway/' },
           { text: '核心代码', link: '/code/' },
           { text: 'AI 亮点', link: '/ai/' },
-          { text: 'Plugin 与 Skills', link: '/skill/' },
         ],
       },
     ],
@@ -36,16 +35,6 @@ export default defineConfig({
           { text: '飞书配置', link: '/docs/feishu/' },
           { text: '目录会话', link: '/docs/sessions/' },
           { text: 'Web Monitor 自动化', link: '/docs/web-monitor/' },
-        ],
-      },
-      {
-        text: '项目展示',
-        items: [
-          { text: '产品亮点', link: '/value/' },
-          { text: '自动化服务', link: '/gateway/' },
-          { text: '核心代码展示', link: '/code/' },
-          { text: 'AI 亮点', link: '/ai/' },
-          { text: 'Claude plugin 与 skills', link: '/skill/' },
         ],
       },
       {
