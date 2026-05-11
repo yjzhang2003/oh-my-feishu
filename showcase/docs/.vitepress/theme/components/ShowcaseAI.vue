@@ -1,0 +1,90 @@
+<script setup>
+const workflow = [
+  ['飞书入口', '用户在聊天、菜单卡片或后台服务中发起请求。'],
+  ['上下文绑定', '系统绑定 chatId、本地目录和 Claude session，让 AI 在真实项目里工作。'],
+  ['Agent 执行', 'Claude Code 分析代码、调用命令、读取 skills，并按任务类型输出结果。'],
+  ['飞书回传', '结果以消息、流式卡片或自动化卡片回到团队协作空间。'],
+];
+
+const capabilities = [
+  ['仓库级 Coding Agent', '通过 Claude Code 执行真实项目任务，不只是生成文本；支持指定 cwd、运行命令、读取文件、修改代码。', 'src/trigger/invoker.ts'],
+  ['飞书 Tool Use', '用 lark-cli skills 把消息、文档、日历、表格、任务、云盘等飞书能力交给 Claude 按需调用。', 'oh-my-feishu-plugin/skills/lark-chat-guide/SKILL.md'],
+  ['上下文持续性', '把飞书会话、本地目录和 Claude session 绑定，用户离开终端后也能继续已有工作。', 'src/feishu/interactions/session-store.ts'],
+  ['流式可见性', 'Claude Code 的 stream-json 事件被转换成飞书卡片更新，长任务不再像“卡住”。', 'src/feishu/card-kit.ts'],
+  ['事件驱动 AI', 'Web Monitor 从 traceback 变化触发 Claude 分析或修复，让 AI 从被动问答进入后台自动化。', 'src/gateway/features/web-monitor/feature.ts'],
+  ['安全确认链路', '自动化修复支持先分析、再确认、再执行，并用 skills 约束路径、变更规模、验证和 Git 行为。', 'workspace/.claude/skills/web-monitor-auto-repair/SKILL.md'],
+];
+
+const beforeAfter = [
+  ['原来的方式', '用户守在终端前等待 Claude Code；飞书、代码仓库和服务日志互相割裂；错误分析依赖人工发现、复制和转述。'],
+  ['现在的方式', '飞书成为 Claude Code 的协作入口；AI 能在指定目录持续工作；后台事件可以自动触发分析或修复，结果回到飞书沉淀。'],
+];
+
+const roles = [
+  ['人', '授权飞书、选择项目目录、提出目标、确认是否修复、审核最终改动。'],
+  ['AI', '理解自然语言请求，分析代码和 traceback，调用工具，生成回复、修复方案或代码改动。'],
+  ['系统', '负责消息路由、状态保存、会话恢复、事件分发、权限配置和结果回传。'],
+];
+
+const reusable = [
+  ['Plugin 化', '飞书能力以 Claude plugin 和 skills 形式沉淀，可安装到其他项目。'],
+  ['Feature 化', 'Gateway feature 把触发、执行、回传拆开，未来可以扩展日报、CI 修复、审批等任务。'],
+  ['Skill 协议', '不同任务用不同 skill 描述边界和输出格式，降低 Agent 调用工具时的随机性。'],
+  ['真实演示链路', 'CLI onboarding、/menu、目录会话、Web Monitor 都是可操作入口，不只是概念图。'],
+];
+</script>
+
+<template>
+  <div class="showcase-legacy standalone-showcase">
+    <section class="ai-hero">
+      <div>
+        <p class="eyebrow">AI Engineering</p>
+        <h1>把 Claude Code 从终端工具变成飞书里的可执行 Agent</h1>
+        <p>这个项目的 AI 亮点不在“能聊天”，而在于让 Claude Code 带着项目目录、历史会话、飞书工具和后台事件一起工作。用户在飞书里发起任务，AI 在本地仓库执行，结果再回到飞书沉淀。</p>
+      </div>
+      <div class="ai-loop-panel" aria-label="AI 工作闭环">
+        <article v-for="([title, text], index) in workflow" :key="title">
+          <span>{{ String(index + 1).padStart(2, '0') }}</span>
+          <strong>{{ title }}</strong>
+          <p>{{ text }}</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="ai-section">
+      <div class="section-header">
+        <div><p class="eyebrow">Workflow change</p><h2>AI 解决的是工作流断点</h2></div>
+        <p class="section-lead">Claude Code 原本很强，但结果停在终端里；飞书很适合协作，但不了解本地仓库。oh-my-feishu 把两边接成一条可演示的链路。</p>
+      </div>
+      <div class="before-after">
+        <article v-for="[title, text] in beforeAfter" :key="title"><h3>{{ title }}</h3><p>{{ text }}</p></article>
+      </div>
+    </section>
+
+    <section class="ai-section">
+      <div class="section-header"><div><p class="eyebrow">Agent capabilities</p><h2>关键 AI 工程能力</h2></div></div>
+      <div class="ai-capability-grid">
+        <article v-for="[title, text, file] in capabilities" :key="title">
+          <strong>{{ title }}</strong><p>{{ text }}</p><code>{{ file }}</code>
+        </article>
+      </div>
+    </section>
+
+    <section class="ai-section">
+      <div class="section-header">
+        <div><p class="eyebrow">Human in the loop</p><h2>人、AI、系统的分工</h2></div>
+        <p class="section-lead">项目没有把所有权限直接交给 AI，而是把高认知负担交给 Agent，把授权、确认和审核留给人。</p>
+      </div>
+      <div class="role-strip">
+        <article v-for="[title, text] in roles" :key="title"><span>{{ title }}</span><p>{{ text }}</p></article>
+      </div>
+    </section>
+
+    <section class="ai-section">
+      <div class="section-header"><div><p class="eyebrow">Reusable design</p><h2>不只服务当前 Demo</h2></div></div>
+      <div class="ai-capability-grid compact">
+        <article v-for="[title, text] in reusable" :key="title"><strong>{{ title }}</strong><p>{{ text }}</p></article>
+      </div>
+    </section>
+  </div>
+</template>

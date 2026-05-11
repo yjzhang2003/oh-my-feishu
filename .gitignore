@@ -41,12 +41,10 @@ coverage/
 docs/
 docs/QR_ONBOARDING.md
 docs/weekly-summary*.md
-!showcase/src/pages/docs/
-!showcase/src/pages/docs/**
-!showcase/src/pages/api/docs/
-!showcase/src/pages/api/docs/**
-!showcase/src/content/docs/
-!showcase/src/content/docs/**
+!showcase/docs/
+!showcase/docs/**
+showcase/docs/.vitepress/cache/
+showcase/docs/.vitepress/dist/
 
 # Workspace runtime data
 workspace/.claude/*

@@ -4,13 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "astro dev --host 127.0.0.1",
-    "build": "astro build",
-    "preview": "astro preview --host 127.0.0.1"
+    "dev": "vitepress dev docs --host 127.0.0.1",
+    "build": "vitepress build docs",
+    "preview": "vitepress preview docs --host 127.0.0.1"
   },
   "dependencies": {
-    "@astrojs/vercel": "^10.0.6",
-    "astro": "^6.2.2"
+    "vitepress": "^1.6.4"
   },
   "devDependencies": {
     "typescript": "^5.4.0"
