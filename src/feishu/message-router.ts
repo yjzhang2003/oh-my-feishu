@@ -27,6 +27,99 @@ export interface SendMessageFn {
   isConnected(): boolean;
 }
 
+const STREAM_PRINT_FREQUENCY_MS = 70;
+const STREAM_PRINT_STEP = 2;
+const STREAM_STATUS_SETTLE_MS = 250;
+const STREAM_STATUS_MAX_DELAY_MS = 10000;
+
+function extractPostTextNode(node: unknown): string {
+  if (!node || typeof node !== 'object') return '';
+  const item = node as Record<string, unknown>;
+  const tag = item.tag;
+
+  if (tag === 'text') {
+    return typeof item.text === 'string' ? item.text : '';
+  }
+  if (tag === 'a') {
+    return typeof item.text === 'string' ? item.text : '';
+  }
+  if (tag === 'at') {
+    const name = typeof item.user_name === 'string' ? item.user_name : '';
+    return name ? `@${name}` : '';
+  }
+  if (Array.isArray(item.content)) {
+    return item.content.map(extractPostTextNode).join('');
+  }
+
+  return '';
+}
+
+export function extractFeishuMessageText(messageType: string | undefined, rawContent: string): string {
+  try {
+    const content = JSON.parse(rawContent);
+    if (messageType === 'post') {
+      const postContent = content?.zh_cn?.content ?? content?.content;
+      if (!Array.isArray(postContent)) return '';
+      return postContent
+        .map((line: unknown) => Array.isArray(line) ? line.map(extractPostTextNode).join('') : extractPostTextNode(line))
+        .filter((line: string) => line.length > 0)
+        .join('\n');
+    }
+
+    if (typeof content?.text === 'string') {
+      return content.text;
+    }
+    return '';
+  } catch {
+    return rawContent;
+  }
+}
+
+export function extractFinalAssistantText(stdout: string): string {
+  const lines = stdout.trim().split('\n');
+  let assistantText = '';
+  let resultText = '';
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    try {
+      const parsed = JSON.parse(trimmed) as Record<string, unknown>;
+      if (typeof parsed.result === 'string') {
+        resultText = parsed.result;
+      }
+      const message = parsed.message as Record<string, unknown> | undefined;
+      const content = message?.content;
+      if (Array.isArray(content)) {
+        const text = content
+          .map((part) => {
+            if (!part || typeof part !== 'object') return '';
+            const item = part as Record<string, unknown>;
+            return item.type === 'text' && typeof item.text === 'string' ? item.text : '';
+          })
+          .join('');
+        if (text) assistantText = text;
+      }
+    } catch {
+      // Ignore non-JSON output.
+    }
+  }
+
+  return (resultText || assistantText).trim();
+}
+
+function estimateStreamDrainDelay(chars: number): number {
+  if (chars <= 0) return 0;
+  return Math.min(
+    Math.ceil(chars / STREAM_PRINT_STEP) * STREAM_PRINT_FREQUENCY_MS + STREAM_STATUS_SETTLE_MS,
+    STREAM_STATUS_MAX_DELAY_MS
+  );
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export class MessageRouter {
   private inFlightChats = new Map<string, Promise<void>>();
   private sessionManager: SessionManager | null = null;
@@ -55,14 +148,7 @@ export class MessageRouter {
       return;
     }
 
-    // Parse message content
-    let text = '';
-    try {
-      const content = JSON.parse(message.content);
-      text = content.text || '';
-    } catch {
-      text = message.content;
-    }
+    const text = extractFeishuMessageText(message.message_type, message.content);
 
     const chatId = message.chat_id;
     const chatType = message.chat_type;
@@ -79,6 +165,11 @@ export class MessageRouter {
 
     // Send ACK emoji reaction immediately (non-blocking)
     this.sendMessage.sendAckReaction(messageId).catch(() => {});
+
+    if (!text.trim()) {
+      await this.sendMessage.sendTextMessage(chatId, '没能读取到这条消息的文字内容，麻烦重发一遍纯文本。');
+      return;
+    }
 
     // Check for active interaction flow first — flow input (e.g. directory path) may start with /
     const session = this.sessionStore.get(chatId);
@@ -260,6 +351,7 @@ export class MessageRouter {
     let panelCounter = 0;
     let finalTextContent = '';
     let pendingHintDeleted = false;
+    let lastContentUpdateChars = 0;
     // Accumulated full text per element — updateCardContent sends FULL text (not delta)
     const accumulated = new Map<string, string>();
     // Throttle: max ~8 updates/sec to stay under Feishu's 10 ops/sec limit
@@ -282,6 +374,7 @@ export class MessageRouter {
       const prev = accumulated.get(currentMdId) || '';
       const full = prev + delta;
       accumulated.set(currentMdId, full);
+      lastContentUpdateChars = delta.length;
       log.info('chat', 'doFlushText', { elementId: currentMdId, contentLen: full.length, deltaLen: delta.length });
       await this.cardKitManager?.updateCardContent(cardId, currentMdId, full, sequence++);
     };
@@ -295,6 +388,47 @@ export class MessageRouter {
       accumulated.set(currentMdId, full);
       log.info('chat', 'doFlushThinking', { elementId: currentMdId, contentLen: full.length, deltaLen: delta.length });
       await this.cardKitManager?.updateCardContent(cardId, currentMdId, full, sequence++);
+    };
+
+    const ensureTextElement = async () => {
+      if (!cardId || !this.cardKitManager) return null;
+      if (currentMode === 'text' && currentMdId) return currentMdId;
+      await deletePendingHint();
+      await flushThinkingImmediate();
+      currentMode = 'text';
+      const mdId = nextMdId();
+      const ok = await this.cardKitManager.addCardElements(cardId, [{
+        tag: 'markdown',
+        content: '',
+        element_id: mdId,
+        text_size: 'normal',
+      }], 'append', undefined, sequence++);
+      if (!ok) return null;
+      currentMdId = mdId;
+      return mdId;
+    };
+
+    const reconcileFinalText = async (stdout: string) => {
+      if (!cardId || !this.cardKitManager) return;
+      const finalResultText = extractFinalAssistantText(stdout);
+      if (!finalResultText) return;
+
+      const streamedText = finalTextContent.trim();
+      if (streamedText === finalResultText.trim()) return;
+
+      const mdId = await ensureTextElement();
+      if (!mdId) return;
+
+      let contentToRender = finalResultText;
+      let missingChars = finalResultText.length;
+      if (finalTextContent && finalResultText.startsWith(finalTextContent)) {
+        missingChars = finalResultText.length - finalTextContent.length;
+      }
+
+      accumulated.set(mdId, contentToRender);
+      finalTextContent = contentToRender;
+      lastContentUpdateChars = missingChars;
+      await this.cardKitManager.updateCardContent(cardId, mdId, contentToRender, sequence++);
     };
 
     const scheduleTextFlush = () => {
@@ -446,8 +580,13 @@ export class MessageRouter {
           return;
         }
         if (this.cardKitManager) {
+          await reconcileFinalText(result.stdout);
           const summarySource = finalTextContent.trim();
           const summaryText = summarySource.slice(0, 100) || '回复完成';
+          const drainDelay = estimateStreamDrainDelay(lastContentUpdateChars);
+          if (drainDelay > 0) {
+            await sleep(drainDelay);
+          }
           await this.cardKitManager.updateCardProps(cardId, 'status_tag', {
             text: { tag: 'plain_text', content: '已完成' },
             color: 'green',
@@ -554,7 +693,7 @@ export class MessageRouter {
       }
     }
 
-    const trimmedReply = replyText.trim();
+    const trimmedReply = replyText.trim() || extractFinalAssistantText(result.stdout);
     if (trimmedReply) {
       await this.sendMessage.sendTextMessage(chatId, trimmedReply);
     }
