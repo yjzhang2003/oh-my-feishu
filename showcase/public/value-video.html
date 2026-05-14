@@ -1,0 +1,630 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>oh-my-feishu 15s Showcase</title>
+    <style>
+      :root {
+        --ink: #101828;
+        --muted: #5d6b82;
+        --paper: #f7f5ef;
+        --blue: #1462ff;
+        --teal: #00a78e;
+        --red: #ff4d3d;
+        --line: rgba(16, 24, 40, 0.14);
+        --shadow: 0 26px 90px rgba(16, 24, 40, 0.24);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: #0d1118;
+        color: var(--ink);
+        font-family:
+          "Avenir Next", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC",
+          sans-serif;
+      }
+
+      body {
+        display: grid;
+        place-items: center;
+      }
+
+      .stage {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        min-width: 960px;
+        min-height: 540px;
+        overflow: hidden;
+        isolation: isolate;
+        background:
+          linear-gradient(90deg, rgba(20, 98, 255, 0.1) 1px, transparent 1px),
+          linear-gradient(rgba(16, 24, 40, 0.08) 1px, transparent 1px),
+          radial-gradient(circle at 14% 18%, rgba(255, 77, 61, 0.2), transparent 28%),
+          radial-gradient(circle at 78% 24%, rgba(0, 167, 142, 0.2), transparent 26%),
+          var(--paper);
+        background-size: 72px 72px, 72px 72px, auto, auto, auto;
+      }
+
+      .stage::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        opacity: 0.24;
+        background-image:
+          linear-gradient(115deg, transparent 0 45%, rgba(16, 24, 40, 0.12) 45% 46%, transparent 46%),
+          repeating-linear-gradient(0deg, rgba(16, 24, 40, 0.08) 0 1px, transparent 1px 9px);
+        animation: drift 15s linear both;
+      }
+
+      .brand {
+        position: absolute;
+        left: 42px;
+        top: 34px;
+        z-index: 10;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        color: var(--ink);
+        font-weight: 900;
+        letter-spacing: 0;
+      }
+
+      .brand img {
+        width: 38px;
+        height: 38px;
+        border-radius: 9px;
+        box-shadow: 0 12px 32px rgba(20, 98, 255, 0.28);
+      }
+
+      .timer {
+        position: absolute;
+        right: 42px;
+        top: 42px;
+        z-index: 10;
+        width: 200px;
+        height: 4px;
+        background: rgba(16, 24, 40, 0.16);
+      }
+
+      .timer::after {
+        content: "";
+        display: block;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, var(--blue), var(--teal), var(--red));
+        transform-origin: left center;
+        animation: timer 15s linear both;
+      }
+
+      .scene {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        grid-template-columns: minmax(420px, 0.9fr) minmax(520px, 1.1fr);
+        gap: 56px;
+        align-items: center;
+        padding: 92px 72px 58px;
+        opacity: 0;
+        transform: translateY(28px) scale(0.985);
+        pointer-events: none;
+      }
+
+      .scene-1 {
+        animation: sceneOne 15s ease both;
+      }
+
+      .scene-2 {
+        animation: sceneTwo 15s ease both;
+      }
+
+      .scene-3 {
+        animation: sceneThree 15s ease both;
+      }
+
+      .scene-4 {
+        grid-template-columns: 1fr;
+        justify-items: center;
+        text-align: center;
+        animation: sceneFour 15s ease both;
+      }
+
+      .kicker {
+        display: inline-flex;
+        width: fit-content;
+        margin-bottom: 20px;
+        padding: 8px 10px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.54);
+        color: var(--muted);
+        font: 900 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2 {
+        margin: 0;
+        letter-spacing: 0;
+      }
+
+      h1 {
+        max-width: 780px;
+        font-size: clamp(58px, 7.2vw, 116px);
+        line-height: 0.92;
+      }
+
+      h2 {
+        max-width: 760px;
+        font-size: clamp(44px, 5.1vw, 82px);
+        line-height: 0.98;
+      }
+
+      .accent {
+        color: var(--blue);
+      }
+
+      .copy {
+        max-width: 600px;
+        margin: 24px 0 0;
+        color: var(--muted);
+        font-size: clamp(20px, 2vw, 30px);
+        font-weight: 700;
+        line-height: 1.32;
+      }
+
+      .hero-stack {
+        position: relative;
+        min-height: 570px;
+      }
+
+      .phone {
+        position: absolute;
+        right: 5%;
+        top: 4%;
+        width: min(38vw, 430px);
+        overflow: hidden;
+        border: 10px solid #111827;
+        border-radius: 36px;
+        background: #fff;
+        box-shadow: var(--shadow);
+        transform: rotate(2.5deg);
+        animation: phoneIn 15s ease both;
+      }
+
+      .phone img {
+        display: block;
+        width: 100%;
+        height: 620px;
+        object-fit: cover;
+        object-position: top center;
+      }
+
+      .terminal {
+        position: absolute;
+        left: 1%;
+        bottom: 8%;
+        width: min(39vw, 520px);
+        padding: 18px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: #101828;
+        color: #ecfdf5;
+        box-shadow: var(--shadow);
+        transform: rotate(-3deg);
+        animation: terminalIn 15s ease both;
+      }
+
+      .terminal p {
+        margin: 0 0 10px;
+        color: #98a2b3;
+        font: 800 14px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      .terminal strong {
+        color: #62f2c2;
+      }
+
+      .value-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .value-card {
+        min-height: 170px;
+        padding: 24px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.74);
+        box-shadow: 0 18px 52px rgba(16, 24, 40, 0.1);
+        animation: cardLift 15s ease both;
+      }
+
+      .value-card:nth-child(2) {
+        animation-delay: 120ms;
+      }
+
+      .value-card:nth-child(3) {
+        animation-delay: 240ms;
+      }
+
+      .value-card:nth-child(4) {
+        animation-delay: 360ms;
+      }
+
+      .value-card b {
+        display: block;
+        margin-bottom: 12px;
+        color: var(--blue);
+        font-size: 17px;
+      }
+
+      .value-card span {
+        display: block;
+        color: var(--ink);
+        font-size: clamp(22px, 2.2vw, 34px);
+        font-weight: 900;
+        line-height: 1.12;
+      }
+
+      .monitor-board {
+        display: grid;
+        gap: 14px;
+        padding: 26px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.74);
+        box-shadow: var(--shadow);
+      }
+
+      .monitor-shot {
+        overflow: hidden;
+        border: 1px solid var(--line);
+        background: #fff;
+      }
+
+      .monitor-shot img {
+        display: block;
+        width: 100%;
+        height: 370px;
+        object-fit: cover;
+        object-position: top center;
+      }
+
+      .pipeline {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .step {
+        min-height: 92px;
+        padding: 14px;
+        background: #101828;
+        color: #fff;
+        font-weight: 900;
+        line-height: 1.18;
+      }
+
+      .step small {
+        display: block;
+        margin-bottom: 8px;
+        color: #62f2c2;
+        font: 900 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      .metric-strip {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        width: min(1120px, 86vw);
+        gap: 14px;
+        margin-top: 36px;
+      }
+
+      .metric {
+        padding: 22px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: #101828;
+        color: #fff;
+        text-align: left;
+      }
+
+      .metric b {
+        display: block;
+        margin-bottom: 8px;
+        color: #62f2c2;
+        font-size: clamp(32px, 4vw, 58px);
+        line-height: 1;
+      }
+
+      .metric span {
+        color: #d0d5dd;
+        font-size: 17px;
+        font-weight: 800;
+      }
+
+      .final-logo {
+        width: 92px;
+        height: 92px;
+        margin-bottom: 26px;
+        border-radius: 22px;
+        box-shadow: 0 24px 70px rgba(20, 98, 255, 0.36);
+      }
+
+      .final-title {
+        max-width: 1180px;
+        font-size: clamp(56px, 7.4vw, 124px);
+        line-height: 0.94;
+      }
+
+      .final-copy {
+        max-width: 940px;
+        margin: 24px auto 0;
+        color: var(--muted);
+        font-size: clamp(22px, 2.4vw, 34px);
+        font-weight: 800;
+        line-height: 1.3;
+      }
+
+      .replay {
+        position: absolute;
+        right: 36px;
+        bottom: 30px;
+        z-index: 20;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.82);
+        color: var(--ink);
+        cursor: pointer;
+        font: 900 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      @keyframes sceneOne {
+        0%,
+        28% {
+          opacity: 1;
+          transform: none;
+        }
+        33%,
+        100% {
+          opacity: 0;
+          transform: translateY(-30px) scale(1.01);
+        }
+      }
+
+      @keyframes sceneTwo {
+        0%,
+        30% {
+          opacity: 0;
+          transform: translateY(34px) scale(0.985);
+        }
+        36%,
+        58% {
+          opacity: 1;
+          transform: none;
+        }
+        64%,
+        100% {
+          opacity: 0;
+          transform: translateY(-26px) scale(1.01);
+        }
+      }
+
+      @keyframes sceneThree {
+        0%,
+        60% {
+          opacity: 0;
+          transform: translateY(34px) scale(0.985);
+        }
+        66%,
+        82% {
+          opacity: 1;
+          transform: none;
+        }
+        87%,
+        100% {
+          opacity: 0;
+          transform: translateY(-20px) scale(1.012);
+        }
+      }
+
+      @keyframes sceneFour {
+        0%,
+        84% {
+          opacity: 0;
+          transform: translateY(34px) scale(0.985);
+        }
+        90%,
+        100% {
+          opacity: 1;
+          transform: none;
+        }
+      }
+
+      @keyframes timer {
+        from {
+          transform: scaleX(0);
+        }
+        to {
+          transform: scaleX(1);
+        }
+      }
+
+      @keyframes drift {
+        from {
+          transform: translateX(-2%) translateY(-1%);
+        }
+        to {
+          transform: translateX(2%) translateY(1%);
+        }
+      }
+
+      @keyframes phoneIn {
+        0% {
+          transform: translateX(80px) rotate(8deg);
+        }
+        12%,
+        28% {
+          transform: rotate(2.5deg);
+        }
+      }
+
+      @keyframes terminalIn {
+        0% {
+          transform: translateY(60px) rotate(-7deg);
+        }
+        14%,
+        28% {
+          transform: rotate(-3deg);
+        }
+      }
+
+      @keyframes cardLift {
+        0%,
+        32% {
+          opacity: 0;
+          transform: translateY(24px);
+        }
+        42%,
+        58% {
+          opacity: 1;
+          transform: none;
+        }
+      }
+
+      @media (max-aspect-ratio: 4 / 3) {
+        .stage {
+          min-width: 390px;
+        }
+
+        .scene {
+          grid-template-columns: 1fr;
+          gap: 28px;
+          padding: 92px 28px 48px;
+        }
+
+        .hero-stack {
+          min-height: 430px;
+        }
+
+        .phone {
+          width: min(70vw, 360px);
+          right: 3%;
+        }
+
+        .terminal {
+          width: min(78vw, 460px);
+        }
+
+        .value-grid,
+        .metric-strip,
+        .pipeline {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="stage" id="stage" aria-label="oh-my-feishu 15 秒项目展示视频">
+      <div class="brand">
+        <img src="/icon-192.png" alt="" />
+        <span>oh-my-feishu</span>
+      </div>
+      <div class="timer" aria-hidden="true"></div>
+
+      <section class="scene scene-1">
+        <div>
+          <span class="kicker">0-4s / Core value</span>
+          <h1>把 Claude Code 带进<span class="accent">飞书协作现场</span></h1>
+          <p class="copy">不用守在终端前，在飞书里发起项目问答、代码修改、测试验证和结果总结。</p>
+        </div>
+        <div class="hero-stack">
+          <figure class="phone">
+            <img src="/pics/talk-demo.gif" alt="飞书内对话演示" />
+          </figure>
+          <div class="terminal" aria-hidden="true">
+            <p>$ oh-my-feishu</p>
+            <p><strong>Feishu</strong> connected</p>
+            <p><strong>Claude Code</strong> ready</p>
+            <p><strong>Project cwd</strong> /local/repo</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene scene-2">
+        <div>
+          <span class="kicker">5-9s / Product highlights</span>
+          <h2>从聊天入口到项目上下文，关键动作都可点击</h2>
+          <p class="copy">菜单卡片、目录绑定、历史 session 恢复和 lark-cli skills 组成完整使用闭环。</p>
+        </div>
+        <div class="value-grid">
+          <article class="value-card">
+            <b>01</b>
+            <span>飞书内直接使用 Claude Code</span>
+          </article>
+          <article class="value-card">
+            <b>02</b>
+            <span>/menu 管理工作上下文</span>
+          </article>
+          <article class="value-card">
+            <b>03</b>
+            <span>绑定本地目录执行真实项目任务</span>
+          </article>
+          <article class="value-card">
+            <b>04</b>
+            <span>恢复历史 Claude Code 会话</span>
+          </article>
+        </div>
+      </section>
+
+      <section class="scene scene-3">
+        <div>
+          <span class="kicker">10-13s / Automation</span>
+          <h2>Web Monitor 让 AI 从被动问答变成事件驱动</h2>
+          <p class="copy">traceback 变化触发分析或修复，结论再通过飞书卡片回到团队沟通链路。</p>
+        </div>
+        <div class="monitor-board">
+          <div class="monitor-shot">
+            <img src="/pics/web-monitor.png" alt="Web Monitor 服务监控界面" />
+          </div>
+          <div class="pipeline" aria-label="自动化流程">
+            <div class="step"><small>LOG</small>监听错误</div>
+            <div class="step"><small>AI</small>分析根因</div>
+            <div class="step"><small>FIX</small>可控修复</div>
+            <div class="step"><small>CARD</small>飞书回传</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="scene scene-4">
+        <img class="final-logo" src="/icon-192.png" alt="" />
+        <h2 class="final-title">飞书入口、本地代码、协作沉淀、后台自动化</h2>
+        <p class="final-copy">oh-my-feishu 把 Claude Code 扩展成团队可见、可操作、可复用的开发协作 Agent。</p>
+        <div class="metric-strip">
+          <div class="metric"><b>60+</b><span>TypeScript 模块</span></div>
+          <div class="metric"><b>19</b><span>测试文件</span></div>
+          <div class="metric"><b>4</b><span>安全 Guard</span></div>
+          <div class="metric"><b>15s</b><span>项目展示视频页</span></div>
+        </div>
+      </section>
+
+      <button class="replay" type="button" onclick="replay()">REPLAY</button>
+    </main>
+
+    <script>
+      function replay() {
+        const stage = document.getElementById("stage");
+        const clone = stage.cloneNode(true);
+        stage.replaceWith(clone);
+      }
+    </script>
+  </body>
+</html>
